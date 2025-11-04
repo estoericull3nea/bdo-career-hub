@@ -341,7 +341,8 @@ class JPM_Form_Builder
         ?>
         <div class="jpm-application-form-wrapper">
             <h3><?php _e('Apply for this Position', 'job-posting-manager'); ?></h3>
-            <form id="jpm-application-form" class="jpm-application-form" method="post" enctype="multipart/form-data">
+            <form id="jpm-application-form" class="jpm-application-form" method="post" enctype="multipart/form-data" action="#"
+                novalidate>
                 <?php wp_nonce_field('jpm_application_form', 'jpm_application_nonce'); ?>
                 <input type="hidden" name="job_id" value="<?php echo esc_attr($post->ID); ?>">
 
@@ -510,7 +511,10 @@ class JPM_Form_Builder
      */
     public function handle_form_submission()
     {
-        check_ajax_referer('jpm_application_nonce', 'jpm_application_nonce');
+        // Verify nonce
+        if (!isset($_POST['jpm_application_nonce']) || !wp_verify_nonce($_POST['jpm_application_nonce'], 'jpm_application_form')) {
+            wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'job-posting-manager')]);
+        }
 
         if (!is_user_logged_in()) {
             wp_send_json_error(['message' => __('Please log in to apply.', 'job-posting-manager')]);
@@ -606,17 +610,41 @@ class JPM_Form_Builder
         $application_id = $wpdb->insert_id;
 
         // Send confirmation email to applicant
+        $email_errors = [];
         if (class_exists('JPM_Emails')) {
-            JPM_Emails::send_confirmation($application_id);
+            try {
+                $result = JPM_Emails::send_confirmation($application_id);
+                if (!$result) {
+                    $email_errors[] = __('Failed to send confirmation email to applicant.', 'job-posting-manager');
+                }
+            } catch (Exception $e) {
+                $email_errors[] = __('Error sending confirmation email: ', 'job-posting-manager') . $e->getMessage();
+            }
         }
 
         // Send admin notification email
         if (class_exists('JPM_Emails')) {
-            JPM_Emails::send_admin_notification($application_id, $job_id, $form_data);
+            try {
+                $result = JPM_Emails::send_admin_notification($application_id, $job_id, $form_data);
+                if (!$result) {
+                    $email_errors[] = __('Failed to send notification email to admin.', 'job-posting-manager');
+                }
+            } catch (Exception $e) {
+                $email_errors[] = __('Error sending admin notification: ', 'job-posting-manager') . $e->getMessage();
+            }
+        }
+
+        // Prepare success message
+        $message = __('Application submitted successfully!', 'job-posting-manager');
+        if (!empty($email_errors)) {
+            $message .= ' ' . __('Note: Some emails may not have been sent.', 'job-posting-manager');
+            // Log email errors for debugging
+            error_log('JPM Email Errors: ' . implode(' | ', $email_errors));
         }
 
         wp_send_json_success([
-            'message' => __('Application submitted successfully!', 'job-posting-manager')
+            'message' => $message,
+            'email_errors' => $email_errors
         ]);
     }
 }

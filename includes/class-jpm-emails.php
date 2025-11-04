@@ -3,10 +3,26 @@ class JPM_Emails
 {
     public static function send_confirmation($app_id)
     {
-        $settings = get_option('jpm_settings');
-        $subject = str_replace('[Application ID]', $app_id, $settings['confirmation_subject']);
-        $body = str_replace(['[Applicant Name]', '[Job Title]'], [wp_get_current_user()->display_name, get_the_title($_POST['job_id'])], $settings['confirmation_body']);
-        wp_mail(wp_get_current_user()->user_email, $subject, $body);
+        $settings = get_option('jpm_settings', []);
+        $user = wp_get_current_user();
+
+        // Default subject and body if not set
+        $subject = !empty($settings['confirmation_subject'])
+            ? str_replace('[Application ID]', $app_id, $settings['confirmation_subject'])
+            : sprintf(__('Application Confirmation #%s', 'job-posting-manager'), $app_id);
+
+        $body = !empty($settings['confirmation_body'])
+            ? str_replace(['[Applicant Name]', '[Job Title]'], [wp_get_current_user()->display_name, get_the_title($_POST['job_id'] ?? '')], $settings['confirmation_body'])
+            : sprintf(__('Hello %s,\n\nThank you for your application. Your application ID is #%s.\n\nWe will review your application and get back to you soon.', 'job-posting-manager'), $user->display_name, $app_id);
+
+        $result = wp_mail($user->user_email, $subject, $body);
+
+        // Log email sending attempt
+        if (!$result) {
+            error_log('JPM: Failed to send confirmation email to ' . $user->user_email);
+        }
+
+        return $result;
     }
 
     public static function send_status_update($app_id)
@@ -82,7 +98,14 @@ class JPM_Emails
             'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
         ];
 
-        // Send email
-        wp_mail($admin_email, $subject, $body, $headers);
+        // Send email and return result
+        $result = wp_mail($admin_email, $subject, $body, $headers);
+
+        // Log email sending attempt
+        if (!$result) {
+            error_log('JPM: Failed to send admin notification email to ' . $admin_email);
+        }
+
+        return $result;
     }
 }

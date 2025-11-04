@@ -25,6 +25,7 @@ require_once JPM_PLUGIN_DIR . 'includes/class-jpm-admin.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-frontend.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-emails.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-settings.php';
+require_once JPM_PLUGIN_DIR . 'includes/class-jpm-smtp.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-form-builder.php';
 
 // Activation hook
@@ -32,6 +33,7 @@ register_activation_hook(__FILE__, 'jpm_activate_plugin');
 function jpm_activate_plugin()
 {
     JPM_DB::create_tables();
+    JPM_SMTP::init_default_settings();
     flush_rewrite_rules();
 }
 
@@ -110,9 +112,20 @@ function jpm_load_textdomain()
     load_plugin_textdomain('job-posting-manager', false, dirname(plugin_basename(__FILE__)) . '/languages/');
 }
 
+// Initialize SMTP settings on plugin load
+add_action('plugins_loaded', 'jpm_init_smtp_settings');
+function jpm_init_smtp_settings()
+{
+    // Initialize default SMTP settings if not already set
+    if (get_option('jpm_smtp_settings') === false) {
+        JPM_SMTP::init_default_settings();
+    }
+}
+
 // Initialize classes
 new JPM_Admin();
 new JPM_Frontend();
 new JPM_Emails();
 new JPM_Settings();
+new JPM_SMTP();
 new JPM_Form_Builder();
