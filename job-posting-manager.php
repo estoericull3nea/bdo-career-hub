@@ -48,7 +48,7 @@ function jpm_deactivate_plugin()
 add_action('wp_enqueue_scripts', 'jpm_enqueue_frontend_scripts');
 function jpm_enqueue_frontend_scripts()
 {
-    wp_enqueue_style('jpm-frontend-styles', JPM_PLUGIN_URL . 'assets/css/jpm-styles.css', [], JPM_VERSION);
+    wp_enqueue_style('jpm-frontend-styles', JPM_PLUGIN_URL . 'assets/css/jpm-frontend.css', [], JPM_VERSION);
     wp_enqueue_script('jpm-frontend-js', JPM_PLUGIN_URL . 'assets/js/jpm-frontend.js', ['jquery'], JPM_VERSION, true);
     wp_localize_script('jpm-frontend-js', 'jpm_ajax', [
         'ajax_url' => admin_url('admin-ajax.php'),
@@ -80,7 +80,7 @@ function jpm_enqueue_admin_scripts($hook)
     }
 
     if ($is_jpm_page || $is_job_posting) {
-        wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-styles.css', [], JPM_VERSION);
+        wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-admin.css', [], JPM_VERSION);
         wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jquery-ui-sortable'], JPM_VERSION, true);
         wp_localize_script('jpm-admin-js', 'jpm_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),

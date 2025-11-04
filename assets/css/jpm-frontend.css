@@ -13,121 +13,6 @@
   }
 }
 
-/* Form Builder Admin Styles */
-#jpm-form-builder {
-  margin: 20px 0;
-}
-
-.jpm-form-builder-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #ddd;
-}
-
-.jpm-form-builder-header h3 {
-  margin: 0;
-}
-
-#jpm-field-types {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 15px;
-  margin-bottom: 20px;
-}
-
-.jpm-field-types-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.jpm-field-type-btn {
-  padding: 8px 12px;
-  text-align: center;
-}
-
-.jpm-form-fields-container {
-  margin-top: 20px;
-}
-
-.jpm-field-editor {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  transition: all 0.3s ease;
-}
-
-.jpm-field-editor:hover {
-  border-color: #0073aa;
-}
-
-.jpm-field-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  background: #f9f9f9;
-  border-bottom: 1px solid #ddd;
-  cursor: move;
-}
-
-.jpm-field-handle {
-  margin-right: 10px;
-  color: #666;
-  cursor: move;
-}
-
-.jpm-field-title {
-  flex: 1;
-  margin: 0 10px;
-  font-weight: 600;
-}
-
-.jpm-field-type-badge {
-  background: #0073aa;
-  color: #fff;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  text-transform: uppercase;
-  margin-right: 10px;
-}
-
-.jpm-field-toggle,
-.jpm-field-remove {
-  margin-left: 5px;
-  text-decoration: none;
-}
-
-.jpm-field-content {
-  padding: 15px;
-}
-
-.jpm-field-content .form-table {
-  margin: 0;
-}
-
-.jpm-field-content .form-table th {
-  width: 150px;
-  padding: 10px 0;
-}
-
-.jpm-field-content .form-table td {
-  padding: 10px 0;
-}
-
-.jpm-field-content input[type="text"],
-.jpm-field-content textarea,
-.jpm-field-content select {
-  width: 100%;
-  max-width: 500px;
-}
-
 /* Frontend Application Form Styles */
 .jpm-application-form-wrapper {
   margin: 30px 0;
@@ -392,7 +277,7 @@
   content: "i";
 }
 
-/* Responsive styles */
+/* Frontend Responsive styles */
 @media (max-width: 768px) {
   #jpm-toast-container {
     top: 10px;
@@ -408,27 +293,5 @@
 
   .jpm-toast.show {
     transform: translateY(0);
-  }
-}
-
-@media (max-width: 768px) {
-  .jpm-form-builder-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  #jpm-add-field-btn {
-    margin-top: 10px;
-  }
-
-  .jpm-field-types-grid {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  }
-
-  .jpm-field-content .form-table th,
-  .jpm-field-content .form-table td {
-    display: block;
-    width: 100%;
-    padding: 5px 0;
   }
 }
