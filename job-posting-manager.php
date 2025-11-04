@@ -58,16 +58,32 @@ add_action('admin_enqueue_scripts', 'jpm_enqueue_admin_scripts');
 function jpm_enqueue_admin_scripts($hook)
 {
     // Enqueue for job posting edit screens and admin pages
-    if (strpos($hook, 'jpm') !== false || $hook === 'post.php' || $hook === 'post-new.php') {
+    $is_jpm_page = strpos($hook, 'jpm') !== false;
+    $is_post_edit = ($hook === 'post.php' || $hook === 'post-new.php');
+
+    // Check if we're on a job posting edit screen
+    $is_job_posting = false;
+    if ($is_post_edit) {
         global $post_type;
-        if ($post_type === 'job_posting' || strpos($hook, 'jpm') !== false) {
-            wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-styles.css', [], JPM_VERSION);
-            wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jquery-ui-sortable'], JPM_VERSION, true);
-            wp_localize_script('jpm-admin-js', 'jpm_ajax', [
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('jpm_nonce')
-            ]);
+        if (isset($post_type) && $post_type === 'job_posting') {
+            $is_job_posting = true;
+        } elseif (isset($_GET['post_type']) && $_GET['post_type'] === 'job_posting') {
+            $is_job_posting = true;
+        } elseif (isset($_GET['post'])) {
+            $post_id = intval($_GET['post']);
+            if ($post_id && get_post_type($post_id) === 'job_posting') {
+                $is_job_posting = true;
+            }
         }
+    }
+
+    if ($is_jpm_page || $is_job_posting) {
+        wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-styles.css', [], JPM_VERSION);
+        wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jquery-ui-sortable'], JPM_VERSION, true);
+        wp_localize_script('jpm-admin-js', 'jpm_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('jpm_nonce')
+        ]);
     }
 }
 
