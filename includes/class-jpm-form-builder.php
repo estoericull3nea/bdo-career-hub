@@ -601,9 +601,18 @@ class JPM_Form_Builder
             wp_send_json_error(['message' => $result->get_error_message()]);
         }
 
-        // Send confirmation email
+        // Get application ID from database insert
+        global $wpdb;
+        $application_id = $wpdb->insert_id;
+
+        // Send confirmation email to applicant
         if (class_exists('JPM_Emails')) {
-            JPM_Emails::send_confirmation($result);
+            JPM_Emails::send_confirmation($application_id);
+        }
+
+        // Send admin notification email
+        if (class_exists('JPM_Emails')) {
+            JPM_Emails::send_admin_notification($application_id, $job_id, $form_data);
         }
 
         wp_send_json_success([
