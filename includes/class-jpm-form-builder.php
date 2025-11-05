@@ -29,7 +29,7 @@ class JPM_Form_Builder
             [$this, 'form_builder_meta_box'],
             'job_posting',
             'normal',
-            'high'
+            'default' // Lower priority than template selector
         );
     }
 
@@ -397,7 +397,21 @@ class JPM_Form_Builder
 
             case 'select':
                 $options_html = '<option value="">' . __('Select...', 'job-posting-manager') . '</option>';
-                if (!empty($field['options'])) {
+
+                // Check if this is a position choice field that needs dynamic job options
+                if (in_array($field['name'], ['position_1st_choice', 'position_2nd_choice', 'position_3rd_choice'])) {
+                    // Get all published job postings
+                    $jobs = get_posts([
+                        'post_type' => 'job_posting',
+                        'posts_per_page' => -1,
+                        'post_status' => 'publish',
+                        'orderby' => 'title',
+                        'order' => 'ASC'
+                    ]);
+                    foreach ($jobs as $job) {
+                        $options_html .= sprintf('<option value="%s">%s</option>', esc_attr($job->post_title), esc_html($job->post_title));
+                    }
+                } elseif (!empty($field['options'])) {
                     $options = explode("\n", $field['options']);
                     foreach ($options as $option) {
                         $option = trim($option);

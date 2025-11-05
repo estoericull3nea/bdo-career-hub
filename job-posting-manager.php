@@ -26,6 +26,7 @@ require_once JPM_PLUGIN_DIR . 'includes/class-jpm-frontend.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-emails.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-settings.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-smtp.php';
+require_once JPM_PLUGIN_DIR . 'includes/class-jpm-templates.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-form-builder.php';
 
 // Activation hook
@@ -34,6 +35,7 @@ function jpm_activate_plugin()
 {
     JPM_DB::create_tables();
     JPM_SMTP::init_default_settings();
+    JPM_Templates::init_default_template();
     flush_rewrite_rules();
 }
 
@@ -122,10 +124,21 @@ function jpm_init_smtp_settings()
     }
 }
 
+// Initialize default template on plugin load
+add_action('plugins_loaded', 'jpm_init_default_template');
+function jpm_init_default_template()
+{
+    $templates = get_option('jpm_form_templates', []);
+    if (empty($templates)) {
+        JPM_Templates::init_default_template();
+    }
+}
+
 // Initialize classes
 new JPM_Admin();
 new JPM_Frontend();
 new JPM_Emails();
 new JPM_Settings();
 new JPM_SMTP();
+new JPM_Templates();
 new JPM_Form_Builder();
