@@ -96,17 +96,78 @@ class JPM_Form_Builder
             </div>
 
             <div id="jpm-form-fields-container" class="jpm-form-fields-container">
-                <?php if (!empty($form_fields)): ?>
-                    <?php foreach ($form_fields as $index => $field): ?>
-                        <?php $this->render_field_editor($field, $index); ?>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <div class="jpm-form-rows">
+                    <?php if (!empty($form_fields)): ?>
+                        <?php
+                        // Group fields into rows based on column width
+                        $current_row = [];
+                        $current_row_width = 0;
+                        $row_index = 0;
+                        foreach ($form_fields as $index => $field):
+                            $column_width = intval($field['column_width'] ?? 12);
+
+                            // If adding this field would exceed 12 columns, start a new row
+                            if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                                $this->render_field_row($current_row, $row_index);
+                                $current_row = [];
+                                $current_row_width = 0;
+                                $row_index++;
+                            }
+
+                            $current_row[] = ['field' => $field, 'index' => $index, 'column_width' => $column_width];
+                            $current_row_width += $column_width;
+
+                            // If row is full (12 columns), render it
+                            if ($current_row_width >= 12) {
+                                $this->render_field_row($current_row, $row_index);
+                                $current_row = [];
+                                $current_row_width = 0;
+                                $row_index++;
+                            }
+                        endforeach;
+
+                        // Render any remaining fields
+                        if (!empty($current_row)) {
+                            $this->render_field_row($current_row, $row_index);
+                        }
+                        ?>
+                    <?php else: ?>
+                        <div class="jpm-form-row" data-row-index="0">
+                            <div class="jpm-column-drop-zone" data-col-index="0"></div>
+                            <div class="jpm-column-drop-zone" data-col-index="1"></div>
+                            <div class="jpm-column-drop-zone" data-col-index="2"></div>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <input type="hidden" name="jpm_form_fields_json" id="jpm-form-fields-json"
                 value="<?php echo esc_attr(json_encode($form_fields)); ?>">
         </div>
         <?php
+    }
+
+    /**
+     * Render a row of fields for drag-and-drop
+     */
+    private function render_field_row($row_fields, $row_index)
+    {
+        echo '<div class="jpm-form-row" data-row-index="' . esc_attr($row_index) . '">';
+
+        // Render fields in the row
+        foreach ($row_fields as $col_index => $row_field) {
+            echo '<div class="jpm-form-column" data-col-index="' . esc_attr($col_index) . '">';
+            $this->render_field_editor($row_field['field'], $row_field['index']);
+            echo '</div>';
+        }
+
+        // Add empty drop zones for remaining columns (max 3)
+        $field_count = count($row_fields);
+        for ($i = $field_count; $i < 3; $i++) {
+            echo '<div class="jpm-column-drop-zone" data-col-index="' . esc_attr($i) . '"></div>';
+        }
+
+        echo '</div>';
     }
 
     /**
@@ -236,22 +297,10 @@ class JPM_Form_Builder
                     <tr>
                         <th><label><?php _e('Column Width', 'job-posting-manager'); ?></label></th>
                         <td>
-                            <select class="jpm-field-column-width">
-                                <option value="12" <?php selected($field['column_width'] ?? '12', '12'); ?>>
-                                    <?php _e('Full Width (12 columns)', 'job-posting-manager'); ?></option>
-                                <option value="9" <?php selected($field['column_width'] ?? '12', '9'); ?>>
-                                    <?php _e('Three Fourths (9 columns)', 'job-posting-manager'); ?></option>
-                                <option value="8" <?php selected($field['column_width'] ?? '12', '8'); ?>>
-                                    <?php _e('Two Thirds (8 columns)', 'job-posting-manager'); ?></option>
-                                <option value="6" <?php selected($field['column_width'] ?? '12', '6'); ?>>
-                                    <?php _e('Half Width (6 columns)', 'job-posting-manager'); ?></option>
-                                <option value="4" <?php selected($field['column_width'] ?? '12', '4'); ?>>
-                                    <?php _e('One Third (4 columns)', 'job-posting-manager'); ?></option>
-                                <option value="3" <?php selected($field['column_width'] ?? '12', '3'); ?>>
-                                    <?php _e('One Fourth (3 columns)', 'job-posting-manager'); ?></option>
-                            </select>
+                            <input type="text" class="jpm-field-column-width"
+                                value="<?php echo esc_attr($field['column_width'] ?? '12'); ?>" readonly>
                             <p class="description">
-                                <?php _e('Control how many columns this field spans. Fields will automatically wrap to new rows when they exceed 12 columns per row.', 'job-posting-manager'); ?>
+                                <?php _e('Column width is automatically calculated based on drag-and-drop position. Drag fields left/right to create columns (max 3 per row).', 'job-posting-manager'); ?>
                             </p>
                         </td>
                     </tr>

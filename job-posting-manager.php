@@ -83,7 +83,9 @@ function jpm_enqueue_admin_scripts($hook)
 
     if ($is_jpm_page || $is_job_posting) {
         wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-admin.css', [], JPM_VERSION);
-        wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jquery-ui-sortable'], JPM_VERSION, true);
+        wp_enqueue_script('jquery-ui-draggable');
+        wp_enqueue_script('jquery-ui-droppable');
+        wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jquery-ui-sortable', 'jquery-ui-draggable', 'jquery-ui-droppable'], JPM_VERSION, true);
         wp_localize_script('jpm-admin-js', 'jpm_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('jpm_nonce')
