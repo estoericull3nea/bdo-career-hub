@@ -41,8 +41,26 @@ class JPM_Form_Builder
         wp_nonce_field('jpm_form_builder', 'jpm_form_builder_nonce');
 
         $form_fields = get_post_meta($post->ID, '_jpm_form_fields', true);
-        if (!is_array($form_fields)) {
-            $form_fields = [];
+        if (!is_array($form_fields) || empty($form_fields)) {
+            // If no fields exist, try to load from default template
+            if (class_exists('JPM_Templates')) {
+                // Get default template directly
+                $templates_option = get_option('jpm_form_templates', []);
+                foreach ($templates_option as $template) {
+                    if (!empty($template['is_default']) && !empty($template['fields'])) {
+                        $form_fields = $template['fields'];
+                        // Save to post meta so it persists
+                        update_post_meta($post->ID, '_jpm_form_fields', $form_fields);
+                        update_post_meta($post->ID, '_jpm_selected_template', $template['id']);
+                        break;
+                    }
+                }
+                if (empty($form_fields)) {
+                    $form_fields = [];
+                }
+            } else {
+                $form_fields = [];
+            }
         }
 
         $field_types = [

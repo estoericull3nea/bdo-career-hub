@@ -12,6 +12,7 @@ class JPM_Templates {
         add_action('wp_ajax_jpm_get_template', [$this, 'ajax_get_template']);
         add_action('add_meta_boxes', [$this, 'add_template_meta_box']);
         add_action('save_post', [$this, 'apply_template_to_job'], 10, 2);
+        add_action('wp_insert_post', [$this, 'auto_apply_template_on_create'], 10, 3);
     }
 
     /**
@@ -130,21 +131,44 @@ class JPM_Templates {
     }
 
     /**
+     * Auto-apply default template when a new job is created
+     */
+    public function auto_apply_template_on_create($post_id, $post, $update) {
+        // Only run for new posts, not updates
+        if ($update) {
+            return;
+        }
+
+        // Check post type
+        if (!isset($post->post_type) || $post->post_type !== 'job_posting') {
+            return;
+        }
+
+        // Check if form fields already exist
+        $existing_fields = get_post_meta($post_id, '_jpm_form_fields', true);
+        if (!empty($existing_fields)) {
+            return;
+        }
+
+        // Apply default template automatically
+        $default_template = $this->get_default_template();
+        if ($default_template && !empty($default_template['fields'])) {
+            update_post_meta($post_id, '_jpm_form_fields', $default_template['fields']);
+            update_post_meta($post_id, '_jpm_selected_template', $default_template['id']);
+        }
+    }
+
+    /**
      * Apply template to job when saved
      */
     public function apply_template_to_job($post_id, $post) {
-        // Check if nonce is set
-        if (!isset($_POST['jpm_template_selector_nonce']) || !wp_verify_nonce($_POST['jpm_template_selector_nonce'], 'jpm_template_selector')) {
+        // Check post type
+        if ($post->post_type !== 'job_posting') {
             return;
         }
 
         // Check if this is an autosave
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-            return;
-        }
-
-        // Check post type
-        if ($post->post_type !== 'job_posting') {
             return;
         }
 
@@ -155,6 +179,11 @@ class JPM_Templates {
 
         // Apply template if selected
         if (isset($_POST['jpm_selected_template']) && !empty($_POST['jpm_selected_template'])) {
+            // Verify nonce if it exists
+            if (isset($_POST['jpm_template_selector_nonce']) && !wp_verify_nonce($_POST['jpm_template_selector_nonce'], 'jpm_template_selector')) {
+                return;
+            }
+            
             $template_id = intval($_POST['jpm_selected_template']);
             $template = $this->get_template($template_id);
             
