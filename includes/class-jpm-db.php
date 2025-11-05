@@ -40,40 +40,39 @@ class JPM_Admin
         add_meta_box('jpm_job_details', __('Job Details', 'job-posting-manager'), [$this, 'job_meta_box'], 'job_posting');
     }
 
-    public function job_meta_box($post)         
+    public function job_meta_box($post)
     {
         // Add nonce field for validation when saving the post
         wp_nonce_field('jpm_job_meta', 'jpm_job_nonce');
 
         // Output form fields (ensure these are inside the form)
         ?>
-<label label for="location"><?php _e('Location', 'job-posting-manager'); ?></label>
-<input type="text" id="location" name="location"
-    value="<?php echo esc_attr(get_post_meta($post->ID, 'location', true)); ?>" />
+        <label label for="location"><?php _e('Location', 'job-posting-manager'); ?></label>
+        <input type="text" id="location" name="location"
+            value="<?php echo esc_attr(get_post_meta($post->ID, 'location', true)); ?>" />
 
-<label for="salary"><?php _e('Salary', 'job-posting-manager'); ?></label>
-<input type="text" id="salary" name="salary"
-    value="<?php echo esc_attr(get_post_meta($post->ID, 'salary', true)); ?>" />
+        <label for="salary"><?php _e('Salary', 'job-posting-manager'); ?></label>
+        <input type="text" id="salary" name="salary"
+            value="<?php echo esc_attr(get_post_meta($post->ID, 'salary', true)); ?>" />
 
-<!-- Add other fields as needed -->
-<?php
+        <!-- Add other fields as needed -->
+        <?php
     }
 
-
-  public function save_job_meta($post_id) {
-    // Check if nonce is set and verify
-    if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce($_POST['jpm_job_nonce'], 'jpm_job_meta')) {
-        // Save job metadata
-        if (isset($_POST['location'])) {
-            update_post_meta($post_id, 'location', sanitize_text_field($_POST['location']));
+    public function save_job_meta($post_id)
+    {
+        // Check if nonce is set and verify
+        if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce($_POST['jpm_job_nonce'], 'jpm_job_meta')) {
+            // Save job metadata
+            if (isset($_POST['location'])) {
+                update_post_meta($post_id, 'location', sanitize_text_field($_POST['location']));
+            }
+            // Save other fields like salary, deadline, etc.
+        } else {
+            // If nonce verification fails, do not save any data
+            return;
         }
-        // Save other fields like salary, deadline, etc.
-    } else {
-        // If nonce verification fails, do not save any data
-        return;
     }
-}
-
 
     public function bulk_update()
     {
