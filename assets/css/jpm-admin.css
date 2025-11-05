@@ -83,6 +83,15 @@
   margin-right: 10px;
 }
 
+.jpm-field-column-badge {
+  background: #46b450;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  margin-right: 10px;
+}
+
 .jpm-field-toggle,
 .jpm-field-remove {
   margin-left: 5px;

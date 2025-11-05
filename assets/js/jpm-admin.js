@@ -50,6 +50,17 @@ jQuery(document).ready(function ($) {
     updateFormFields();
   });
 
+  // Update column badge when column width changes
+  $(document).on("change", ".jpm-field-column-width", function () {
+    var colWidth = $(this).val();
+    var colText = colWidth == "12" ? "Full" : colWidth + " cols";
+    $(this)
+      .closest(".jpm-field-editor")
+      .find(".jpm-field-column-badge")
+      .text(colText);
+    updateFormFields();
+  });
+
   // Update field name when label changes (auto-generate)
   $(document).on("input", ".jpm-field-label", function () {
     var label = $(this).val();
@@ -123,6 +134,7 @@ jQuery(document).ready(function ($) {
         placeholder: $field.find(".jpm-field-placeholder").val() || "",
         options: $field.find(".jpm-field-options").val() || "",
         description: $field.find(".jpm-field-description").val() || "",
+        column_width: $field.find(".jpm-field-column-width").val() || "12",
       };
       fields.push(field);
     });

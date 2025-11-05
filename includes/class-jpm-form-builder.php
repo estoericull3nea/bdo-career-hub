@@ -122,6 +122,7 @@ class JPM_Form_Builder
             'placeholder' => '',
             'options' => '',
             'description' => '',
+            'column_width' => '12', // Default full width (12 columns)
         ]);
         ?>
         <div class="jpm-field-editor" data-index="<?php echo esc_attr($index); ?>">
@@ -130,6 +131,13 @@ class JPM_Form_Builder
                 <strong
                     class="jpm-field-title"><?php echo esc_html($field['label'] ?: __('Untitled Field', 'job-posting-manager')); ?></strong>
                 <span class="jpm-field-type-badge"><?php echo esc_html($field['type']); ?></span>
+                <span class="jpm-field-column-badge" title="<?php _e('Column Width', 'job-posting-manager'); ?>">
+                    <?php
+                    $col_width = intval($field['column_width'] ?? 12);
+                    $col_text = $col_width == 12 ? __('Full', 'job-posting-manager') : sprintf(__('%d cols', 'job-posting-manager'), $col_width);
+                    echo esc_html($col_text);
+                    ?>
+                </span>
                 <button type="button" class="button-link jpm-field-toggle">
                     <span class="dashicons dashicons-arrow-down"></span>
                 </button>
@@ -225,6 +233,28 @@ class JPM_Form_Builder
                             </label>
                         </td>
                     </tr>
+                    <tr>
+                        <th><label><?php _e('Column Width', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <select class="jpm-field-column-width">
+                                <option value="12" <?php selected($field['column_width'] ?? '12', '12'); ?>>
+                                    <?php _e('Full Width (12 columns)', 'job-posting-manager'); ?></option>
+                                <option value="9" <?php selected($field['column_width'] ?? '12', '9'); ?>>
+                                    <?php _e('Three Fourths (9 columns)', 'job-posting-manager'); ?></option>
+                                <option value="8" <?php selected($field['column_width'] ?? '12', '8'); ?>>
+                                    <?php _e('Two Thirds (8 columns)', 'job-posting-manager'); ?></option>
+                                <option value="6" <?php selected($field['column_width'] ?? '12', '6'); ?>>
+                                    <?php _e('Half Width (6 columns)', 'job-posting-manager'); ?></option>
+                                <option value="4" <?php selected($field['column_width'] ?? '12', '4'); ?>>
+                                    <?php _e('One Third (4 columns)', 'job-posting-manager'); ?></option>
+                                <option value="3" <?php selected($field['column_width'] ?? '12', '3'); ?>>
+                                    <?php _e('One Fourth (3 columns)', 'job-posting-manager'); ?></option>
+                            </select>
+                            <p class="description">
+                                <?php _e('Control how many columns this field spans. Fields will automatically wrap to new rows when they exceed 12 columns per row.', 'job-posting-manager'); ?>
+                            </p>
+                        </td>
+                    </tr>
                 </table>
             </div>
         </div>
@@ -266,6 +296,7 @@ class JPM_Form_Builder
                         'placeholder' => sanitize_text_field($field['placeholder'] ?? ''),
                         'options' => sanitize_textarea_field($field['options'] ?? ''),
                         'description' => sanitize_textarea_field($field['description'] ?? ''),
+                        'column_width' => sanitize_text_field($field['column_width'] ?? '12'),
                     ];
                 }
                 update_post_meta($post_id, '_jpm_form_fields', $sanitized_fields);
@@ -298,6 +329,7 @@ class JPM_Form_Builder
             'placeholder' => '',
             'options' => '',
             'description' => '',
+            'column_width' => '12',
         ];
 
         ob_start();
@@ -364,20 +396,42 @@ class JPM_Form_Builder
                 <?php wp_nonce_field('jpm_application_form', 'jpm_application_nonce'); ?>
                 <input type="hidden" name="job_id" value="<?php echo esc_attr($post->ID); ?>">
 
-                <?php foreach ($form_fields as $index => $field): ?>
-                    <div class="jpm-form-field-group">
-                        <label for="jpm_field_<?php echo esc_attr($index); ?>">
-                            <?php echo esc_html($field['label']); ?>
-                            <?php if (!empty($field['required'])): ?>
-                                <span class="required">*</span>
-                            <?php endif; ?>
-                        </label>
-                        <?php if (!empty($field['description'])): ?>
-                            <p class="description"><?php echo esc_html($field['description']); ?></p>
-                        <?php endif; ?>
-                        <?php echo $this->render_form_field($field, $index); ?>
-                    </div>
-                <?php endforeach; ?>
+                <?php
+                // Group fields into rows based on column width
+                $current_row = [];
+                $current_row_width = 0;
+
+                foreach ($form_fields as $index => $field):
+                    $column_width = intval($field['column_width'] ?? 12);
+
+                    // If adding this field would exceed 12 columns, render current row
+                    if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                        $this->render_form_row($current_row);
+                        $current_row = [];
+                        $current_row_width = 0;
+                    }
+
+                    // Add field to current row
+                    $current_row[] = [
+                        'field' => $field,
+                        'index' => $index,
+                        'column_width' => $column_width
+                    ];
+                    $current_row_width += $column_width;
+
+                    // If row is full (12 columns), render it
+                    if ($current_row_width >= 12) {
+                        $this->render_form_row($current_row);
+                        $current_row = [];
+                        $current_row_width = 0;
+                    }
+                endforeach;
+
+                // Render any remaining fields
+                if (!empty($current_row)) {
+                    $this->render_form_row($current_row);
+                }
+                ?>
 
                 <div class="jpm-form-submit">
                     <button type="submit" class="button button-primary">
@@ -391,6 +445,31 @@ class JPM_Form_Builder
         $form_html = ob_get_clean();
 
         return $content . $form_html;
+    }
+
+    /**
+     * Render a row of form fields
+     */
+    private function render_form_row($row_fields)
+    {
+        echo '<div class="jpm-form-row">';
+        foreach ($row_fields as $row_field) {
+            echo '<div class="jpm-form-col jpm-col-' . esc_attr($row_field['column_width']) . '">';
+            echo '<div class="jpm-form-field-group">';
+            echo '<label for="jpm_field_' . esc_attr($row_field['index']) . '">';
+            echo esc_html($row_field['field']['label']);
+            if (!empty($row_field['field']['required'])) {
+                echo ' <span class="required">*</span>';
+            }
+            echo '</label>';
+            if (!empty($row_field['field']['description'])) {
+                echo '<p class="description">' . esc_html($row_field['field']['description']) . '</p>';
+            }
+            echo $this->render_form_field($row_field['field'], $row_field['index']);
+            echo '</div>';
+            echo '</div>';
+        }
+        echo '</div>';
     }
 
     /**

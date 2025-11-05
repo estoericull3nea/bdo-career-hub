@@ -279,7 +279,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -288,7 +289,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             
             // POSITION APPLIED section
@@ -299,7 +301,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '', // Will be populated dynamically from available jobs
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'select',
@@ -308,7 +311,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '', // Will be populated dynamically from available jobs
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'select',
@@ -317,7 +321,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '', // Will be populated dynamically from available jobs
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             
             // PERSONAL HISTORY section
@@ -328,7 +333,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'text',
@@ -337,7 +343,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'text',
@@ -346,7 +353,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'textarea',
@@ -355,7 +363,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '12'
             ],
             [
                 'type' => 'tel',
@@ -364,7 +373,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'email',
@@ -373,7 +383,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'date',
@@ -382,7 +393,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'text',
@@ -391,7 +403,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
             [
                 'type' => 'number',
@@ -400,7 +413,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '2'
             ],
             [
                 'type' => 'select',
@@ -409,7 +423,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => "Male\nFemale\nOther",
-                'description' => ''
+                'description' => '',
+                'column_width' => '2'
             ],
             [
                 'type' => 'text',
@@ -418,7 +433,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -427,7 +443,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'select',
@@ -436,7 +453,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => "Single\nMarried\nDivorced\nWidowed",
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -445,7 +463,8 @@ class JPM_Templates {
                 'required' => true,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -454,7 +473,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -463,7 +483,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -472,7 +493,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -481,7 +503,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '6'
             ],
             [
                 'type' => 'text',
@@ -490,7 +513,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '12'
             ],
             [
                 'type' => 'textarea',
@@ -499,7 +523,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '8'
             ],
             [
                 'type' => 'tel',
@@ -508,7 +533,8 @@ class JPM_Templates {
                 'required' => false,
                 'placeholder' => '',
                 'options' => '',
-                'description' => ''
+                'description' => '',
+                'column_width' => '4'
             ],
         ];
     }

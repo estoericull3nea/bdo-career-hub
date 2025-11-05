@@ -28,8 +28,52 @@
   color: #333;
 }
 
+/* Form Row and Column Layout */
+.jpm-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10px 20px -10px;
+  gap: 0;
+}
+
+.jpm-form-col {
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+/* Column Widths (12-column grid system) */
+.jpm-col-12 {
+  width: 100%;
+  flex: 0 0 100%;
+}
+
+.jpm-col-9 {
+  width: 75%;
+  flex: 0 0 75%;
+}
+
+.jpm-col-8 {
+  width: 66.666%;
+  flex: 0 0 66.666%;
+}
+
+.jpm-col-6 {
+  width: 50%;
+  flex: 0 0 50%;
+}
+
+.jpm-col-4 {
+  width: 33.333%;
+  flex: 0 0 33.333%;
+}
+
+.jpm-col-3 {
+  width: 25%;
+  flex: 0 0 25%;
+}
+
 .jpm-form-field-group {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .jpm-form-field-group label {
@@ -293,5 +337,20 @@
 
   .jpm-toast.show {
     transform: translateY(0);
+  }
+
+  /* Stack columns on mobile */
+  .jpm-form-row {
+    flex-direction: column;
+  }
+
+  .jpm-form-col {
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    margin-bottom: 20px;
+  }
+
+  .jpm-form-field-group {
+    margin-bottom: 20px;
   }
 }
