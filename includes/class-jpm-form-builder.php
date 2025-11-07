@@ -485,20 +485,24 @@ class JPM_Form_Builder
                 // Generate date of registration: mm/dd/yyyy
                 $date_of_registration = date('m/d/Y'); // Current date in mm/dd/yyyy format
                 ?>
-                <div class="jpm-form-field-group jpm-application-number-field">
-                    <label for="jpm_application_number"><?php _e('Application Number', 'job-posting-manager'); ?></label>
-                    <input type="text" id="jpm_application_number" name="application_number" class="jpm-form-field"
-                        value="<?php echo esc_attr($application_number); ?>" readonly
-                        style="background-color: #f5f5f5; cursor: not-allowed;">
-                    <p class="description"><?php _e('Your unique application reference number', 'job-posting-manager'); ?></p>
-                </div>
+                <div class="jpm-auto-fill-fields-container">
+                    <div class="jpm-form-field-group jpm-application-number-field">
+                        <label for="jpm_application_number"><?php _e('Application Number', 'job-posting-manager'); ?></label>
+                        <input type="text" id="jpm_application_number" name="application_number" class="jpm-form-field"
+                            value="<?php echo esc_attr($application_number); ?>" readonly
+                            style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <p class="description"><?php _e('Your unique application reference number', 'job-posting-manager'); ?>
+                        </p>
+                    </div>
 
-                <div class="jpm-form-field-group jpm-date-of-registration-field">
-                    <label for="jpm_date_of_registration"><?php _e('Date of Registration', 'job-posting-manager'); ?></label>
-                    <input type="text" id="jpm_date_of_registration" name="date_of_registration" class="jpm-form-field"
-                        value="<?php echo esc_attr($date_of_registration); ?>" readonly
-                        style="background-color: #f5f5f5; cursor: not-allowed;">
-                    <p class="description"><?php _e('Date when the application is submitted', 'job-posting-manager'); ?></p>
+                    <div class="jpm-form-field-group jpm-date-of-registration-field">
+                        <label
+                            for="jpm_date_of_registration"><?php _e('Date of Registration', 'job-posting-manager'); ?></label>
+                        <input type="text" id="jpm_date_of_registration" name="date_of_registration" class="jpm-form-field"
+                            value="<?php echo esc_attr($date_of_registration); ?>" readonly
+                            style="background-color: #f5f5f5; cursor: not-allowed;">
+                        <p class="description"><?php _e('Date when the application is submitted', 'job-posting-manager'); ?></p>
+                    </div>
                 </div>
 
                 <?php

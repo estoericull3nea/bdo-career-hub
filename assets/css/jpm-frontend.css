@@ -502,6 +502,45 @@
   font-style: italic;
 }
 
+/* Application Number and Date of Registration Flex Layout */
+.jpm-application-number-field,
+.jpm-date-of-registration-field {
+  flex: 1 1 50%;
+  min-width: 0;
+}
+
+.jpm-application-number-field {
+  padding-right: 10px;
+}
+
+.jpm-date-of-registration-field {
+  padding-left: 10px;
+}
+
+/* Wrapper for flex layout - add this class in PHP if needed, or use direct parent */
+.jpm-application-form-wrapper > form > .jpm-application-number-field,
+.jpm-application-form-wrapper > form > .jpm-date-of-registration-field {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+/* Alternative: Create a flex container for these fields */
+.jpm-auto-fill-fields-container {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.jpm-auto-fill-fields-container .jpm-application-number-field,
+.jpm-auto-fill-fields-container .jpm-date-of-registration-field {
+  flex: 1 1 calc(50% - 10px);
+  min-width: 250px;
+  padding: 0;
+}
+
 /* Responsive job details */
 @media (max-width: 768px) {
   .jpm-job-detail-item {
