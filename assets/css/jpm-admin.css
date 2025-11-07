@@ -300,6 +300,462 @@
   max-width: 500px;
 }
 
+/* ==========================================
+   ENHANCED DRAG & DROP STYLES
+   ========================================== */
+
+/* Global Dragging State */
+body.jpm-dragging {
+  cursor: move !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+body.jpm-dragging * {
+  cursor: move !important;
+}
+
+#jpm-form-builder.jpm-drag-active {
+  position: relative;
+}
+
+/* Drag Helper Enhancements */
+.jpm-drag-helper {
+  pointer-events: none;
+  animation: dragPulse 0.3s ease-in-out;
+}
+
+@keyframes dragPulse {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(-2deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(-2deg) scale(1.02);
+  }
+}
+
+/* Drop Zone Visibility */
+.jpm-drop-zone-visible {
+  transition: all 0.3s ease;
+}
+
+.jpm-form-row.jpm-drop-zone-visible {
+  border-style: solid;
+  border-color: #c3c4c7;
+}
+
+/* Drop Target States */
+.jpm-drop-active {
+  background: rgba(34, 113, 177, 0.04);
+  transition: all 0.2s ease;
+}
+
+.jpm-drop-hover {
+  background: rgba(34, 113, 177, 0.1) !important;
+  border-color: #2271b1 !important;
+  border-style: solid !important;
+  box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.2);
+  transform: scale(1.01);
+}
+
+.jpm-drop-target {
+  outline: 2px dashed #2271b1;
+  outline-offset: 3px;
+  background: rgba(34, 113, 177, 0.06);
+}
+
+.jpm-drop-nearby {
+  border-color: #8c8f94;
+  opacity: 0.9;
+}
+
+/* Enhanced Drop Indicators with Animations */
+.jpm-drop-indicator {
+  position: absolute;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.jpm-drop-indicator-visible {
+  opacity: 1;
+}
+
+/* Top Indicator */
+.jpm-drop-indicator-top {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #2271b1, #135e96, #2271b1);
+  background-size: 200% 100%;
+  animation: gradientSlide 2s ease infinite;
+  box-shadow: 0 0 10px rgba(34, 113, 177, 0.6), 0 0 20px rgba(34, 113, 177, 0.4);
+  border-radius: 2px;
+  top: -2px;
+  left: 0;
+}
+
+.jpm-drop-indicator-top::before {
+  content: "▼";
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #2271b1;
+  font-size: 16px;
+  animation: bounce 1s ease infinite;
+}
+
+/* Bottom Indicator */
+.jpm-drop-indicator-bottom {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #2271b1, #135e96, #2271b1);
+  background-size: 200% 100%;
+  animation: gradientSlide 2s ease infinite;
+  box-shadow: 0 0 10px rgba(34, 113, 177, 0.6), 0 0 20px rgba(34, 113, 177, 0.4);
+  border-radius: 2px;
+  bottom: -2px;
+  left: 0;
+}
+
+.jpm-drop-indicator-bottom::after {
+  content: "▲";
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #2271b1;
+  font-size: 16px;
+  animation: bounce 1s ease infinite;
+}
+
+/* Left Indicator */
+.jpm-drop-indicator-left {
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #2271b1, #135e96, #2271b1);
+  background-size: 100% 200%;
+  animation: gradientSlide 2s ease infinite;
+  box-shadow: 0 0 10px rgba(34, 113, 177, 0.6), 0 0 20px rgba(34, 113, 177, 0.4);
+  border-radius: 2px;
+  left: -2px;
+  top: 0;
+}
+
+.jpm-drop-indicator-left::before {
+  content: "►";
+  position: absolute;
+  left: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #2271b1;
+  font-size: 16px;
+  animation: bounceHorizontal 1s ease infinite;
+}
+
+/* Right Indicator */
+.jpm-drop-indicator-right {
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #2271b1, #135e96, #2271b1);
+  background-size: 100% 200%;
+  animation: gradientSlide 2s ease infinite;
+  box-shadow: 0 0 10px rgba(34, 113, 177, 0.6), 0 0 20px rgba(34, 113, 177, 0.4);
+  border-radius: 2px;
+  right: -2px;
+  top: 0;
+}
+
+.jpm-drop-indicator-right::after {
+  content: "◄";
+  position: absolute;
+  right: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #2271b1;
+  font-size: 16px;
+  animation: bounceHorizontal 1s ease infinite;
+}
+
+/* Center Indicator */
+.jpm-drop-indicator-center {
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  border: 3px dashed #2271b1;
+  background: rgba(34, 113, 177, 0.08);
+  border-radius: 4px;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  animation: pulse 1.5s ease infinite;
+}
+
+.jpm-drop-indicator-center::before {
+  content: "+";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  color: #2271b1;
+  font-weight: bold;
+  animation: rotate 2s linear infinite;
+}
+
+/* Animations */
+@keyframes gradientSlide {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+@keyframes bounceHorizontal {
+  0%,
+  100% {
+    transform: translateY(-50%) translateX(0);
+  }
+  50% {
+    transform: translateY(-50%) translateX(-5px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Enhanced Zone Labels */
+.jpm-form-row.jpm-drop-top::before,
+.jpm-form-column.jpm-drop-top::before {
+  animation: fadeInDown 0.3s ease;
+}
+
+.jpm-form-row.jpm-drop-bottom::after,
+.jpm-form-column.jpm-drop-bottom::after {
+  animation: fadeInUp 0.3s ease;
+}
+
+.jpm-form-row.jpm-drop-left::before,
+.jpm-form-column.jpm-drop-left::before {
+  animation: fadeInLeft 0.3s ease;
+}
+
+.jpm-form-row.jpm-drop-right::after,
+.jpm-form-column.jpm-drop-right::after {
+  animation: fadeInRight 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* Field Editor Dragging State */
+.jpm-field-editor {
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.2s ease;
+}
+
+.jpm-field-editor.ui-draggable-dragging {
+  opacity: 0.25 !important;
+  transform: scale(0.98);
+}
+
+.jpm-field-header {
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.jpm-field-header:active {
+  transform: scale(0.99);
+}
+
+/* Row and Column Transitions */
+.jpm-form-row {
+  transition: all 0.3s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.jpm-form-column {
+  transition: all 0.3s ease;
+}
+
+/* Maximum Column Warning */
+.jpm-form-row.jpm-row-has-columns .jpm-form-column:nth-child(3) {
+  position: relative;
+}
+
+.jpm-form-row.jpm-row-has-columns:hover .jpm-form-column:nth-child(3)::after {
+  content: "Max 3 columns";
+  position: absolute;
+  top: -25px;
+  right: 10px;
+  background: #d63638;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 100;
+  opacity: 0;
+  animation: fadeIn 0.3s ease 0.5s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Smooth Row Removal */
+.jpm-form-row.removing {
+  animation: slideOutLeft 0.4s ease forwards;
+}
+
+@keyframes slideOutLeft {
+  to {
+    opacity: 0;
+    transform: translateX(-30px);
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+}
+
+/* Smooth Column Removal */
+.jpm-form-column.removing {
+  animation: fadeOutScale 0.3s ease forwards;
+}
+
+@keyframes fadeOutScale {
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .jpm-drop-indicator-top::before,
+  .jpm-drop-indicator-bottom::after,
+  .jpm-drop-indicator-left::before,
+  .jpm-drop-indicator-right::after {
+    font-size: 12px;
+  }
+
+  .jpm-form-row.jpm-drop-top::before,
+  .jpm-form-row.jpm-drop-bottom::after,
+  .jpm-form-row.jpm-drop-left::before,
+  .jpm-form-row.jpm-drop-right::after,
+  .jpm-form-column.jpm-drop-top::before,
+  .jpm-form-column.jpm-drop-bottom::after,
+  .jpm-form-column.jpm-drop-left::before,
+  .jpm-form-column.jpm-drop-right::after {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .jpm-drop-indicator-center::before {
+    font-size: 24px;
+  }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .jpm-drag-helper,
+  .jpm-drop-indicator,
+  .jpm-field-editor,
+  .jpm-form-row,
+  .jpm-form-column {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .jpm-drop-indicator-top::before,
+  .jpm-drop-indicator-bottom::after,
+  .jpm-drop-indicator-left::before,
+  .jpm-drop-indicator-right::after,
+  .jpm-drop-indicator-center::before {
+    animation: none !important;
+  }
+}
+
 /* Admin Responsive styles */
 @media (max-width: 768px) {
   .jpm-form-builder-header {

@@ -201,11 +201,11 @@ jQuery(document).ready(function ($) {
     });
   }
 
-  // Initialize sortable for drag-and-drop
+  // Initialize enhanced sortable with better drag and drop
   function initializeSortable() {
     if (!$.fn.draggable || !$.fn.droppable) return;
 
-    // Destroy existing draggable/droppable instances safely
+    // Destroy existing instances safely
     $(".jpm-field-editor").each(function () {
       if ($(this).data("ui-draggable")) {
         $(this).draggable("destroy");
@@ -218,859 +218,609 @@ jQuery(document).ready(function ($) {
       }
     });
 
-    // Make each field individually draggable
+    // Make each field individually draggable with enhanced features
     $(".jpm-field-editor").each(function () {
       var $field = $(this);
 
       $field.draggable({
-        handle: ".jpm-field-header",
+        handle: ".jpm-field-handle, .jpm-field-header",
         cursor: "move",
         revert: "invalid",
-        helper: "clone",
-        opacity: 0.7,
-        zIndex: 1000,
-        scroll: false,
+        revertDuration: 200,
+        helper: function () {
+          // Create enhanced visual helper
+          var $helper = $(this).clone();
+          $helper.css({
+            width: $(this).width(),
+            opacity: 0.85,
+            zIndex: 10000,
+            boxShadow: "0 8px 20px rgba(0,0,0,0.25)",
+            transform: "rotate(-2deg) scale(1.02)",
+            border: "2px solid #2271b1",
+          });
+          $helper.addClass("jpm-drag-helper");
+          return $helper;
+        },
         appendTo: "body",
+        scroll: true,
+        scrollSensitivity: 40,
+        scrollSpeed: 15,
+        distance: 5, // Minimum distance before drag starts
         start: function (event, ui) {
-          // Store original position and make original semi-transparent
           var $originalParent = $field.parent();
           var $originalRow = $field.closest(".jpm-form-row");
+
+          // Store original position data
           $field.data("original-parent", $originalParent);
           $field.data("original-row", $originalRow);
-          $field.css("opacity", "0.3");
-          // Mark helper as not dropped yet
+          $field.data("original-index", $field.index());
+
+          // Visual feedback - make original semi-transparent
+          $field.css({
+            opacity: "0.25",
+            transition: "opacity 0.2s ease",
+          });
+
+          // Add global dragging state
+          $("body").addClass("jpm-dragging");
+          $("#jpm-form-builder").addClass("jpm-drag-active");
+
+          // Mark helper with data
           ui.helper.data("dropped", false);
-          // Store original row in helper too
           ui.helper.data("original-row", $originalRow);
+          ui.helper.data("field-index", $field.attr("data-index"));
+
+          // Show all drop zones
+          $(".jpm-form-row, .jpm-form-column").addClass(
+            "jpm-drop-zone-visible"
+          );
+        },
+        drag: function (event, ui) {
+          // Real-time drop zone highlighting
+          updateDropZoneHighlights(event, ui);
         },
         stop: function (event, ui) {
-          // Restore opacity if drop was invalid (reverted)
+          // Clean up dragging state
+          $("body").removeClass("jpm-dragging");
+          $("#jpm-form-builder").removeClass("jpm-drag-active");
+
+          // Restore opacity if not successfully dropped
           if (!ui.helper || !ui.helper.data("dropped")) {
-            $field.css("opacity", "1");
+            $field.css({
+              opacity: "1",
+              transition: "opacity 0.3s ease",
+            });
           }
+
+          // Remove all drop indicators and highlights
+          $(".jpm-drop-indicator").remove();
+          $(".jpm-form-row, .jpm-form-column").removeClass(
+            "jpm-drop-hover jpm-drop-active jpm-drop-target " +
+              "jpm-drop-zone-visible jpm-drop-top jpm-drop-bottom " +
+              "jpm-drop-left jpm-drop-right jpm-drop-middle"
+          );
         },
       });
     });
 
-    // Make rows and columns droppable - initialize each individually
+    // Enhanced droppable zones with precise positioning
     $(".jpm-form-row, .jpm-form-column").each(function () {
-      var $target = $(this);
-      $target.droppable({
+      var $dropZone = $(this);
+
+      $dropZone.droppable({
         accept: ".jpm-field-editor",
-        hoverClass: "jpm-drop-hover",
         tolerance: "pointer",
-        greedy: false,
+        greedy: true,
         activeClass: "jpm-drop-active",
         over: function (event, ui) {
-          var $target = $(this);
-          var $targetRow = $target.hasClass("jpm-form-row")
-            ? $target
-            : $target.closest(".jpm-form-row");
-          var $targetColumn = $target.hasClass("jpm-form-column")
-            ? $target
-            : null;
-
-          // Get mouse position relative to the target
-          var targetOffset = $target.offset();
-          var targetWidth = $target.width();
-          var targetHeight = $target.height();
-          var mouseX = event.pageX - targetOffset.left;
-          var mouseY = event.pageY - targetOffset.top;
-
-          // Calculate zones
-          var topThreshold = targetHeight * 0.1;
-          var bottomThreshold = targetHeight * 0.5;
-          var leftThreshold = targetWidth * 0.1;
-          var rightThreshold = targetWidth * 0.5;
-
-          var isInTopZone = mouseY < topThreshold;
-          var isInBottomZone = mouseY > bottomThreshold;
-          var isInLeftZone = mouseX < leftThreshold;
-          var isInRightZone = mouseX > rightThreshold;
-          var isInMiddleZone = !isInTopZone && !isInBottomZone;
-
-          // Remove all position classes first
-          $target.removeClass(
-            "jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-          );
-
-          // Add visual feedback based on position
-          if (isInTopZone) {
-            $target.addClass("jpm-drop-hover jpm-drop-top");
-          } else if (isInBottomZone) {
-            $target.addClass("jpm-drop-hover jpm-drop-bottom");
-          } else if (isInMiddleZone) {
-            $target.addClass("jpm-drop-hover jpm-drop-middle");
-            if (isInLeftZone) {
-              $target.addClass("jpm-drop-left");
-            } else if (isInRightZone) {
-              $target.addClass("jpm-drop-right");
-            }
-          }
+          var dropInfo = calculateDropPosition(event, $(this), ui.draggable);
+          showEnhancedDropIndicator(dropInfo, $(this));
+          $(this).addClass("jpm-drop-hover");
         },
         out: function (event, ui) {
-          // Remove all hover and position classes when leaving
           $(this).removeClass(
             "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
           );
+          removeDropIndicator($(this));
         },
         drop: function (event, ui) {
-          var $draggedField = ui.draggable;
-          var $target = $(this);
-          var $targetRow = $target.hasClass("jpm-form-row")
-            ? $target
-            : $target.closest(".jpm-form-row");
-          var $targetColumn = $target.hasClass("jpm-form-column")
-            ? $target
-            : null;
-
-          // Get source row from stored data (more reliable than closest after detach)
-          var $sourceRow =
-            ui.helper.data("original-row") ||
-            $draggedField.data("original-row");
-
-          // If still no source row, try to find it by field index
-          if (!$sourceRow || $sourceRow.length === 0) {
-            var fieldIndex = $draggedField.attr("data-index");
-            $sourceRow = $(".jpm-form-row").has(
-              ".jpm-field-editor[data-index='" + fieldIndex + "']"
-            );
-          }
-
-          var $sourceColumn = $draggedField.data("original-parent")
-            ? $draggedField.data("original-parent").closest(".jpm-form-column")
-            : $draggedField.closest(".jpm-form-column");
-
-          // Prevent default behavior and stop propagation
-          event.stopPropagation();
-          event.preventDefault();
-
-          // Mark helper as dropped to prevent revert
-          if (ui.helper) {
-            ui.helper.data("dropped", true);
-            // Remove helper after a short delay
-            setTimeout(function () {
-              if (ui.helper && ui.helper.parent().length > 0) {
-                ui.helper.remove();
-              }
-            }, 100);
-          }
-
-          // Store field index for later removal
-          var fieldIndex = $draggedField.attr("data-index");
-
-          // If dropped on the same row, check if we should create columns or reorder
-          if ($sourceRow.is($targetRow)) {
-            // Find the actual dragged field in the DOM (not the helper)
-            var $actualDraggedField = $targetRow.find(
-              ".jpm-field-editor[data-index='" + fieldIndex + "']"
-            );
-
-            // Find all fields in the row excluding the dragged field
-            var $allFields = $targetRow
-              .find(".jpm-field-editor")
-              .not($actualDraggedField);
-
-            // Get mouse position relative to the row for zone detection
-            var rowOffset = $targetRow.offset();
-            var rowWidth = $targetRow.width();
-            var rowHeight = $targetRow.height();
-            var mouseX = event.pageX - rowOffset.left;
-            var mouseY = event.pageY - rowOffset.top;
-
-            // Calculate vertical threshold (top 30% or bottom 30% = new row, middle 40% = columns)
-            var topThreshold = rowHeight * 0.3;
-            var bottomThreshold = rowHeight * 0.7;
-            var isInTopZone = mouseY < topThreshold;
-            var isInBottomZone = mouseY > bottomThreshold;
-
-            // If only one field in row (the dragged field itself), check drop position relative to the field
-            if ($allFields.length === 0) {
-              // Single field in row - check position relative to the field itself
-              if ($actualDraggedField.length > 0) {
-                var fieldOffset = $actualDraggedField.offset();
-                var fieldHeight = $actualDraggedField.height();
-                var fieldMouseY = event.pageY - fieldOffset.top;
-
-                // Calculate vertical threshold relative to the field
-                var fieldTopThreshold = fieldHeight * 0.3;
-                var fieldBottomThreshold = fieldHeight * 0.7;
-                var isInFieldTopZone = fieldMouseY < fieldTopThreshold;
-                var isInFieldBottomZone = fieldMouseY > fieldBottomThreshold;
-
-                // If dropped on top or bottom of the field, create new row
-                if (isInFieldTopZone || isInFieldBottomZone) {
-                  // Create new row
-                  var rowIndex = $targetRow.index();
-                  var $newRow = $(
-                    "<div class='jpm-form-row' data-row-index='" +
-                      rowIndex +
-                      "'></div>"
-                  );
-
-                  // Remove actual dragged field from current position first
-                  var $actualColumn = $actualDraggedField.parent();
-                  if ($actualColumn.hasClass("jpm-form-column")) {
-                    $actualDraggedField.detach();
-                    if ($actualColumn.find(".jpm-field-editor").length === 0) {
-                      $actualColumn.remove();
-                    }
-                  } else {
-                    $actualDraggedField.detach();
-                  }
-
-                  // Ensure field is not wrapped in a column and set to full width
-                  if (
-                    $actualDraggedField.parent().hasClass("jpm-form-column")
-                  ) {
-                    $actualDraggedField.unwrap();
-                  }
-
-                  $actualDraggedField.appendTo($newRow);
-
-                  // Set to full width (12 columns)
-                  $actualDraggedField.find(".jpm-field-column-width").val(12);
-                  $actualDraggedField
-                    .find(".jpm-field-column-badge")
-                    .text("Full");
-
-                  // Insert row based on position
-                  if (isInFieldTopZone) {
-                    $targetRow.before($newRow);
-                  } else {
-                    $targetRow.after($newRow);
-                  }
-
-                  $actualDraggedField.css("opacity", "1");
-
-                  // Remove all position classes and labels
-                  $(".jpm-form-row, .jpm-form-column").removeClass(
-                    "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-                  );
-
-                  // Reorganize and update
-                  reorganizeRows();
-                  updateFormFields();
-                  setTimeout(function () {
-                    initializeSortable();
-                  }, 100);
-                  return;
-                } else {
-                  // Middle zone - field stays in place
-                  $actualDraggedField.css("opacity", "1");
-
-                  // Remove all position classes and labels
-                  $(".jpm-form-row, .jpm-form-column").removeClass(
-                    "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-                  );
-
-                  // Reorganize and update
-                  reorganizeRows();
-                  updateFormFields();
-                  setTimeout(function () {
-                    initializeSortable();
-                  }, 100);
-                  return;
-                }
-              } else {
-                // Fallback - use row position
-                if (isInTopZone || isInBottomZone) {
-                  // Create new row
-                  var rowIndex = $targetRow.index();
-                  var $newRow = $(
-                    "<div class='jpm-form-row' data-row-index='" +
-                      rowIndex +
-                      "'></div>"
-                  );
-
-                  // Remove dragged field from current position
-                  if ($draggedField.parent().hasClass("jpm-form-column")) {
-                    $draggedField.unwrap();
-                  }
-                  $draggedField.detach();
-
-                  // Ensure field is not wrapped in a column
-                  if ($draggedField.parent().hasClass("jpm-form-column")) {
-                    $draggedField.unwrap();
-                  }
-
-                  $draggedField.appendTo($newRow);
-
-                  // Set to full width (12 columns)
-                  $draggedField.find(".jpm-field-column-width").val(12);
-                  $draggedField.find(".jpm-field-column-badge").text("Full");
-
-                  // Insert row based on position
-                  if (isInTopZone) {
-                    $targetRow.before($newRow);
-                  } else {
-                    $targetRow.after($newRow);
-                  }
-
-                  $draggedField.css("opacity", "1");
-
-                  // Remove all position classes and labels
-                  $(".jpm-form-row, .jpm-form-column").removeClass(
-                    "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-                  );
-
-                  // Reorganize and update
-                  reorganizeRows();
-                  updateFormFields();
-                  setTimeout(function () {
-                    initializeSortable();
-                  }, 100);
-                  return;
-                } else {
-                  // Middle zone - field stays in place
-                  $draggedField.css("opacity", "1");
-
-                  // Remove all position classes and labels
-                  $(".jpm-form-row, .jpm-form-column").removeClass(
-                    "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-                  );
-
-                  // Reorganize and update
-                  reorganizeRows();
-                  updateFormFields();
-                  setTimeout(function () {
-                    initializeSortable();
-                  }, 100);
-                  return;
-                }
-              }
-            } else if ($allFields.length > 0) {
-              // Find the target field (the one closest to the drop position)
-              var $targetField = null;
-              var minDistance = Infinity;
-              var targetFieldOffset = null;
-              var targetFieldHeight = 0;
-
-              $allFields.each(function () {
-                var $field = $(this);
-                var fieldOffset = $field.offset();
-                var fieldCenterX = fieldOffset.left + $field.width() / 2;
-                var fieldCenterY = fieldOffset.top + $field.height() / 2;
-                var distance = Math.sqrt(
-                  Math.pow(event.pageX - fieldCenterX, 2) +
-                    Math.pow(event.pageY - fieldCenterY, 2)
-                );
-
-                if (distance < minDistance) {
-                  minDistance = distance;
-                  $targetField = $field;
-                  targetFieldOffset = fieldOffset;
-                  targetFieldHeight = $field.height();
-                }
-              });
-
-              // Get mouse position relative to the target field if found, otherwise use row
-              var mouseX, mouseY;
-              var topThreshold, bottomThreshold;
-              var isInTopZone, isInBottomZone;
-
-              if ($targetField && $targetField.length > 0) {
-                // Use target field's position
-                mouseX = event.pageX - targetFieldOffset.left;
-                mouseY = event.pageY - targetFieldOffset.top;
-                topThreshold = targetFieldHeight * 0.3;
-                bottomThreshold = targetFieldHeight * 0.7;
-                isInTopZone = mouseY < topThreshold;
-                isInBottomZone = mouseY > bottomThreshold;
-              } else {
-                // Fallback to row position
-                var rowOffset = $targetRow.offset();
-                var rowWidth = $targetRow.width();
-                var rowHeight = $targetRow.height();
-                mouseX = event.pageX - rowOffset.left;
-                mouseY = event.pageY - rowOffset.top;
-                topThreshold = rowHeight * 0.3;
-                bottomThreshold = rowHeight * 0.7;
-                isInTopZone = mouseY < topThreshold;
-                isInBottomZone = mouseY > bottomThreshold;
-              }
-
-              // Determine if dropped on left or right half
-              var isLeft =
-                mouseX <
-                ($targetField ? $targetField.width() : $targetRow.width()) / 2;
-
-              // If dropped in top or bottom zone
-              if (isInTopZone || isInBottomZone) {
-                // If we have a target field, place it relative to that field in the same row
-                if ($targetField && $targetField.length > 0) {
-                  // Place the field relative to the target field in the same row
-                  // Remove actual dragged field from current position first
-                  if ($actualDraggedField.length > 0) {
-                    var $actualColumn = $actualDraggedField.parent();
-                    if ($actualColumn.hasClass("jpm-form-column")) {
-                      $actualDraggedField.detach();
-                      if (
-                        $actualColumn.find(".jpm-field-editor").length === 0
-                      ) {
-                        $actualColumn.remove();
-                      }
-                    } else {
-                      $actualDraggedField.detach();
-                    }
-                  } else {
-                    // Fallback to dragged field if actual not found
-                    if ($draggedField.parent().hasClass("jpm-form-column")) {
-                      $draggedField.unwrap();
-                    }
-                    $draggedField.detach();
-                  }
-
-                  // Get target field's column wrapper (or create one)
-                  var $targetColumn = $targetField.parent();
-                  if (!$targetColumn.hasClass("jpm-form-column")) {
-                    // Create column wrapper if it doesn't exist
-                    if (!$targetRow.hasClass("jpm-row-has-columns")) {
-                      $targetRow.addClass("jpm-row-has-columns");
-                    }
-                    $targetField.wrap("<div class='jpm-form-column'></div>");
-                    $targetColumn = $targetField.parent();
-                  }
-
-                  // Use actual field if available, otherwise use dragged field
-                  var $fieldToMove =
-                    $actualDraggedField.length > 0
-                      ? $actualDraggedField
-                      : $draggedField;
-
-                  // Wrap field in column if not already
-                  if (!$fieldToMove.parent().hasClass("jpm-form-column")) {
-                    $fieldToMove.wrap("<div class='jpm-form-column'></div>");
-                  }
-
-                  // Insert based on position (top = before, bottom = after)
-                  if (isInTopZone) {
-                    $fieldToMove.parent().insertBefore($targetColumn);
-                  } else {
-                    $fieldToMove.parent().insertAfter($targetColumn);
-                  }
-
-                  $fieldToMove.css("opacity", "1");
-                } else {
-                  // No target field found, create new row above/below
-                  // Create new row
-                  var rowIndex = $targetRow.index();
-                  var $newRow = $(
-                    "<div class='jpm-form-row' data-row-index='" +
-                      rowIndex +
-                      "'></div>"
-                  );
-
-                  // Remove actual dragged field from current position first
-                  if ($actualDraggedField.length > 0) {
-                    var $actualColumn = $actualDraggedField.parent();
-                    if ($actualColumn.hasClass("jpm-form-column")) {
-                      $actualDraggedField.detach();
-                      if (
-                        $actualColumn.find(".jpm-field-editor").length === 0
-                      ) {
-                        $actualColumn.remove();
-                      }
-                    } else {
-                      $actualDraggedField.detach();
-                    }
-                    $actualDraggedField.appendTo($newRow);
-                  } else {
-                    // Fallback to dragged field if actual not found
-                    if ($draggedField.parent().hasClass("jpm-form-column")) {
-                      $draggedField.unwrap();
-                    }
-                    $draggedField.detach();
-                    $draggedField.appendTo($newRow);
-                  }
-
-                  // Insert row based on position
-                  if (isInTopZone) {
-                    $targetRow.before($newRow);
-                  } else {
-                    $targetRow.after($newRow);
-                  }
-
-                  // Check if original row now has only one field - make it full width
-                  var $remainingFields = $targetRow.find(".jpm-field-editor");
-                  var $remainingColumns = $targetRow.find(".jpm-form-column");
-
-                  if ($remainingFields.length === 1) {
-                    // Only one field left - remove columns and make it full width
-                    var $singleField = $remainingFields.first();
-                    var $singleColumn = $singleField.parent();
-
-                    if ($singleColumn.hasClass("jpm-form-column")) {
-                      $singleField.unwrap();
-                      $targetRow.removeClass("jpm-row-has-columns");
-                    }
-
-                    // Set to full width
-                    $singleField.find(".jpm-field-column-width").val(12);
-                    $singleField.find(".jpm-field-column-badge").text("Full");
-                  } else if ($remainingColumns.length > 0) {
-                    // Multiple fields remain - recalculate column widths
-                    // This will be handled by reorganizeRows()
-                  }
-
-                  $draggedField.css("opacity", "1");
-                }
-              } else {
-                // Middle zone - create columns for left/right positioning
-                // Use the target field we already found above
-                if ($targetField && $targetField.length > 0) {
-                  // Remove actual dragged field from current position first
-                  var $actualColumn =
-                    $actualDraggedField.length > 0
-                      ? $actualDraggedField.parent()
-                      : $draggedField.parent();
-                  var wasInColumn = $actualColumn.hasClass("jpm-form-column");
-
-                  if ($actualDraggedField.length > 0) {
-                    $actualDraggedField.detach();
-                    // Check if column is now empty and remove it
-                    if (
-                      wasInColumn &&
-                      $actualColumn.find(".jpm-field-editor").length === 0
-                    ) {
-                      $actualColumn.remove();
-                    }
-                  } else {
-                    // Fallback to dragged field
-                    $draggedField.detach();
-                    if (
-                      wasInColumn &&
-                      $actualColumn.find(".jpm-field-editor").length === 0
-                    ) {
-                      $actualColumn.remove();
-                    }
-                  }
-
-                  // Get target field's column wrapper (or create one)
-                  var $targetColumn = $targetField.parent();
-                  if (!$targetColumn.hasClass("jpm-form-column")) {
-                    // Create column wrapper if it doesn't exist
-                    if (!$targetRow.hasClass("jpm-row-has-columns")) {
-                      $targetRow.addClass("jpm-row-has-columns");
-                    }
-                    $targetField.wrap("<div class='jpm-form-column'></div>");
-                    $targetColumn = $targetField.parent();
-                  }
-
-                  // Use actual field if available, otherwise use dragged field
-                  var $fieldToMove =
-                    $actualDraggedField.length > 0
-                      ? $actualDraggedField
-                      : $draggedField;
-
-                  // Wrap field in column if not already
-                  if (!$fieldToMove.parent().hasClass("jpm-form-column")) {
-                    $fieldToMove.wrap("<div class='jpm-form-column'></div>");
-                  }
-
-                  // Insert based on position
-                  if (isLeft) {
-                    $fieldToMove.parent().insertBefore($targetColumn);
-                  } else {
-                    $fieldToMove.parent().insertAfter($targetColumn);
-                  }
-
-                  $fieldToMove.css("opacity", "1");
-                } else {
-                  // No target field found - place field in row based on left/right position
-                  // Remove actual dragged field from current position first
-                  var $actualColumn =
-                    $actualDraggedField.length > 0
-                      ? $actualDraggedField.parent()
-                      : $draggedField.parent();
-                  var wasInColumn = $actualColumn.hasClass("jpm-form-column");
-
-                  var $fieldToMove =
-                    $actualDraggedField.length > 0
-                      ? $actualDraggedField
-                      : $draggedField;
-
-                  if ($actualDraggedField.length > 0) {
-                    $actualDraggedField.detach();
-                    // Check if column is now empty and remove it
-                    if (
-                      wasInColumn &&
-                      $actualColumn.find(".jpm-field-editor").length === 0
-                    ) {
-                      $actualColumn.remove();
-                    }
-                  } else {
-                    // Fallback to dragged field
-                    $draggedField.detach();
-                    if (
-                      wasInColumn &&
-                      $actualColumn.find(".jpm-field-editor").length === 0
-                    ) {
-                      $actualColumn.remove();
-                    }
-                  }
-
-                  // Ensure row has columns class if needed
-                  if (!$targetRow.hasClass("jpm-row-has-columns")) {
-                    $targetRow.addClass("jpm-row-has-columns");
-                    // Wrap any existing fields in columns
-                    $targetRow.find(".jpm-field-editor").each(function () {
-                      var $field = $(this);
-                      if (!$field.parent().hasClass("jpm-form-column")) {
-                        $field.wrap("<div class='jpm-form-column'></div>");
-                      }
-                    });
-                  }
-
-                  // Wrap field in column if not already
-                  if (!$fieldToMove.parent().hasClass("jpm-form-column")) {
-                    $fieldToMove.wrap("<div class='jpm-form-column'></div>");
-                  }
-
-                  // Insert based on position (left = beginning, right = end)
-                  if (isLeft) {
-                    $fieldToMove.parent().prependTo($targetRow);
-                  } else {
-                    $fieldToMove.parent().appendTo($targetRow);
-                  }
-
-                  $fieldToMove.css("opacity", "1");
-                }
-              }
-            } else {
-              $draggedField.css("opacity", "1");
-            }
-            // Remove all position classes and labels
-            $(".jpm-form-row, .jpm-form-column").removeClass(
-              "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-            );
-
-            reorganizeRows();
-            updateFormFields();
-            setTimeout(function () {
-              initializeSortable();
-            }, 100);
-            return;
-          }
-
-          // Find and remove the original field from source row
-          if ($sourceRow.length > 0 && fieldIndex) {
-            var $originalField = $sourceRow.find(
-              ".jpm-field-editor[data-index='" + fieldIndex + "']"
-            );
-            if ($originalField.length > 0) {
-              $originalField.remove();
-            }
-          }
-
-          // If dropped on a column, add to that column's row
-          if ($targetColumn && $targetColumn.length > 0) {
-            // Get mouse position relative to the column
-            var colOffset = $targetColumn.offset();
-            var colWidth = $targetColumn.width();
-            var colHeight = $targetColumn.height();
-            var mouseX = event.pageX - colOffset.left;
-            var mouseY = event.pageY - colOffset.top;
-
-            // Determine if dropped on top or bottom half
-            var isTop = mouseY < colHeight / 2;
-            // Determine if dropped on left or right half
-            var isLeft = mouseX < colWidth / 2;
-
-            // Calculate vertical threshold (top 30% or bottom 30% = new row, middle 40% = columns)
-            var topThreshold = colHeight * 0.3;
-            var bottomThreshold = colHeight * 0.7;
-            var isInTopZone = mouseY < topThreshold;
-            var isInBottomZone = mouseY > bottomThreshold;
-
-            // If dropped in top or bottom zone, create new row above/below
-            if (isInTopZone || isInBottomZone) {
-              // Create new row
-              var rowIndex = $targetRow.index();
-              var $newRow = $(
-                "<div class='jpm-form-row' data-row-index='" +
-                  rowIndex +
-                  "'></div>"
-              );
-
-              // Wrap dragged field if needed
-              if ($draggedField.parent().hasClass("jpm-form-column")) {
-                $draggedField.unwrap();
-              }
-
-              $draggedField.appendTo($newRow);
-
-              // Insert row based on position
-              if (isInTopZone) {
-                $targetRow.before($newRow);
-              } else {
-                $targetRow.after($newRow);
-              }
-
-              // Check if original row now has only one field - make it full width
-              var $remainingFields = $targetRow.find(".jpm-field-editor");
-              var $remainingColumns = $targetRow.find(".jpm-form-column");
-
-              if ($remainingFields.length === 1) {
-                // Only one field left - remove columns and make it full width
-                var $singleField = $remainingFields.first();
-                var $singleColumn = $singleField.parent();
-
-                if ($singleColumn.hasClass("jpm-form-column")) {
-                  $singleField.unwrap();
-                  $targetRow.removeClass("jpm-row-has-columns");
-                }
-
-                // Set to full width
-                $singleField.find(".jpm-field-column-width").val(12);
-                $singleField.find(".jpm-field-column-badge").text("Full");
-              } else if ($remainingColumns.length > 0) {
-                // Multiple fields remain - recalculate column widths
-                // This will be handled by reorganizeRows()
-              }
-
-              $draggedField.css("opacity", "1");
-            } else {
-              // Middle zone - create columns for left/right positioning
-              // Wrap dragged field in column if not already
-              if (!$draggedField.parent().hasClass("jpm-form-column")) {
-                $draggedField.wrap("<div class='jpm-form-column'></div>");
-              }
-
-              // Insert based on position
-              if (isLeft) {
-                $draggedField.parent().insertBefore($targetColumn);
-              } else {
-                $draggedField.parent().insertAfter($targetColumn);
-              }
-
-              // Ensure row has columns class
-              $targetRow.addClass("jpm-row-has-columns");
-              $draggedField.css("opacity", "1");
-            }
-          } else {
-            // If target row has a field, check position
-            var $existingField = $targetRow.find(".jpm-field-editor");
-            if (
-              $existingField.length > 0 &&
-              !$existingField.is($draggedField)
-            ) {
-              // Get mouse position relative to the row
-              var rowOffset = $targetRow.offset();
-              var rowWidth = $targetRow.width();
-              var rowHeight = $targetRow.height();
-              var mouseX = event.pageX - rowOffset.left;
-              var mouseY = event.pageY - rowOffset.top;
-
-              // Determine if dropped on top or bottom half
-              var isTop = mouseY < rowHeight / 2;
-              // Determine if dropped on left or right half
-              var isLeft = mouseX < rowWidth / 2;
-
-              // Calculate vertical threshold (top 30% or bottom 30% = new row, middle 40% = columns)
-              var topThreshold = rowHeight * 0.3;
-              var bottomThreshold = rowHeight * 0.7;
-              var isInTopZone = mouseY < topThreshold;
-              var isInBottomZone = mouseY > bottomThreshold;
-
-              // If dropped in top or bottom zone, create new row above/below
-              if (isInTopZone || isInBottomZone) {
-                // Create new row
-                var rowIndex = $targetRow.index();
-                var $newRow = $(
-                  "<div class='jpm-form-row' data-row-index='" +
-                    rowIndex +
-                    "'></div>"
-                );
-
-                // Wrap dragged field if needed
-                if ($draggedField.parent().hasClass("jpm-form-column")) {
-                  $draggedField.unwrap();
-                }
-
-                $draggedField.appendTo($newRow);
-
-                // Insert row based on position
-                if (isInTopZone) {
-                  $targetRow.before($newRow);
-                } else {
-                  $targetRow.after($newRow);
-                }
-
-                // Check if original row now has only one field - make it full width
-                var $remainingFields = $targetRow.find(".jpm-field-editor");
-                var $remainingColumns = $targetRow.find(".jpm-form-column");
-
-                if ($remainingFields.length === 1) {
-                  // Only one field left - remove columns and make it full width
-                  var $singleField = $remainingFields.first();
-                  var $singleColumn = $singleField.parent();
-
-                  if ($singleColumn.hasClass("jpm-form-column")) {
-                    $singleField.unwrap();
-                    $targetRow.removeClass("jpm-row-has-columns");
-                  }
-
-                  // Set to full width
-                  $singleField.find(".jpm-field-column-width").val(12);
-                  $singleField.find(".jpm-field-column-badge").text("Full");
-                } else if ($remainingColumns.length > 0) {
-                  // Multiple fields remain - recalculate column widths
-                  // This will be handled by reorganizeRows()
-                }
-
-                $draggedField.css("opacity", "1");
-              } else {
-                // Middle zone - create columns for left/right positioning
-                // Create column wrapper if it doesn't exist
-                if (!$targetRow.hasClass("jpm-row-has-columns")) {
-                  $targetRow.addClass("jpm-row-has-columns");
-                  $existingField.wrap("<div class='jpm-form-column'></div>");
-                }
-
-                // Wrap dragged field in column
-                $draggedField.wrap("<div class='jpm-form-column'></div>");
-
-                // Insert based on position
-                if (isLeft) {
-                  $draggedField.parent().insertBefore($existingField.parent());
-                } else {
-                  $draggedField.parent().insertAfter($existingField.parent());
-                }
-
-                $draggedField.css("opacity", "1");
-              }
-            } else {
-              // Target row is empty, just add the field
-              $draggedField.css("opacity", "1");
-              $draggedField.appendTo($targetRow);
-            }
-          }
-
-          // Clean up empty source row
-          if ($sourceRow.length > 0 && !$sourceRow.is($targetRow)) {
-            var $remainingFields = $sourceRow.find(".jpm-field-editor");
-            if ($remainingFields.length === 0) {
-              $sourceRow.remove();
-            }
-          }
-
-          // Remove all position classes and labels from all rows and columns
-          $(".jpm-form-row, .jpm-form-column").removeClass(
-            "jpm-drop-hover jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
-          );
-
-          reorganizeRows();
-          updateFormFields();
-
-          // Reinitialize after DOM changes with a small delay
-          setTimeout(function () {
-            initializeSortable();
-          }, 100);
+          handleEnhancedDrop(event, ui, $(this));
         },
       });
     });
   }
+
+  // Calculate precise drop position with visual zones
+  function calculateDropPosition(event, $target, $draggedField) {
+    var isRow = $target.hasClass("jpm-form-row");
+    var isColumn = $target.hasClass("jpm-form-column");
+
+    var offset = $target.offset();
+    var width = $target.outerWidth();
+    var height = $target.outerHeight();
+    var mouseX = event.pageX - offset.left;
+    var mouseY = event.pageY - offset.top;
+
+    // Calculate relative positions (0-1)
+    var relX = mouseX / width;
+    var relY = mouseY / height;
+
+    // Define zone thresholds (adjustable for sensitivity)
+    var TOP_ZONE = 0.25; // Top 25% = new row above
+    var BOTTOM_ZONE = 0.75; // Bottom 25% = new row below
+    var LEFT_ZONE = 0.3; // Left 30% = left column
+    var RIGHT_ZONE = 0.7; // Right 30% = right column
+
+    var zone = {
+      target: $target,
+      isRow: isRow,
+      isColumn: isColumn,
+      position: "middle",
+      side: "center",
+      relX: relX,
+      relY: relY,
+    };
+
+    // Determine vertical position
+    if (relY < TOP_ZONE) {
+      zone.position = "before";
+      zone.description = "New row above";
+    } else if (relY > BOTTOM_ZONE) {
+      zone.position = "after";
+      zone.description = "New row below";
+    } else {
+      zone.position = "middle";
+
+      // Determine horizontal side for column layout
+      if (relX < LEFT_ZONE) {
+        zone.side = "left";
+        zone.description = "Add to left column";
+      } else if (relX > RIGHT_ZONE) {
+        zone.side = "right";
+        zone.description = "Add to right column";
+      } else {
+        zone.side = "center";
+        zone.description = "Add to center";
+      }
+    }
+
+    return zone;
+  }
+
+  // Show enhanced visual drop indicator with animations
+  function showEnhancedDropIndicator(dropInfo, $target) {
+    // Remove any existing indicators first
+    removeDropIndicator($target);
+
+    var position = dropInfo.position;
+    var side = dropInfo.side;
+
+    // Remove old position classes
+    $target.removeClass(
+      "jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
+    );
+
+    // Create animated indicator
+    var $indicator = $('<div class="jpm-drop-indicator"></div>');
+
+    if (position === "before") {
+      $indicator.addClass("jpm-drop-indicator-top");
+      $target.addClass("jpm-drop-top");
+      $target.before($indicator);
+    } else if (position === "after") {
+      $indicator.addClass("jpm-drop-indicator-bottom");
+      $target.addClass("jpm-drop-bottom");
+      $target.after($indicator);
+    } else if (position === "middle") {
+      $target.addClass("jpm-drop-middle");
+
+      if (side === "left") {
+        $indicator.addClass("jpm-drop-indicator-left");
+        $target.addClass("jpm-drop-left");
+      } else if (side === "right") {
+        $indicator.addClass("jpm-drop-indicator-right");
+        $target.addClass("jpm-drop-right");
+      } else {
+        $indicator.addClass("jpm-drop-indicator-center");
+      }
+
+      $target.append($indicator);
+    }
+
+    // Animate indicator appearance
+    setTimeout(function () {
+      $indicator.addClass("jpm-drop-indicator-visible");
+    }, 10);
+  }
+
+  // Remove drop indicators with fade out
+  function removeDropIndicator($target) {
+    var $indicators = $target
+      .find(".jpm-drop-indicator")
+      .add($target.siblings(".jpm-drop-indicator"));
+
+    $indicators.removeClass("jpm-drop-indicator-visible");
+    setTimeout(function () {
+      $indicators.remove();
+    }, 200);
+  }
+
+  // Update drop zone highlights during drag
+  function updateDropZoneHighlights(event, ui) {
+    var $draggedField = ui.helper;
+    var threshold = 50; // Proximity threshold in pixels
+
+    $(".jpm-form-row, .jpm-form-column").each(function () {
+      var $zone = $(this);
+      var offset = $zone.offset();
+      var width = $zone.outerWidth();
+      var height = $zone.outerHeight();
+
+      // Check if mouse is within or near the zone
+      var isNear =
+        event.pageX >= offset.left - threshold &&
+        event.pageX <= offset.left + width + threshold &&
+        event.pageY >= offset.top - threshold &&
+        event.pageY <= offset.top + height + threshold;
+
+      var isOver =
+        event.pageX >= offset.left &&
+        event.pageX <= offset.left + width &&
+        event.pageY >= offset.top &&
+        event.pageY <= offset.top + height;
+
+      if (isOver) {
+        $zone.addClass("jpm-drop-target");
+      } else if (isNear) {
+        $zone.addClass("jpm-drop-nearby");
+      } else {
+        $zone.removeClass("jpm-drop-target jpm-drop-nearby");
+      }
+    });
+  }
+
+  // Enhanced drop handler with smooth animations
+  function handleEnhancedDrop(event, ui, $target) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    var $draggedField = ui.draggable;
+    var fieldIndex =
+      ui.helper.data("field-index") || $draggedField.attr("data-index");
+    var $sourceRow =
+      ui.helper.data("original-row") || $draggedField.data("original-row");
+    var dropInfo = calculateDropPosition(event, $target, $draggedField);
+
+    // Mark as successfully dropped
+    if (ui.helper) {
+      ui.helper.data("dropped", true);
+    }
+
+    // Find the actual field in DOM (not the helper)
+    var $actualField = $(
+      ".jpm-field-editor[data-index='" + fieldIndex + "']"
+    ).first();
+
+    if ($actualField.length === 0) {
+      $actualField = $draggedField;
+    }
+
+    // Store original parent for cleanup
+    var $originalColumn = $actualField.parent();
+    var wasInColumn = $originalColumn.hasClass("jpm-form-column");
+
+    // Fade out from original position
+    $actualField.css({
+      opacity: "0",
+      transform: "scale(0.95)",
+    });
+
+    setTimeout(function () {
+      // Detach from original position
+      $actualField.detach();
+
+      // Clean up empty column
+      if (
+        wasInColumn &&
+        $originalColumn.find(".jpm-field-editor").length === 0
+      ) {
+        $originalColumn.fadeOut(200, function () {
+          $(this).remove();
+        });
+      }
+
+      // Execute drop based on calculated position
+      var $targetRow = dropInfo.isRow
+        ? $target
+        : $target.closest(".jpm-form-row");
+
+      if (dropInfo.position === "before") {
+        // Create new row ABOVE target
+        createNewRowWithField($actualField, $targetRow, "before");
+      } else if (dropInfo.position === "after") {
+        // Create new row BELOW target
+        createNewRowWithField($actualField, $targetRow, "after");
+      } else {
+        // Middle position - add to columns
+        addFieldToRowAsColumn($actualField, $targetRow, dropInfo.side);
+      }
+
+      // Animate field appearance in new position
+      $actualField.css({
+        opacity: "0",
+        transform: "scale(0.95)",
+      });
+
+      setTimeout(function () {
+        $actualField.css({
+          opacity: "1",
+          transform: "scale(1)",
+          transition: "all 0.3s ease",
+        });
+      }, 50);
+
+      // Clean up source row if empty or single field
+      cleanupSourceRow($sourceRow, $targetRow);
+
+      // Remove all visual indicators
+      $(".jpm-drop-indicator").remove();
+      $(".jpm-form-row, .jpm-form-column").removeClass(
+        "jpm-drop-hover jpm-drop-active jpm-drop-target jpm-drop-nearby " +
+          "jpm-drop-top jpm-drop-bottom jpm-drop-left jpm-drop-right jpm-drop-middle"
+      );
+
+      // Update field data and reorganize
+      reorganizeRows();
+      updateFormFields();
+
+      // Reinitialize drag and drop with delay
+      setTimeout(function () {
+        initializeSortable();
+      }, 200);
+    }, 150);
+  }
+
+  // Helper: Create new row with field
+  function createNewRowWithField($field, $targetRow, position) {
+    var $newRow = $('<div class="jpm-form-row"></div>');
+
+    // Remove column wrapper if exists
+    if ($field.parent().hasClass("jpm-form-column")) {
+      $field.unwrap();
+    }
+
+    $field.appendTo($newRow);
+
+    // Set to full width
+    $field.find(".jpm-field-column-width").val(12);
+    $field.find(".jpm-field-column-badge").text("Full");
+
+    // Insert row at correct position
+    if (position === "before") {
+      $targetRow.before($newRow);
+    } else {
+      $targetRow.after($newRow);
+    }
+
+    // Animate row appearance
+    $newRow.hide().slideDown(300);
+  }
+
+  // Helper: Add field to row as column
+  function addFieldToRowAsColumn($field, $targetRow, side) {
+    // Ensure row has column structure
+    if (!$targetRow.hasClass("jpm-row-has-columns")) {
+      $targetRow.addClass("jpm-row-has-columns");
+
+      // Wrap existing fields in columns
+      $targetRow
+        .find(".jpm-field-editor")
+        .not($field)
+        .each(function () {
+          if (!$(this).parent().hasClass("jpm-form-column")) {
+            $(this).wrap('<div class="jpm-form-column"></div>');
+          }
+        });
+    }
+
+    // Wrap field in column if needed
+    if (!$field.parent().hasClass("jpm-form-column")) {
+      $field.wrap('<div class="jpm-form-column"></div>');
+    }
+
+    var $fieldColumn = $field.parent();
+
+    // Check if row already has 3 columns (maximum)
+    var columnCount = $targetRow.find(".jpm-form-column").length;
+
+    if (columnCount >= 3) {
+      // Max columns reached - create new row instead
+      createNewRowWithField($field, $targetRow, "after");
+      return;
+    }
+
+    // Insert based on side
+    if (side === "left") {
+      $fieldColumn.prependTo($targetRow);
+    } else if (side === "right") {
+      $fieldColumn.appendTo($targetRow);
+    } else {
+      // Center - add after first column
+      var $firstColumn = $targetRow.find(".jpm-form-column").first();
+      if ($firstColumn.length > 0) {
+        $fieldColumn.insertAfter($firstColumn);
+      } else {
+        $fieldColumn.appendTo($targetRow);
+      }
+    }
+  }
+
+  // Helper: Clean up source row after field is moved
+  function cleanupSourceRow($sourceRow, $targetRow) {
+    if (!$sourceRow || $sourceRow.length === 0 || $sourceRow.is($targetRow)) {
+      return;
+    }
+
+    var $remainingFields = $sourceRow.find(".jpm-field-editor");
+
+    if ($remainingFields.length === 0) {
+      // No fields left - remove row with animation
+      $sourceRow.slideUp(300, function () {
+        $(this).remove();
+      });
+    } else if ($remainingFields.length === 1) {
+      // Only one field left - make it full width
+      var $singleField = $remainingFields.first();
+      var $singleColumn = $singleField.parent();
+
+      if ($singleColumn.hasClass("jpm-form-column")) {
+        $singleField.unwrap();
+        $sourceRow.removeClass("jpm-row-has-columns");
+      }
+
+      // Set to full width
+      $singleField.find(".jpm-field-column-width").val(12);
+      $singleField.find(".jpm-field-column-badge").text("Full");
+    }
+  }
+
+  // Update form fields JSON
+  function updateFormFields() {
+    var fields = [];
+    $(".jpm-form-row").each(function () {
+      var $row = $(this);
+      $row.find(".jpm-field-editor").each(function () {
+        var $field = $(this);
+        var columnWidth = $field.find(".jpm-field-column-width").val() || "12";
+        var field = {
+          type: $field.find(".jpm-field-type").val() || "text",
+          label: $field.find(".jpm-field-label").val() || "",
+          name: $field.find(".jpm-field-name").val() || "",
+          required: $field.find(".jpm-field-required").is(":checked"),
+          placeholder: $field.find(".jpm-field-placeholder").val() || "",
+          options: $field.find(".jpm-field-options").val() || "",
+          description: $field.find(".jpm-field-description").val() || "",
+          column_width: columnWidth,
+        };
+        fields.push(field);
+      });
+    });
+    var jsonData = JSON.stringify(fields);
+    var $hiddenField = $("#jpm-form-fields-json");
+    if ($hiddenField.length > 0) {
+      $hiddenField.val(jsonData);
+      // Trigger multiple events to ensure form knows the value changed
+      $hiddenField.trigger("change").trigger("input");
+    } else {
+      console.error(
+        "Form fields JSON input not found! Cannot save form fields."
+      );
+      // Try to find it again after a short delay
+      setTimeout(function () {
+        var $retryField = $("#jpm-form-fields-json");
+        if ($retryField.length > 0) {
+          $retryField.val(jsonData);
+          $retryField.trigger("change").trigger("input");
+        } else {
+          // Last resort: try to create the field
+          var $formBuilder = $("#jpm-form-fields-container").closest(
+            ".jpm-form-builder"
+          );
+          if ($formBuilder.length > 0) {
+            var $newField = $(
+              '<input type="hidden" name="jpm_form_fields_json" id="jpm-form-fields-json" value="">'
+            );
+            $formBuilder.append($newField);
+            $newField.val(jsonData);
+            $newField.trigger("change").trigger("input");
+          }
+        }
+      }, 100);
+    }
+  }
+
+  // Initialize on page load
+  reorganizeRows();
+  initializeSortable();
+  updateFormFields();
+
+  // Reorganize after a short delay to ensure DOM is ready
+  setTimeout(function () {
+    reorganizeRows();
+    initializeSortable();
+    updateFormFields(); // Ensure fields are updated after DOM is ready
+  }, 100);
+
+  // Update form fields before form submission (publish/update)
+  $("#post").on("submit", function (e) {
+    // Update fields synchronously before form submits - don't allow form to submit until done
+    updateFormFields();
+
+    // Ensure the hidden field is in the DOM and has data
+    var $hiddenField = $("#jpm-form-fields-json");
+    if ($hiddenField.length === 0) {
+      console.error("Form fields JSON input not found!");
+      // Try to create it if it doesn't exist
+      var $formBuilder = $("#jpm-form-fields-container").closest(
+        ".jpm-form-builder"
+      );
+      if ($formBuilder.length > 0) {
+        $formBuilder.append(
+          '<input type="hidden" name="jpm_form_fields_json" id="jpm-form-fields-json" value="">'
+        );
+        updateFormFields();
+      }
+    } else {
+      var jsonValue = $hiddenField.val();
+      if (!jsonValue || jsonValue === "[]" || jsonValue === "") {
+        console.warn("Form fields JSON is empty! Attempting to update...");
+        updateFormFields();
+        // Double check after update
+        jsonValue = $hiddenField.val();
+        if (!jsonValue || jsonValue === "[]" || jsonValue === "") {
+          console.error("Form fields JSON is still empty after update!");
+        }
+      }
+    }
+  });
+
+  // Also update on publish/update button clicks (before submit) - use mousedown to catch it early
+  $(document).on(
+    "mousedown",
+    "#publish, #save-post, #save, input[name='save']",
+    function () {
+      updateFormFields();
+    }
+  );
+
+  // Also update on click as backup
+  $(document).on(
+    "click",
+    "#publish, #save-post, #save, input[name='save']",
+    function () {
+      updateFormFields();
+    }
+  );
+
+  // Update on autosave heartbeat
+  if (typeof wp !== "undefined" && wp.heartbeat) {
+    $(document).on("heartbeat-send", function () {
+      updateFormFields();
+    });
+  }
+
+  // Update on any field property change with a debounce
+  var updateTimeout;
+  $(document).on(
+    "input change",
+    ".jpm-field-label, .jpm-field-name, .jpm-field-placeholder, .jpm-field-options, .jpm-field-description, .jpm-field-required, .jpm-field-type",
+    function () {
+      clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(function () {
+        updateFormFields();
+      }, 300);
+    }
+  );
 
   // Update form fields JSON
   function updateFormFields() {
