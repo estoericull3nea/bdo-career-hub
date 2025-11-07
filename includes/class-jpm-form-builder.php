@@ -456,10 +456,12 @@ class JPM_Form_Builder
     {
         global $post;
 
-        if (!is_singular('job_posting') || !is_user_logged_in()) {
+        // Only on single job posting pages
+        if (!is_singular('job_posting')) {
             return $content;
         }
 
+        // Show the form to all users (logged in or not)
         $form_fields = get_post_meta($post->ID, '_jpm_form_fields', true);
         if (empty($form_fields) || !is_array($form_fields)) {
             return $content;
@@ -705,10 +707,7 @@ class JPM_Form_Builder
             wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'job-posting-manager')]);
         }
 
-        if (!is_user_logged_in()) {
-            wp_send_json_error(['message' => __('Please log in to apply.', 'job-posting-manager')]);
-        }
-
+        // Allow both logged in and non-logged-in users to apply
         $job_id = intval($_POST['job_id'] ?? 0);
         if (!$job_id) {
             wp_send_json_error(['message' => __('Invalid job posting.', 'job-posting-manager')]);

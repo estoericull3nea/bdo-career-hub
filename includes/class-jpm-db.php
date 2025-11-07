@@ -101,6 +101,26 @@ class JPM_Admin
                     <p class="description"><?php _e('Optional: Job duration or employment type', 'job-posting-manager'); ?></p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row">
+                    <label><?php _e('Posted Date', 'job-posting-manager'); ?></label>
+                </th>
+                <td>
+                    <p>
+                        <strong><?php echo esc_html(get_the_date('', $post->ID)); ?></strong>
+                        <?php if ($post->post_date !== $post->post_modified): ?>
+                            <br>
+                            <span class="description">
+                                <?php _e('Last modified:', 'job-posting-manager'); ?>
+                                <?php echo esc_html(get_the_modified_date('', $post->ID)); ?>
+                            </span>
+                        <?php endif; ?>
+                    </p>
+                    <p class="description">
+                        <?php _e('This is the date when the job was posted. You can change it using the "Publish" box on the right.', 'job-posting-manager'); ?>
+                    </p>
+                </td>
+            </tr>
         </table>
         <?php
     }
@@ -291,10 +311,7 @@ class JPM_Admin
         $salary = get_post_meta($post->ID, 'salary', true);
         $duration = get_post_meta($post->ID, 'duration', true);
 
-        // Only display if at least one field has a value
-        if (empty($company_image_id) && empty($company_name) && empty($location) && empty($salary) && empty($duration)) {
-            return $content;
-        }
+        // Always display job details section (at minimum, it will show posted date)
 
         ob_start();
         ?>
@@ -325,6 +342,10 @@ class JPM_Admin
                         <span><?php echo esc_html($duration); ?></span>
                     </li>
                 <?php endif; ?>
+                <li class="jpm-job-detail-item jpm-job-posted-date">
+                    <strong><?php _e('Posted Date:', 'job-posting-manager'); ?></strong>
+                    <span><?php echo esc_html(get_the_date('', $post->ID)); ?></span>
+                </li>
             </ul>
         </div>
         <?php

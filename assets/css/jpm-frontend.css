@@ -468,6 +468,40 @@
   color: #666;
 }
 
+/* Apply Now Button for Non-Logged-In Users */
+.jpm-apply-now-wrapper {
+  margin: 40px 0;
+  padding: 30px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.jpm-apply-now-button {
+  display: inline-block;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  margin-bottom: 15px;
+}
+
+.jpm-apply-now-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.jpm-login-required-message {
+  margin: 15px 0 0 0;
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
 /* Responsive job details */
 @media (max-width: 768px) {
   .jpm-job-detail-item {
