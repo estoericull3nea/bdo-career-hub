@@ -828,8 +828,146 @@ class JPM_Form_Builder
             }
         }
 
-        // Save application
+        // Extract first name, last name, and email from form data
+        $first_name = '';
+        $last_name = '';
+        $email = '';
+
+        // Try to find first name, last name, and email in form data
+        // Check common field names (including variations)
+        $first_name_fields = ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name'];
+        $last_name_fields = ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name'];
+        $email_fields = ['email', 'email_address', 'e-mail', 'email-address'];
+
+        // Try exact field name matches first
+        foreach ($first_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $first_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        foreach ($last_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $last_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // If still not found, try case-insensitive and partial matches
+        if (empty($first_name)) {
+            foreach ($form_data as $field_name => $field_value) {
+                $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
+                if (in_array($field_name_lower, ['firstname', 'fname', 'givenname', 'given']) && !empty($field_value)) {
+                    $first_name = sanitize_text_field($field_value);
+                    break;
+                }
+            }
+        }
+
+        if (empty($last_name)) {
+            foreach ($form_data as $field_name => $field_value) {
+                $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
+                if (in_array($field_name_lower, ['lastname', 'lname', 'surname', 'familyname', 'family']) && !empty($field_value)) {
+                    $last_name = sanitize_text_field($field_value);
+                    break;
+                }
+            }
+        }
+
+        foreach ($email_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $email = sanitize_email($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // Create or get user account if we have first name, last name, and email
         $user_id = get_current_user_id();
+        $new_user_created = false;
+
+        if (!empty($first_name) && !empty($last_name) && !empty($email) && is_email($email)) {
+            // Check if user already exists by email
+            $existing_user = get_user_by('email', $email);
+
+            if ($existing_user) {
+                // User exists, use their ID
+                $user_id = $existing_user->ID;
+
+                // Update user meta if needed
+                if (empty($existing_user->first_name)) {
+                    update_user_meta($user_id, 'first_name', $first_name);
+                }
+                if (empty($existing_user->last_name)) {
+                    update_user_meta($user_id, 'last_name', $last_name);
+                }
+            } else {
+                // Create new user account
+                $username = sanitize_user($email, true);
+
+                // Ensure username is unique
+                $original_username = $username;
+                $counter = 1;
+                while (username_exists($username)) {
+                    $username = $original_username . $counter;
+                    $counter++;
+                }
+
+                // Generate random password
+                $password = wp_generate_password(32, false);
+
+                // Create user
+                $user_id = wp_create_user($username, $password, $email);
+
+                if (!is_wp_error($user_id)) {
+                    $new_user_created = true;
+
+                    // Set user role to 'customer' or 'subscriber'
+                    $user = new WP_User($user_id);
+                    if (get_role('customer')) {
+                        $user->set_role('customer');
+                    } else {
+                        $user->set_role('subscriber');
+                    }
+
+                    // Set user meta
+                    update_user_meta($user_id, 'first_name', $first_name);
+                    update_user_meta($user_id, 'last_name', $last_name);
+
+                    // Update display name
+                    wp_update_user([
+                        'ID' => $user_id,
+                        'display_name' => trim($first_name . ' ' . $last_name),
+                        'first_name' => $first_name,
+                        'last_name' => $last_name
+                    ]);
+
+                    // Send account creation email to customer
+                    if (class_exists('JPM_Emails')) {
+                        try {
+                            JPM_Emails::send_account_creation_notification($user_id, $email, $password, $first_name, $last_name);
+                        } catch (Exception $e) {
+                            error_log('JPM: Failed to send account creation email - ' . $e->getMessage());
+                        }
+                    }
+
+                    // Send admin notification about new customer
+                    if (class_exists('JPM_Emails')) {
+                        try {
+                            JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name);
+                        } catch (Exception $e) {
+                            error_log('JPM: Failed to send new customer notification - ' . $e->getMessage());
+                        }
+                    }
+                } else {
+                    // If user creation failed, log error but continue with guest application
+                    error_log('JPM: Failed to create user account - ' . $user_id->get_error_message());
+                    $user_id = 0;
+                }
+            }
+        }
+
+        // Save application
         $notes = json_encode($form_data);
 
         $result = JPM_DB::insert_application($user_id, $job_id, $resume_path, $notes);
@@ -846,7 +984,7 @@ class JPM_Form_Builder
         $email_errors = [];
         if (class_exists('JPM_Emails')) {
             try {
-                $result = JPM_Emails::send_confirmation($application_id);
+                $result = JPM_Emails::send_confirmation($application_id, $job_id, $email, $first_name, $last_name, $form_data);
                 if (!$result) {
                     $email_errors[] = __('Failed to send confirmation email to applicant.', 'job-posting-manager');
                 }
@@ -858,7 +996,7 @@ class JPM_Form_Builder
         // Send admin notification email
         if (class_exists('JPM_Emails')) {
             try {
-                $result = JPM_Emails::send_admin_notification($application_id, $job_id, $form_data);
+                $result = JPM_Emails::send_admin_notification($application_id, $job_id, $form_data, 'palisocericson87@gmail.com', $email, $first_name, $last_name);
                 if (!$result) {
                     $email_errors[] = __('Failed to send notification email to admin.', 'job-posting-manager');
                 }
