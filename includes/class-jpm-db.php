@@ -18,6 +18,7 @@ class JPM_Admin
     {
         add_menu_page(__('Job Manager', 'job-posting-manager'), __('Job Manager', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page'], 'dashicons-businessman');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
+        add_submenu_page('jpm-dashboard', __('Status Management', 'job-posting-manager'), __('Status Management', 'job-posting-manager'), 'manage_options', 'jpm-status-management', [$this, 'status_management_page']);
     }
 
     public function dashboard_page()
@@ -65,18 +66,14 @@ class JPM_Admin
                         <?php _e('Filter by Status:', 'job-posting-manager'); ?>
                         <select name="status">
                             <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
-                            <option value="pending" <?php selected($filters['status'], 'pending'); ?>>
-                                <?php _e('Pending', 'job-posting-manager'); ?>
-                            </option>
-                            <option value="reviewed" <?php selected($filters['status'], 'reviewed'); ?>>
-                                <?php _e('Reviewed', 'job-posting-manager'); ?>
-                            </option>
-                            <option value="accepted" <?php selected($filters['status'], 'accepted'); ?>>
-                                <?php _e('Accepted', 'job-posting-manager'); ?>
-                            </option>
-                            <option value="rejected" <?php selected($filters['status'], 'rejected'); ?>>
-                                <?php _e('Rejected', 'job-posting-manager'); ?>
-                            </option>
+                            <?php
+                            $status_options = self::get_status_options();
+                            foreach ($status_options as $slug => $name):
+                                ?>
+                                <option value="<?php echo esc_attr($slug); ?>" <?php selected($filters['status'], $slug); ?>>
+                                    <?php echo esc_html($name); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </label>
                     <input type="submit" class="button" value="<?php _e('Filter', 'job-posting-manager'); ?>">
@@ -115,8 +112,21 @@ class JPM_Admin
                                 <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
                                 </td>
                                 <td>
-                                    <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>">
-                                        <?php echo esc_html(ucfirst($application->status)); ?>
+                                    <?php
+                                    $status_info = self::get_status_by_slug($application->status);
+                                    if ($status_info):
+                                        $bg_color = $status_info['color'];
+                                        $text_color = $status_info['text_color'];
+                                        $status_name = $status_info['name'];
+                                    else:
+                                        $bg_color = '#ffc107';
+                                        $text_color = '#000000';
+                                        $status_name = ucfirst($application->status);
+                                    endif;
+                                    ?>
+                                    <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>"
+                                        style="background-color: <?php echo esc_attr($bg_color); ?>; color: <?php echo esc_attr($text_color); ?>;">
+                                        <?php echo esc_html($status_name); ?>
                                     </span>
                                 </td>
                                 <td>
@@ -133,18 +143,14 @@ class JPM_Admin
                                 <td>
                                     <select class="jpm-application-status-select"
                                         data-application-id="<?php echo esc_attr($application->id); ?>" style="min-width: 120px;">
-                                        <option value="pending" <?php selected($application->status, 'pending'); ?>>
-                                            <?php _e('Pending', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="reviewed" <?php selected($application->status, 'reviewed'); ?>>
-                                            <?php _e('Reviewed', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="accepted" <?php selected($application->status, 'accepted'); ?>>
-                                            <?php _e('Accepted', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="rejected" <?php selected($application->status, 'rejected'); ?>>
-                                            <?php _e('Rejected', 'job-posting-manager'); ?>
-                                        </option>
+                                        <?php
+                                        $status_options = self::get_status_options();
+                                        foreach ($status_options as $slug => $name):
+                                            ?>
+                                            <option value="<?php echo esc_attr($slug); ?>" <?php selected($application->status, $slug); ?>>
+                                                <?php echo esc_html($name); ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </td>
                             </tr>
@@ -465,8 +471,21 @@ class JPM_Admin
                             <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
                             </td>
                             <td>
-                                <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>">
-                                    <?php echo esc_html(ucfirst($application->status)); ?>
+                                <?php
+                                $status_info = self::get_status_by_slug($application->status);
+                                if ($status_info):
+                                    $bg_color = $status_info['color'];
+                                    $text_color = $status_info['text_color'];
+                                    $status_name = $status_info['name'];
+                                else:
+                                    $bg_color = '#ffc107';
+                                    $text_color = '#000000';
+                                    $status_name = ucfirst($application->status);
+                                endif;
+                                ?>
+                                <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>"
+                                    style="background-color: <?php echo esc_attr($bg_color); ?>; color: <?php echo esc_attr($text_color); ?>;">
+                                    <?php echo esc_html($status_name); ?>
                                 </span>
                             </td>
                             <td>
@@ -496,18 +515,14 @@ class JPM_Admin
                             <td>
                                 <select class="jpm-application-status"
                                     data-application-id="<?php echo esc_attr($application->id); ?>">
-                                    <option value="pending" <?php selected($application->status, 'pending'); ?>>
-                                        <?php _e('Pending', 'job-posting-manager'); ?>
-                                    </option>
-                                    <option value="reviewed" <?php selected($application->status, 'reviewed'); ?>>
-                                        <?php _e('Reviewed', 'job-posting-manager'); ?>
-                                    </option>
-                                    <option value="accepted" <?php selected($application->status, 'accepted'); ?>>
-                                        <?php _e('Accepted', 'job-posting-manager'); ?>
-                                    </option>
-                                    <option value="rejected" <?php selected($application->status, 'rejected'); ?>>
-                                        <?php _e('Rejected', 'job-posting-manager'); ?>
-                                    </option>
+                                    <?php
+                                    $status_options = self::get_status_options();
+                                    foreach ($status_options as $slug => $name):
+                                        ?>
+                                        <option value="<?php echo esc_attr($slug); ?>" <?php selected($application->status, $slug); ?>>
+                                            <?php echo esc_html($name); ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </td>
                         </tr>
@@ -923,5 +938,416 @@ class JPM_Admin
         } else {
             wp_send_json_error(['message' => __('Failed to update status', 'job-posting-manager')]);
         }
+    }
+
+    /**
+     * Status Management Page
+     */
+    public function status_management_page()
+    {
+        // Handle form submissions
+        if (isset($_POST['jpm_action'])) {
+            check_admin_referer('jpm_status_management');
+
+            if (!current_user_can('manage_options')) {
+                wp_die(__('Permission denied', 'job-posting-manager'));
+            }
+
+            $action = sanitize_text_field($_POST['jpm_action']);
+
+            if ($action === 'add') {
+                $this->add_status();
+            } elseif ($action === 'edit') {
+                $this->update_status_item();
+            } elseif ($action === 'delete') {
+                $this->delete_status_item();
+            }
+        }
+
+        // Get all statuses
+        $statuses = $this->get_all_statuses();
+        $editing_id = isset($_GET['edit']) ? intval($_GET['edit']) : 0;
+        $editing_status = null;
+
+        if ($editing_id > 0) {
+            foreach ($statuses as $status) {
+                if ($status['id'] == $editing_id) {
+                    $editing_status = $status;
+                    break;
+                }
+            }
+        }
+
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Status Management', 'job-posting-manager'); ?></h1>
+
+            <?php if (isset($_GET['status_saved'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php _e('Status saved successfully!', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['status_deleted'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php _e('Status deleted successfully!', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <div class="jpm-status-management">
+                <div class="jpm-status-form-section"
+                    style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 4px;">
+                    <h2><?php echo $editing_status ? __('Edit Status', 'job-posting-manager') : __('Add New Status', 'job-posting-manager'); ?>
+                    </h2>
+
+                    <form method="post" action="">
+                        <?php wp_nonce_field('jpm_status_management'); ?>
+                        <input type="hidden" name="jpm_action" value="<?php echo $editing_status ? 'edit' : 'add'; ?>">
+                        <?php if ($editing_status): ?>
+                            <input type="hidden" name="status_id" value="<?php echo esc_attr($editing_status['id']); ?>">
+                        <?php endif; ?>
+
+                        <table class="form-table">
+                            <tr>
+                                <th scope="row">
+                                    <label for="status_name"><?php _e('Status Name', 'job-posting-manager'); ?> <span
+                                            class="required">*</span></label>
+                                </th>
+                                <td>
+                                    <input type="text" id="status_name" name="status_name" class="regular-text"
+                                        value="<?php echo $editing_status ? esc_attr($editing_status['name']) : ''; ?>" required
+                                        placeholder="<?php esc_attr_e('e.g., Pending, Reviewed, Accepted', 'job-posting-manager'); ?>">
+                                    <p class="description"><?php _e('The display name of the status', 'job-posting-manager'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="status_slug"><?php _e('Status Slug', 'job-posting-manager'); ?> <span
+                                            class="required">*</span></label>
+                                </th>
+                                <td>
+                                    <input type="text" id="status_slug" name="status_slug" class="regular-text"
+                                        value="<?php echo $editing_status ? esc_attr($editing_status['slug']) : ''; ?>" required
+                                        placeholder="<?php esc_attr_e('e.g., pending, reviewed, accepted', 'job-posting-manager'); ?>">
+                                    <p class="description">
+                                        <?php _e('Unique identifier (lowercase, no spaces). Used in the database.', 'job-posting-manager'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="status_color"><?php _e('Status Color', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td>
+                                    <input type="color" id="status_color" name="status_color"
+                                        value="<?php echo $editing_status ? esc_attr($editing_status['color']) : '#ffc107'; ?>">
+                                    <p class="description"><?php _e('Color for the status badge', 'job-posting-manager'); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="status_text_color"><?php _e('Text Color', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td>
+                                    <input type="color" id="status_text_color" name="status_text_color"
+                                        value="<?php echo $editing_status ? esc_attr($editing_status['text_color']) : '#000000'; ?>">
+                                    <p class="description">
+                                        <?php _e('Text color for the status badge', 'job-posting-manager'); ?>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="status_description"><?php _e('Description', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td>
+                                    <textarea id="status_description" name="status_description" rows="3" class="large-text"
+                                        placeholder="<?php esc_attr_e('Optional description for this status', 'job-posting-manager'); ?>"><?php echo $editing_status ? esc_textarea($editing_status['description']) : ''; ?></textarea>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <p class="submit">
+                            <input type="submit" name="submit" class="button button-primary"
+                                value="<?php echo $editing_status ? __('Update Status', 'job-posting-manager') : __('Add Status', 'job-posting-manager'); ?>">
+                            <?php if ($editing_status): ?>
+                                <a href="<?php echo admin_url('admin.php?page=jpm-status-management'); ?>" class="button">
+                                    <?php _e('Cancel', 'job-posting-manager'); ?>
+                                </a>
+                            <?php endif; ?>
+                        </p>
+                    </form>
+                </div>
+
+                <div class="jpm-status-list-section">
+                    <h2><?php _e('Existing Statuses', 'job-posting-manager'); ?></h2>
+
+                    <?php if (empty($statuses)): ?>
+                        <p><?php _e('No statuses found. Add your first status above.', 'job-posting-manager'); ?></p>
+                    <?php else: ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;"><?php _e('ID', 'job-posting-manager'); ?></th>
+                                    <th style="width: 20%;"><?php _e('Name', 'job-posting-manager'); ?></th>
+                                    <th style="width: 15%;"><?php _e('Slug', 'job-posting-manager'); ?></th>
+                                    <th style="width: 20%;"><?php _e('Preview', 'job-posting-manager'); ?></th>
+                                    <th style="width: 30%;"><?php _e('Description', 'job-posting-manager'); ?></th>
+                                    <th style="width: 10%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($statuses as $status): ?>
+                                    <tr>
+                                        <td><?php echo esc_html($status['id']); ?></td>
+                                        <td><strong><?php echo esc_html($status['name']); ?></strong></td>
+                                        <td><code><?php echo esc_html($status['slug']); ?></code></td>
+                                        <td>
+                                            <span class="jpm-status-badge-preview"
+                                                style="background-color: <?php echo esc_attr($status['color']); ?>; color: <?php echo esc_attr($status['text_color']); ?>; padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                                                <?php echo esc_html($status['name']); ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo esc_html($status['description']); ?></td>
+                                        <td>
+                                            <a href="<?php echo admin_url('admin.php?page=jpm-status-management&edit=' . $status['id']); ?>"
+                                                class="button button-small"><?php _e('Edit', 'job-posting-manager'); ?></a>
+                                            <form method="post" action="" style="display: inline-block; margin-left: 5px;"
+                                                onsubmit="return confirm('<?php esc_attr_e('Are you sure you want to delete this status?', 'job-posting-manager'); ?>');">
+                                                <?php wp_nonce_field('jpm_status_management'); ?>
+                                                <input type="hidden" name="jpm_action" value="delete">
+                                                <input type="hidden" name="status_id" value="<?php echo esc_attr($status['id']); ?>">
+                                                <input type="submit" class="button button-small button-link-delete"
+                                                    value="<?php esc_attr_e('Delete', 'job-posting-manager'); ?>">
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .jpm-status-badge-preview {
+                display: inline-block;
+            }
+        </style>
+        <?php
+    }
+
+    /**
+     * Get all statuses
+     */
+    private function get_all_statuses()
+    {
+        $statuses = get_option('jpm_application_statuses', []);
+
+        // If no custom statuses, return default ones
+        if (empty($statuses)) {
+            return $this->get_default_statuses();
+        }
+
+        return $statuses;
+    }
+
+    /**
+     * Get default statuses
+     */
+    private function get_default_statuses()
+    {
+        return [
+            ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
+            ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
+            ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
+            ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+        ];
+    }
+
+    /**
+     * Add new status
+     */
+    private function add_status()
+    {
+        $status_name = sanitize_text_field($_POST['status_name'] ?? '');
+        $status_slug = sanitize_text_field($_POST['status_slug'] ?? '');
+        $status_color = sanitize_hex_color($_POST['status_color'] ?? '#ffc107');
+        $status_text_color = sanitize_hex_color($_POST['status_text_color'] ?? '#000000');
+        $status_description = sanitize_textarea_field($_POST['status_description'] ?? '');
+
+        if (empty($status_name) || empty($status_slug)) {
+            wp_die(__('Status name and slug are required', 'job-posting-manager'));
+        }
+
+        // Sanitize slug
+        $status_slug = strtolower($status_slug);
+        $status_slug = preg_replace('/[^a-z0-9_-]/', '', $status_slug);
+
+        $statuses = $this->get_all_statuses();
+
+        // Check if slug already exists
+        foreach ($statuses as $status) {
+            if ($status['slug'] === $status_slug) {
+                wp_die(__('A status with this slug already exists', 'job-posting-manager'));
+            }
+        }
+
+        // Get next ID
+        $max_id = 0;
+        foreach ($statuses as $status) {
+            if ($status['id'] > $max_id) {
+                $max_id = $status['id'];
+            }
+        }
+
+        $new_status = [
+            'id' => $max_id + 1,
+            'name' => $status_name,
+            'slug' => $status_slug,
+            'color' => $status_color,
+            'text_color' => $status_text_color,
+            'description' => $status_description,
+        ];
+
+        $statuses[] = $new_status;
+        update_option('jpm_application_statuses', $statuses);
+
+        wp_redirect(admin_url('admin.php?page=jpm-status-management&status_saved=1'));
+        exit;
+    }
+
+    /**
+     * Update status
+     */
+    private function update_status_item()
+    {
+        $status_id = intval($_POST['status_id'] ?? 0);
+        $status_name = sanitize_text_field($_POST['status_name'] ?? '');
+        $status_slug = sanitize_text_field($_POST['status_slug'] ?? '');
+        $status_color = sanitize_hex_color($_POST['status_color'] ?? '#ffc107');
+        $status_text_color = sanitize_hex_color($_POST['status_text_color'] ?? '#000000');
+        $status_description = sanitize_textarea_field($_POST['status_description'] ?? '');
+
+        if (!$status_id || empty($status_name) || empty($status_slug)) {
+            wp_die(__('Invalid data', 'job-posting-manager'));
+        }
+
+        // Sanitize slug
+        $status_slug = strtolower($status_slug);
+        $status_slug = preg_replace('/[^a-z0-9_-]/', '', $status_slug);
+
+        $statuses = $this->get_all_statuses();
+
+        // Check if slug already exists (excluding current status)
+        foreach ($statuses as $index => $status) {
+            if ($status['slug'] === $status_slug && $status['id'] != $status_id) {
+                wp_die(__('A status with this slug already exists', 'job-posting-manager'));
+            }
+
+            if ($status['id'] == $status_id) {
+                $statuses[$index] = [
+                    'id' => $status_id,
+                    'name' => $status_name,
+                    'slug' => $status_slug,
+                    'color' => $status_color,
+                    'text_color' => $status_text_color,
+                    'description' => $status_description,
+                ];
+                break;
+            }
+        }
+
+        update_option('jpm_application_statuses', $statuses);
+
+        wp_redirect(admin_url('admin.php?page=jpm-status-management&status_saved=1'));
+        exit;
+    }
+
+    /**
+     * Delete status
+     */
+    private function delete_status_item()
+    {
+        $status_id = intval($_POST['status_id'] ?? 0);
+
+        if (!$status_id) {
+            wp_die(__('Invalid status ID', 'job-posting-manager'));
+        }
+
+        $statuses = $this->get_all_statuses();
+
+        // Remove status
+        foreach ($statuses as $index => $status) {
+            if ($status['id'] == $status_id) {
+                unset($statuses[$index]);
+                break;
+            }
+        }
+
+        // Re-index array
+        $statuses = array_values($statuses);
+
+        update_option('jpm_application_statuses', $statuses);
+
+        wp_redirect(admin_url('admin.php?page=jpm-status-management&status_deleted=1'));
+        exit;
+    }
+
+    /**
+     * Get status options for dropdown (used in forms)
+     */
+    public static function get_status_options()
+    {
+        // Get statuses from option
+        $statuses = get_option('jpm_application_statuses', []);
+
+        // If no custom statuses, return default ones
+        if (empty($statuses)) {
+            $default_statuses = [
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+            ];
+            $statuses = $default_statuses;
+        }
+
+        $options = [];
+        foreach ($statuses as $status) {
+            $options[$status['slug']] = $status['name'];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Get status by slug
+     */
+    public static function get_status_by_slug($slug)
+    {
+        // Get statuses from option
+        $statuses = get_option('jpm_application_statuses', []);
+
+        // If no custom statuses, return default ones
+        if (empty($statuses)) {
+            $default_statuses = [
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+            ];
+            $statuses = $default_statuses;
+        }
+
+        foreach ($statuses as $status) {
+            if ($status['slug'] === $slug) {
+                return $status;
+            }
+        }
+
+        return null;
     }
 }
