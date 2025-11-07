@@ -334,10 +334,10 @@ class JPM_Admin
     }
 
     /**
-     * Display company image with post title
+     * Display company image with post title and status badge
      * @param string $title The post title
      * @param int $post_id The post ID
-     * @return string Modified title with company image
+     * @return string Modified title with company image and status badge
      */
     public function display_company_image_with_title($title, $post_id = null)
     {
@@ -360,19 +360,38 @@ class JPM_Admin
             return $title;
         }
 
-        // Get company image
-        $company_image_id = get_post_meta($post_id, 'company_image', true);
+        // Get post status
+        $post_status = get_post_status($post_id);
+        $status_badge = '';
 
-        // If no image, return title as is
-        if (empty($company_image_id)) {
-            return $title;
+        if ($post_status === 'publish') {
+            $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
+        } elseif ($post_status === 'draft') {
+            $status_badge = '<span class="jpm-status-badge jpm-status-draft">' . __('Draft', 'job-posting-manager') . '</span>';
         }
 
-        // Get image HTML
-        $image_html = wp_get_attachment_image($company_image_id, 'thumbnail', false, ['class' => 'jpm-company-image-title']);
+        // Get company image
+        $company_image_id = get_post_meta($post_id, 'company_image', true);
+        $image_html = '';
 
-        // Wrap title and image in a container
-        return '<div class="jpm-title-with-image">' . $image_html . '<span class="jpm-title-text">' . $title . '</span></div>';
+        if (!empty($company_image_id)) {
+            $image_html = wp_get_attachment_image($company_image_id, 'thumbnail', false, ['class' => 'jpm-company-image-title']);
+        }
+
+        // Build the title structure
+        $title_html = '<span class="jpm-title-text">' . $title . '</span>';
+
+        if ($status_badge) {
+            $title_html .= $status_badge;
+        }
+
+        // If there's an image, wrap everything in a container
+        if (!empty($image_html)) {
+            return '<div class="jpm-title-with-image">' . $image_html . '<div class="jpm-title-wrapper">' . $title_html . '</div></div>';
+        } else {
+            // No image, just wrap title and badge
+            return '<div class="jpm-title-wrapper">' . $title_html . '</div>';
+        }
     }
 
     public function bulk_update()

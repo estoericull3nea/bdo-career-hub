@@ -358,7 +358,7 @@
 /* Job Title with Company Image */
 .jpm-title-with-image {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 15px;
   flex-wrap: wrap;
 }
@@ -371,9 +371,40 @@
   flex-shrink: 0;
 }
 
-.jpm-title-with-image .jpm-title-text {
+.jpm-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   flex: 1;
   min-width: 0;
+}
+
+.jpm-title-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Status Badge */
+.jpm-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  align-self: flex-start;
+}
+
+.jpm-status-active {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.jpm-status-draft {
+  background-color: #6c757d;
+  color: #fff;
 }
 
 /* Job Details Display Styles */
@@ -441,5 +472,14 @@
 
   .jpm-title-with-image .jpm-company-image-title {
     max-width: 60px;
+  }
+
+  .jpm-title-wrapper {
+    width: 100%;
+  }
+
+  .jpm-status-badge {
+    font-size: 11px;
+    padding: 3px 10px;
   }
 }
