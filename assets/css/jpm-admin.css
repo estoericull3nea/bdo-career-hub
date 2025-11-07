@@ -47,9 +47,6 @@
 }
 
 .jpm-form-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
   min-height: 80px;
   padding: 10px;
   background: #f9f9f9;
@@ -63,63 +60,21 @@
   background: #f0f8ff;
 }
 
-.jpm-form-column {
-  min-height: 60px;
-  background: #fff;
-  border-radius: 4px;
-  position: relative;
-  pointer-events: auto;
-}
-
-.jpm-form-column .jpm-field-editor {
-  margin-bottom: 0;
-}
-
 .jpm-dragging-helper {
   width: 300px !important;
   opacity: 0.7;
   pointer-events: none;
 }
 
-.jpm-column-drop-zone {
-  min-height: 60px;
-  background: #fff;
-  border: 2px dashed #ccc;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.jpm-column-drop-zone::before {
-  content: "Drop field here";
-  color: #999;
-  font-size: 12px;
-  opacity: 0.5;
-}
-
-.jpm-column-drop-zone.jpm-drop-hover,
-.jpm-form-column.jpm-drop-hover {
+.jpm-form-row.jpm-drop-hover {
   border-color: #0073aa;
   background: #e6f3ff;
   border-style: solid;
 }
 
-.jpm-column-drop-zone.jpm-drop-active,
-.jpm-form-column.jpm-drop-active {
+.jpm-form-row.jpm-drop-active {
   border-color: #005177;
   background: #cce7ff;
-}
-
-.jpm-column-drop-zone.jpm-drop-hover::before {
-  content: "Drop here";
-  color: #0073aa;
-  opacity: 1;
-  font-weight: bold;
 }
 
 .jpm-field-editor {
@@ -141,6 +96,15 @@
   background: #f9f9f9;
   border-bottom: 1px solid #ddd;
   cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.jpm-field-header:hover {
+  background: #f0f0f0;
 }
 
 .jpm-field-handle {
@@ -178,6 +142,15 @@
 .jpm-field-remove {
   margin-left: 5px;
   text-decoration: none;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 10;
+  position: relative;
+}
+
+.jpm-field-toggle:hover,
+.jpm-field-remove:hover {
+  opacity: 0.7;
 }
 
 .jpm-field-content {

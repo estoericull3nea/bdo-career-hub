@@ -99,44 +99,13 @@ class JPM_Form_Builder
                 <div class="jpm-form-rows">
                     <?php if (!empty($form_fields)): ?>
                         <?php
-                        // Group fields into rows based on column width
-                        $current_row = [];
-                        $current_row_width = 0;
-                        $row_index = 0;
+                        // Render each field in its own row
                         foreach ($form_fields as $index => $field):
-                            $column_width = intval($field['column_width'] ?? 12);
-
-                            // If adding this field would exceed 12 columns, start a new row
-                            if ($current_row_width + $column_width > 12 && !empty($current_row)) {
-                                $this->render_field_row($current_row, $row_index);
-                                $current_row = [];
-                                $current_row_width = 0;
-                                $row_index++;
-                            }
-
-                            $current_row[] = ['field' => $field, 'index' => $index, 'column_width' => $column_width];
-                            $current_row_width += $column_width;
-
-                            // If row is full (12 columns), render it
-                            if ($current_row_width >= 12) {
-                                $this->render_field_row($current_row, $row_index);
-                                $current_row = [];
-                                $current_row_width = 0;
-                                $row_index++;
-                            }
+                            echo '<div class="jpm-form-row" data-row-index="' . esc_attr($index) . '">';
+                            $this->render_field_editor($field, $index);
+                            echo '</div>';
                         endforeach;
-
-                        // Render any remaining fields
-                        if (!empty($current_row)) {
-                            $this->render_field_row($current_row, $row_index);
-                        }
                         ?>
-                    <?php else: ?>
-                        <div class="jpm-form-row" data-row-index="0">
-                            <div class="jpm-column-drop-zone" data-col-index="0"></div>
-                            <div class="jpm-column-drop-zone" data-col-index="1"></div>
-                            <div class="jpm-column-drop-zone" data-col-index="2"></div>
-                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -147,28 +116,6 @@ class JPM_Form_Builder
         <?php
     }
 
-    /**
-     * Render a row of fields for drag-and-drop
-     */
-    private function render_field_row($row_fields, $row_index)
-    {
-        echo '<div class="jpm-form-row" data-row-index="' . esc_attr($row_index) . '">';
-
-        // Render fields in the row
-        foreach ($row_fields as $col_index => $row_field) {
-            echo '<div class="jpm-form-column" data-col-index="' . esc_attr($col_index) . '">';
-            $this->render_field_editor($row_field['field'], $row_field['index']);
-            echo '</div>';
-        }
-
-        // Add empty drop zones for remaining columns (max 3)
-        $field_count = count($row_fields);
-        for ($i = $field_count; $i < 3; $i++) {
-            echo '<div class="jpm-column-drop-zone" data-col-index="' . esc_attr($i) . '"></div>';
-        }
-
-        echo '</div>';
-    }
 
     /**
      * Render field editor

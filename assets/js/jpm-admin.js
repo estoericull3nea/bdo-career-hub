@@ -35,13 +35,12 @@ jQuery(document).ready(function ($) {
   $(document).on("click", ".jpm-field-remove", function () {
     if (confirm("Are you sure you want to remove this field?")) {
       var $fieldEditor = $(this).closest(".jpm-field-editor");
-      var $column = $fieldEditor.closest(".jpm-form-column");
-      var $row = $column.closest(".jpm-form-row");
+      var $row = $fieldEditor.closest(".jpm-form-row");
 
       $fieldEditor.fadeOut(300, function () {
-        $column.remove();
+        $fieldEditor.remove();
         // Remove row if empty
-        if ($row.find(".jpm-form-column").length === 0) {
+        if ($row.find(".jpm-field-editor").length === 0) {
           $row.remove();
         }
         reorganizeRows();
@@ -109,48 +108,13 @@ jQuery(document).ready(function ($) {
       },
       success: function (response) {
         if (response.success) {
-          // Find the first row with space (less than 3 columns)
-          var $firstRowWithSpace = $(".jpm-form-row").first();
-          if ($firstRowWithSpace.length === 0) {
-            // Create new row if none exists
-            $firstRowWithSpace = $(
-              "<div class='jpm-form-row' data-row-index='0'></div>"
-            );
-            $(".jpm-form-rows").append($firstRowWithSpace);
-          }
-
-          // Check if row has space (less than 3 columns)
-          var fieldCount = $firstRowWithSpace.find(".jpm-form-column").length;
-          if (fieldCount >= 3) {
-            // Create new row
-            var rowIndex = $(".jpm-form-row").length;
-            $firstRowWithSpace = $(
-              "<div class='jpm-form-row' data-row-index='" +
-                rowIndex +
-                "'></div>"
-            );
-            $(".jpm-form-rows").append($firstRowWithSpace);
-          }
-
-          // Create column and add field
-          var $column = $(
-            "<div class='jpm-form-column' data-col-index='0'></div>"
+          // Create new row for each field
+          var rowIndex = $(".jpm-form-row").length;
+          var $newRow = $(
+            "<div class='jpm-form-row' data-row-index='" + rowIndex + "'></div>"
           );
-          $column.html(response.data.html);
-          $firstRowWithSpace.append($column);
-
-          // Remove empty drop zones and ensure max 3 columns
-          $firstRowWithSpace.find(".jpm-column-drop-zone").remove();
-          var colCount = $firstRowWithSpace.find(".jpm-form-column").length;
-          for (var i = colCount; i < 3; i++) {
-            $firstRowWithSpace.append(
-              $(
-                "<div class='jpm-column-drop-zone' data-col-index='" +
-                  i +
-                  "'></div>"
-              )
-            );
-          }
+          $newRow.html(response.data.html);
+          $(".jpm-form-rows").append($newRow);
 
           fieldIndex++;
           reorganizeRows();
@@ -161,60 +125,16 @@ jQuery(document).ready(function ($) {
     });
   }
 
-  // Calculate column width based on number of fields in row
-  function calculateColumnWidth(fieldCount) {
-    if (fieldCount === 1) return 12;
-    if (fieldCount === 2) return 6;
-    if (fieldCount === 3) return 4;
-    return 12; // Default to full width
-  }
-
   // Reorganize rows and update column widths
   function reorganizeRows() {
     $(".jpm-form-row").each(function () {
       var $row = $(this);
-      var columns = $row.find(".jpm-form-column");
-      var fieldCount = columns.length;
+      var $fieldEditor = $row.find(".jpm-field-editor");
 
-      if (fieldCount === 0) {
-        // Empty row - add drop zones
-        $row.find(".jpm-column-drop-zone").remove();
-        for (var i = 0; i < 3; i++) {
-          $row.append(
-            $(
-              "<div class='jpm-column-drop-zone' data-col-index='" +
-                i +
-                "'></div>"
-            )
-          );
-        }
-        return;
-      }
-
-      // Calculate and update column width
-      var colWidth = calculateColumnWidth(fieldCount);
-      columns.each(function (index) {
-        var $fieldEditor = $(this).find(".jpm-field-editor");
-        $fieldEditor.find(".jpm-field-column-width").val(colWidth);
-        var colText = colWidth == 12 ? "Full" : colWidth + " cols";
-        $fieldEditor.find(".jpm-field-column-badge").text(colText);
-      });
-
-      // Update column indices
-      columns.each(function (index) {
-        $(this).attr("data-col-index", index);
-      });
-
-      // Remove empty drop zones and ensure max 3 columns
-      $row.find(".jpm-column-drop-zone").remove();
-      for (var i = fieldCount; i < 3; i++) {
-        $row.append(
-          $(
-            "<div class='jpm-column-drop-zone' data-col-index='" +
-              i +
-              "'></div>"
-          )
-        );
+      if ($fieldEditor.length > 0) {
+        // Set column width to 12 (full width) for all fields
+        $fieldEditor.find(".jpm-field-column-width").val(12);
+        $fieldEditor.find(".jpm-field-column-badge").text("Full");
       }
     });
   }
@@ -230,7 +150,7 @@ jQuery(document).ready(function ($) {
       }
     });
 
-    $(".jpm-form-column, .jpm-column-drop-zone").each(function () {
+    $(".jpm-form-row").each(function () {
       if ($(this).data("ui-droppable")) {
         $(this).droppable("destroy");
       }
@@ -241,7 +161,7 @@ jQuery(document).ready(function ($) {
       var $field = $(this);
 
       $field.draggable({
-        handle: ".jpm-field-handle",
+        handle: ".jpm-field-header",
         cursor: "move",
         revert: "invalid",
         helper: "clone",
@@ -265,8 +185,8 @@ jQuery(document).ready(function ($) {
       });
     });
 
-    // Make columns droppable - initialize each individually
-    $(".jpm-form-column, .jpm-column-drop-zone").each(function () {
+    // Make rows droppable - initialize each individually
+    $(".jpm-form-row").each(function () {
       var $target = $(this);
       $target.droppable({
         accept: ".jpm-field-editor",
@@ -285,8 +205,7 @@ jQuery(document).ready(function ($) {
         drop: function (event, ui) {
           var $draggedField = ui.draggable;
           var $target = $(this);
-          var $targetRow = $target.closest(".jpm-form-row");
-          var $sourceColumn = $draggedField.closest(".jpm-form-column");
+          var $targetRow = $target;
           var $sourceRow = $draggedField.closest(".jpm-form-row");
 
           // Prevent default behavior and stop propagation
@@ -301,141 +220,42 @@ jQuery(document).ready(function ($) {
           // Store field index for later removal
           var fieldIndex = $draggedField.attr("data-index");
 
-          // If dropped on drop zone, create new column
-          if ($target.hasClass("jpm-column-drop-zone")) {
-            var colIndex = parseInt($target.attr("data-col-index")) || 0;
-            var $column = $(
-              "<div class='jpm-form-column' data-col-index='" +
-                colIndex +
-                "'></div>"
-            );
-
-            // Find and remove the original field from its source location
-            if ($sourceColumn.length > 0 && fieldIndex) {
-              var $originalField = $sourceColumn.find(
-                ".jpm-field-editor[data-index='" + fieldIndex + "']"
-              );
-              if ($originalField.length > 0) {
-                $originalField.remove();
-              }
-            }
-
-            // Restore opacity and move the field to new location
+          // If dropped on the same row, do nothing
+          if ($sourceRow.is($targetRow)) {
             $draggedField.css("opacity", "1");
-            $draggedField.appendTo($column);
-            $target.replaceWith($column);
+            return;
+          }
 
-            // Clean up source column if empty
-            if ($sourceColumn.length > 0) {
-              var $remainingFields = $sourceColumn.find(".jpm-field-editor");
-              if ($remainingFields.length === 0) {
-                var $row = $sourceColumn.closest(".jpm-form-row");
-                var sourceColIndex = $sourceColumn.attr("data-col-index");
-                var $dropZone = $(
-                  "<div class='jpm-column-drop-zone' data-col-index='" +
-                    sourceColIndex +
-                    "'></div>"
-                );
-                $sourceColumn.replaceWith($dropZone);
-              }
-            }
-          } else if ($target.hasClass("jpm-form-column")) {
-            // If target column has a field, swap them
-            var $existingField = $target.find(".jpm-field-editor");
-            if (
-              $existingField.length > 0 &&
-              !$existingField.is($draggedField)
-            ) {
-              // Move existing field to source position
-              if ($sourceColumn.length > 0) {
-                // Find and remove the original dragged field from source
-                if (fieldIndex) {
-                  var $originalField = $sourceColumn.find(
-                    ".jpm-field-editor[data-index='" + fieldIndex + "']"
-                  );
-                  if ($originalField.length > 0) {
-                    $originalField.remove();
-                  }
-                }
-
-                // Move existing field to source
-                $existingField.appendTo($sourceColumn);
-                // Move dragged field to target
-                $draggedField.css("opacity", "1");
-                $draggedField.appendTo($target);
-              } else {
-                // Source was in a column that doesn't exist anymore, create drop zone
-                if ($sourceRow.length > 0) {
-                  // Find and remove the original dragged field from source
-                  if (fieldIndex) {
-                    var $originalField = $sourceRow.find(
-                      ".jpm-field-editor[data-index='" + fieldIndex + "']"
-                    );
-                    if ($originalField.length > 0) {
-                      $originalField.remove();
-                    }
-                  }
-
-                  // Create new column for existing field
-                  var $newColumn = $(
-                    "<div class='jpm-form-column' data-col-index='0'></div>"
-                  );
-                  $existingField.appendTo($newColumn);
-                  $sourceRow.prepend($newColumn);
-                  // Move dragged field to target
-                  $draggedField.css("opacity", "1");
-                  $draggedField.appendTo($target);
-                }
-              }
-            } else if ($sourceColumn.length > 0 && $sourceColumn.is($target)) {
-              // Dropped on itself, do nothing
-              $draggedField.css("opacity", "1");
-              return;
-            } else {
-              // Target column is empty, just move the field
-              // Find and remove the original field from source
-              if ($sourceColumn.length > 0 && fieldIndex) {
-                var $originalField = $sourceColumn.find(
-                  ".jpm-field-editor[data-index='" + fieldIndex + "']"
-                );
-                if ($originalField.length > 0) {
-                  $originalField.remove();
-                }
-              }
-
-              $draggedField.css("opacity", "1");
-              $draggedField.appendTo($target);
-            }
-
-            // Clean up source column if empty
-            if ($sourceColumn.length > 0 && !$sourceColumn.is($target)) {
-              var $remainingFields = $sourceColumn.find(".jpm-field-editor");
-              if ($remainingFields.length === 0) {
-                var $row = $sourceColumn.closest(".jpm-form-row");
-                var sourceColIndex = $sourceColumn.attr("data-col-index");
-                var $dropZone = $(
-                  "<div class='jpm-column-drop-zone' data-col-index='" +
-                    sourceColIndex +
-                    "'></div>"
-                );
-                $sourceColumn.replaceWith($dropZone);
-              }
+          // Find and remove the original field from source row
+          if ($sourceRow.length > 0 && fieldIndex) {
+            var $originalField = $sourceRow.find(
+              ".jpm-field-editor[data-index='" + fieldIndex + "']"
+            );
+            if ($originalField.length > 0) {
+              $originalField.remove();
             }
           }
 
-          // Remove empty columns (but keep drop zones)
-          $(".jpm-form-column").each(function () {
-            if ($(this).find(".jpm-field-editor").length === 0) {
-              var $row = $(this).closest(".jpm-form-row");
-              var colIndex = $(this).attr("data-col-index");
-              var $dropZone = $(
-                "<div class='jpm-column-drop-zone' data-col-index='" +
-                  colIndex +
-                  "'></div>"
-              );
-              $(this).replaceWith($dropZone);
+          // If target row has a field, swap them
+          var $existingField = $targetRow.find(".jpm-field-editor");
+          if ($existingField.length > 0 && !$existingField.is($draggedField)) {
+            // Move existing field to source row
+            if ($sourceRow.length > 0) {
+              $existingField.appendTo($sourceRow);
             }
-          });
+          }
+
+          // Move dragged field to target row
+          $draggedField.css("opacity", "1");
+          $draggedField.appendTo($targetRow);
+
+          // Clean up empty source row
+          if ($sourceRow.length > 0 && !$sourceRow.is($targetRow)) {
+            var $remainingFields = $sourceRow.find(".jpm-field-editor");
+            if ($remainingFields.length === 0) {
+              $sourceRow.remove();
+            }
+          }
 
           reorganizeRows();
           updateFormFields();
@@ -464,7 +284,7 @@ jQuery(document).ready(function ($) {
           placeholder: $field.find(".jpm-field-placeholder").val() || "",
           options: $field.find(".jpm-field-options").val() || "",
           description: $field.find(".jpm-field-description").val() || "",
-          column_width: $field.find(".jpm-field-column-width").val() || "12",
+          column_width: "12", // Always full width
         };
         fields.push(field);
       });
