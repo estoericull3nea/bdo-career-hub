@@ -477,6 +477,31 @@ class JPM_Form_Builder
                 <input type="hidden" name="job_id" value="<?php echo esc_attr($post->ID); ?>">
 
                 <?php
+                // Generate application number: YY-BDO-XXXXXXXX (8 random digits)
+                $year = date('y'); // Last 2 digits of current year
+                $random_digits = str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT); // 8 random digits
+                $application_number = $year . '-BDO-' . $random_digits;
+
+                // Generate date of registration: mm/dd/yyyy
+                $date_of_registration = date('m/d/Y'); // Current date in mm/dd/yyyy format
+                ?>
+                <div class="jpm-form-field-group jpm-application-number-field">
+                    <label for="jpm_application_number"><?php _e('Application Number', 'job-posting-manager'); ?></label>
+                    <input type="text" id="jpm_application_number" name="application_number" class="jpm-form-field"
+                        value="<?php echo esc_attr($application_number); ?>" readonly
+                        style="background-color: #f5f5f5; cursor: not-allowed;">
+                    <p class="description"><?php _e('Your unique application reference number', 'job-posting-manager'); ?></p>
+                </div>
+
+                <div class="jpm-form-field-group jpm-date-of-registration-field">
+                    <label for="jpm_date_of_registration"><?php _e('Date of Registration', 'job-posting-manager'); ?></label>
+                    <input type="text" id="jpm_date_of_registration" name="date_of_registration" class="jpm-form-field"
+                        value="<?php echo esc_attr($date_of_registration); ?>" readonly
+                        style="background-color: #f5f5f5; cursor: not-allowed;">
+                    <p class="description"><?php _e('Date when the application is submitted', 'job-posting-manager'); ?></p>
+                </div>
+
+                <?php
                 // Group fields into rows based on column width
                 $current_row = [];
                 $current_row_width = 0;
@@ -741,9 +766,25 @@ class JPM_Form_Builder
             wp_send_json_error(['message' => implode('<br>', $errors)]);
         }
 
+        // Get application number from form
+        $application_number = sanitize_text_field($_POST['application_number'] ?? '');
+
+        // Get date of registration from form
+        $date_of_registration = sanitize_text_field($_POST['date_of_registration'] ?? '');
+
         // Process form data
         $form_data = [];
         $resume_path = '';
+
+        // Add application number to form data
+        if (!empty($application_number)) {
+            $form_data['application_number'] = $application_number;
+        }
+
+        // Add date of registration to form data
+        if (!empty($date_of_registration)) {
+            $form_data['date_of_registration'] = $date_of_registration;
+        }
 
         foreach ($form_fields as $field) {
             $field_name = $field['name'];
