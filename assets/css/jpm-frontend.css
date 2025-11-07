@@ -355,6 +355,27 @@
   }
 }
 
+/* Job Title with Company Image */
+.jpm-title-with-image {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.jpm-title-with-image .jpm-company-image-title {
+  max-width: 80px;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.jpm-title-with-image .jpm-title-text {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Job Details Display Styles */
 .jpm-job-details {
   margin: 20px 0 30px 0;
@@ -410,5 +431,15 @@
 
   .jpm-job-detail-item strong {
     min-width: auto;
+  }
+
+  .jpm-title-with-image {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .jpm-title-with-image .jpm-company-image-title {
+    max-width: 60px;
   }
 }

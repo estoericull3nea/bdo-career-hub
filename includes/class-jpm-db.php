@@ -8,6 +8,8 @@ class JPM_Admin
         add_action('save_post', [$this, 'save_job_meta']);
         add_action('wp_ajax_jpm_bulk_update', [$this, 'bulk_update']);
         add_filter('the_content', [$this, 'display_job_details'], 10);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_media_uploader']);
+        add_filter('the_title', [$this, 'display_company_image_with_title'], 10, 2);
     }
 
     public function add_menu()
@@ -37,8 +39,8 @@ class JPM_Admin
 
     public function add_meta_boxes()
     {
-
         add_meta_box('jpm_job_details', __('Job Details', 'job-posting-manager'), [$this, 'job_meta_box'], 'job_posting');
+        add_meta_box('jpm_company_image', __('Company Image', 'job-posting-manager'), [$this, 'company_image_meta_box'], 'job_posting', 'side');
     }
 
     public function job_meta_box($post)
@@ -104,24 +106,23 @@ class JPM_Admin
 
     public function save_job_meta($post_id)
     {
-        // Check if nonce is set and verify
+        // Check if user has permissions
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+
+        // Check if this is an autosave
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        // Check post type
+        if (get_post_type($post_id) !== 'job_posting') {
+            return;
+        }
+
+        // Save job metadata (all fields are optional)
         if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce($_POST['jpm_job_nonce'], 'jpm_job_meta')) {
-            // Check if user has permissions
-            if (!current_user_can('edit_post', $post_id)) {
-                return;
-            }
-
-            // Check if this is an autosave
-            if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-                return;
-            }
-
-            // Check post type
-            if (get_post_type($post_id) !== 'job_posting') {
-                return;
-            }
-
-            // Save job metadata (all fields are optional)
             if (isset($_POST['company_name'])) {
                 update_post_meta($post_id, 'company_name', sanitize_text_field($_POST['company_name']));
             } else {
@@ -145,10 +146,129 @@ class JPM_Admin
             } else {
                 delete_post_meta($post_id, 'duration');
             }
-        } else {
-            // If nonce verification fails, do not save any data
+        }
+
+        // Save company image (separate nonce check)
+        if (isset($_POST['jpm_company_image_nonce']) && wp_verify_nonce($_POST['jpm_company_image_nonce'], 'jpm_company_image')) {
+            if (isset($_POST['company_image']) && !empty($_POST['company_image'])) {
+                update_post_meta($post_id, 'company_image', absint($_POST['company_image']));
+            } else {
+                delete_post_meta($post_id, 'company_image');
+            }
+        }
+    }
+
+    /**
+     * Company Image meta box
+     * @param WP_Post $post The post object
+     */
+    public function company_image_meta_box($post)
+    {
+        wp_nonce_field('jpm_company_image', 'jpm_company_image_nonce');
+
+        $company_image_id = get_post_meta($post->ID, 'company_image', true);
+        $company_image_url = '';
+
+        if ($company_image_id) {
+            $company_image_url = wp_get_attachment_image_url($company_image_id, 'medium');
+        }
+        ?>
+        <div class="jpm-company-image-wrapper">
+            <input type="hidden" id="company_image" name="company_image" value="<?php echo esc_attr($company_image_id); ?>" />
+            <div id="company_image_preview" style="margin-bottom: 10px;">
+                <?php if ($company_image_url): ?>
+                    <img src="<?php echo esc_url($company_image_url); ?>" style="max-width: 100%; height: auto; display: block;" />
+                <?php endif; ?>
+            </div>
+            <p>
+                <button type="button" class="button" id="upload_company_image_btn">
+                    <?php echo $company_image_id ? __('Change Image', 'job-posting-manager') : __('Upload Image', 'job-posting-manager'); ?>
+                </button>
+                <?php if ($company_image_id): ?>
+                    <button type="button" class="button" id="remove_company_image_btn" style="margin-left: 5px;">
+                        <?php _e('Remove Image', 'job-posting-manager'); ?>
+                    </button>
+                <?php endif; ?>
+            </p>
+            <p class="description">
+                <?php _e('Optional: Upload a company logo or image. This will be displayed on the job posting page.', 'job-posting-manager'); ?>
+            </p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Enqueue media uploader scripts
+     */
+    public function enqueue_media_uploader($hook)
+    {
+        // Only load on job posting edit screens
+        if ($hook !== 'post.php' && $hook !== 'post-new.php') {
             return;
         }
+
+        global $post_type;
+        if ($post_type !== 'job_posting') {
+            return;
+        }
+
+        // Enqueue WordPress media uploader
+        wp_enqueue_media();
+
+        // Add inline script for media uploader
+        wp_add_inline_script('jquery', '
+            jQuery(document).ready(function($) {
+                var companyImageFrame;
+                var $companyImageInput = $("#company_image");
+                var $companyImagePreview = $("#company_image_preview");
+                var $uploadBtn = $("#upload_company_image_btn");
+                var $removeBtn = $("#remove_company_image_btn");
+
+                // Upload button click
+                $uploadBtn.on("click", function(e) {
+                    e.preventDefault();
+
+                    if (companyImageFrame) {
+                        companyImageFrame.open();
+                        return;
+                    }
+
+                    companyImageFrame = wp.media({
+                        title: "' . esc_js(__('Select Company Image', 'job-posting-manager')) . '",
+                        button: {
+                            text: "' . esc_js(__('Use this image', 'job-posting-manager')) . '"
+                        },
+                        multiple: false
+                    });
+
+                    companyImageFrame.on("select", function() {
+                        var attachment = companyImageFrame.state().get("selection").first().toJSON();
+                        $companyImageInput.val(attachment.id);
+                        $companyImagePreview.html("<img src=\"" + attachment.url + "\" style=\"max-width: 100%; height: auto; display: block;\" />");
+                        $uploadBtn.text("' . esc_js(__('Change Image', 'job-posting-manager')) . '");
+                        if (!$removeBtn.length) {
+                            $uploadBtn.after("<button type=\"button\" class=\"button\" id=\"remove_company_image_btn\" style=\"margin-left: 5px;\">' . esc_js(__('Remove Image', 'job-posting-manager')) . '</button>");
+                            $("#remove_company_image_btn").on("click", function() {
+                                $companyImageInput.val("");
+                                $companyImagePreview.html("");
+                                $uploadBtn.text("' . esc_js(__('Upload Image', 'job-posting-manager')) . '");
+                                $(this).remove();
+                            });
+                        }
+                    });
+
+                    companyImageFrame.open();
+                });
+
+                // Remove button click
+                $(document).on("click", "#remove_company_image_btn", function() {
+                    $companyImageInput.val("");
+                    $companyImagePreview.html("");
+                    $uploadBtn.text("' . esc_js(__('Upload Image', 'job-posting-manager')) . '");
+                    $(this).remove();
+                });
+            });
+        ');
     }
 
     /**
@@ -164,13 +284,14 @@ class JPM_Admin
         }
 
         global $post;
+        $company_image_id = get_post_meta($post->ID, 'company_image', true);
         $company_name = get_post_meta($post->ID, 'company_name', true);
         $location = get_post_meta($post->ID, 'location', true);
         $salary = get_post_meta($post->ID, 'salary', true);
         $duration = get_post_meta($post->ID, 'duration', true);
 
         // Only display if at least one field has a value
-        if (empty($company_name) && empty($location) && empty($salary) && empty($duration)) {
+        if (empty($company_image_id) && empty($company_name) && empty($location) && empty($salary) && empty($duration)) {
             return $content;
         }
 
@@ -210,6 +331,48 @@ class JPM_Admin
 
         // Prepend job details to content
         return $job_details . $content;
+    }
+
+    /**
+     * Display company image with post title
+     * @param string $title The post title
+     * @param int $post_id The post ID
+     * @return string Modified title with company image
+     */
+    public function display_company_image_with_title($title, $post_id = null)
+    {
+        // Only on single job posting pages
+        if (!is_singular('job_posting')) {
+            return $title;
+        }
+
+        // Get post ID if not provided
+        if (!$post_id) {
+            global $post;
+            if (!$post) {
+                return $title;
+            }
+            $post_id = $post->ID;
+        }
+
+        // Check if this is a job posting
+        if (get_post_type($post_id) !== 'job_posting') {
+            return $title;
+        }
+
+        // Get company image
+        $company_image_id = get_post_meta($post_id, 'company_image', true);
+
+        // If no image, return title as is
+        if (empty($company_image_id)) {
+            return $title;
+        }
+
+        // Get image HTML
+        $image_html = wp_get_attachment_image($company_image_id, 'thumbnail', false, ['class' => 'jpm-company-image-title']);
+
+        // Wrap title and image in a container
+        return '<div class="jpm-title-with-image">' . $image_html . '<span class="jpm-title-text">' . $title . '</span></div>';
     }
 
     public function bulk_update()
