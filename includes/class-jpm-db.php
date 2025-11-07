@@ -11,6 +11,7 @@ class JPM_Admin
         add_action('admin_enqueue_scripts', [$this, 'enqueue_media_uploader']);
         add_filter('the_title', [$this, 'display_company_image_with_title'], 10, 2);
         add_action('template_redirect', [$this, 'restrict_draft_job_access']);
+        add_action('wp_ajax_jpm_update_application_status', [$this, 'update_application_status']);
     }
 
     public function add_menu()
@@ -28,20 +29,146 @@ class JPM_Admin
 
     public function applications_page()
     {
-        $applications = JPM_DB::get_applications($_GET);
-        echo '<h1>' . __('Applications', 'job-posting-manager') . '</h1>';
-        // Display table with filters, bulk actions
-        echo '<form method="post">';
-        wp_nonce_field('jpm_bulk_nonce');
-        // Table code here (use WP_List_Table for better UX)
-        echo '<input type="submit" name="bulk_update" value="' . __('Update Status', 'job-posting-manager') . '">';
-        echo '</form>';
+        $filters = [
+            'status' => $_GET['status'] ?? '',
+            'job_id' => $_GET['job_id'] ?? '',
+        ];
+
+        $applications = JPM_DB::get_applications($filters);
+
+        // Get all jobs for filter dropdown
+        $jobs = get_posts([
+            'post_type' => 'job_posting',
+            'posts_per_page' => -1,
+            'post_status' => 'any'
+        ]);
+
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Applications', 'job-posting-manager'); ?></h1>
+
+            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+                <form method="get" action="">
+                    <input type="hidden" name="page" value="jpm-applications">
+                    <label>
+                        <?php _e('Filter by Job:', 'job-posting-manager'); ?>
+                        <select name="job_id">
+                            <option value=""><?php _e('All Jobs', 'job-posting-manager'); ?></option>
+                            <?php foreach ($jobs as $job): ?>
+                                <option value="<?php echo esc_attr($job->ID); ?>" <?php selected($filters['job_id'], $job->ID); ?>>
+                                    <?php echo esc_html($job->post_title); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label style="margin-left: 20px;">
+                        <?php _e('Filter by Status:', 'job-posting-manager'); ?>
+                        <select name="status">
+                            <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
+                            <option value="pending" <?php selected($filters['status'], 'pending'); ?>>
+                                <?php _e('Pending', 'job-posting-manager'); ?></option>
+                            <option value="reviewed" <?php selected($filters['status'], 'reviewed'); ?>>
+                                <?php _e('Reviewed', 'job-posting-manager'); ?></option>
+                            <option value="accepted" <?php selected($filters['status'], 'accepted'); ?>>
+                                <?php _e('Accepted', 'job-posting-manager'); ?></option>
+                            <option value="rejected" <?php selected($filters['status'], 'rejected'); ?>>
+                                <?php _e('Rejected', 'job-posting-manager'); ?></option>
+                        </select>
+                    </label>
+                    <input type="submit" class="button" value="<?php _e('Filter', 'job-posting-manager'); ?>">
+                </form>
+            </div>
+
+            <?php if (empty($applications)): ?>
+                <p><?php _e('No applications found.', 'job-posting-manager'); ?></p>
+            <?php else: ?>
+                <table class="widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e('ID', 'job-posting-manager'); ?></th>
+                            <th><?php _e('Job Title', 'job-posting-manager'); ?></th>
+                            <th><?php _e('Application Date', 'job-posting-manager'); ?></th>
+                            <th><?php _e('Status', 'job-posting-manager'); ?></th>
+                            <th><?php _e('User', 'job-posting-manager'); ?></th>
+                            <th><?php _e('Application Number', 'job-posting-manager'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($applications as $application):
+                            $job = get_post($application->job_id);
+                            $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+                            $form_data = json_decode($application->notes, true);
+                            $application_number = isset($form_data['application_number']) ? $form_data['application_number'] : '';
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html($application->id); ?></td>
+                                <td>
+                                    <a href="<?php echo admin_url('post.php?post=' . $application->job_id . '&action=edit'); ?>">
+                                        <?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
+                                    </a>
+                                </td>
+                                <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
+                                </td>
+                                <td>
+                                    <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>">
+                                        <?php echo esc_html(ucfirst($application->status)); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if ($user): ?>
+                                        <a href="<?php echo admin_url('user-edit.php?user_id=' . $user->ID); ?>">
+                                            <?php echo esc_html($user->display_name); ?>
+                                        </a>
+                                        <br><small><?php echo esc_html($user->user_email); ?></small>
+                                    <?php else: ?>
+                                        <em><?php _e('Guest', 'job-posting-manager'); ?></em>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html($application_number); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+        <style>
+            .jpm-status-badge {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 3px;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            .jpm-status-pending {
+                background: #ffc107;
+                color: #000;
+            }
+
+            .jpm-status-reviewed {
+                background: #17a2b8;
+                color: #fff;
+            }
+
+            .jpm-status-accepted {
+                background: #28a745;
+                color: #fff;
+            }
+
+            .jpm-status-rejected {
+                background: #dc3545;
+                color: #fff;
+            }
+        </style>
+        <?php
     }
 
     public function add_meta_boxes()
     {
         add_meta_box('jpm_job_details', __('Job Details', 'job-posting-manager'), [$this, 'job_meta_box'], 'job_posting');
         add_meta_box('jpm_company_image', __('Company Image', 'job-posting-manager'), [$this, 'company_image_meta_box'], 'job_posting', 'side');
+        add_meta_box('jpm_job_applications', __('Applications', 'job-posting-manager'), [$this, 'job_applications_meta_box'], 'job_posting', 'normal');
     }
 
     public function job_meta_box($post)
@@ -215,6 +342,170 @@ class JPM_Admin
                 <?php _e('Optional: Upload a company logo or image. This will be displayed on the job posting page.', 'job-posting-manager'); ?>
             </p>
         </div>
+        <?php
+    }
+
+    /**
+     * Job Applications meta box
+     * @param WP_Post $post The post object
+     */
+    public function job_applications_meta_box($post)
+    {
+        // Get all applications for this job
+        $applications = JPM_DB::get_applications(['job_id' => $post->ID]);
+
+        if (empty($applications)) {
+            echo '<p>' . __('No applications have been submitted for this job yet.', 'job-posting-manager') . '</p>';
+            return;
+        }
+
+        ?>
+        <div class="jpm-applications-list">
+            <table class="widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;"><?php _e('ID', 'job-posting-manager'); ?></th>
+                        <th style="width: 15%;"><?php _e('Application Date', 'job-posting-manager'); ?></th>
+                        <th style="width: 10%;"><?php _e('Status', 'job-posting-manager'); ?></th>
+                        <th style="width: 15%;"><?php _e('User', 'job-posting-manager'); ?></th>
+                        <th style="width: 45%;"><?php _e('Application Data', 'job-posting-manager'); ?></th>
+                        <th style="width: 10%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($applications as $application):
+                        $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+                        $form_data = json_decode($application->notes, true);
+                        $application_number = isset($form_data['application_number']) ? $form_data['application_number'] : '';
+                        $date_of_registration = isset($form_data['date_of_registration']) ? $form_data['date_of_registration'] : '';
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html($application->id); ?></td>
+                            <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
+                            </td>
+                            <td>
+                                <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>">
+                                    <?php echo esc_html(ucfirst($application->status)); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($user): ?>
+                                    <a href="<?php echo admin_url('user-edit.php?user_id=' . $user->ID); ?>">
+                                        <?php echo esc_html($user->display_name); ?>
+                                    </a>
+                                    <br><small><?php echo esc_html($user->user_email); ?></small>
+                                <?php else: ?>
+                                    <em><?php _e('Guest', 'job-posting-manager'); ?></em>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($application_number): ?>
+                                    <strong><?php _e('Application #:', 'job-posting-manager'); ?></strong>
+                                    <?php echo esc_html($application_number); ?><br>
+                                <?php endif; ?>
+                                <?php if ($date_of_registration): ?>
+                                    <strong><?php _e('Date:', 'job-posting-manager'); ?></strong>
+                                    <?php echo esc_html($date_of_registration); ?><br>
+                                <?php endif; ?>
+                                <a href="#" class="jpm-view-application-details"
+                                    data-application-id="<?php echo esc_attr($application->id); ?>">
+                                    <?php _e('View Full Details', 'job-posting-manager'); ?>
+                                </a>
+                            </td>
+                            <td>
+                                <select class="jpm-application-status"
+                                    data-application-id="<?php echo esc_attr($application->id); ?>">
+                                    <option value="pending" <?php selected($application->status, 'pending'); ?>>
+                                        <?php _e('Pending', 'job-posting-manager'); ?></option>
+                                    <option value="reviewed" <?php selected($application->status, 'reviewed'); ?>>
+                                        <?php _e('Reviewed', 'job-posting-manager'); ?></option>
+                                    <option value="accepted" <?php selected($application->status, 'accepted'); ?>>
+                                        <?php _e('Accepted', 'job-posting-manager'); ?></option>
+                                    <option value="rejected" <?php selected($application->status, 'rejected'); ?>>
+                                        <?php _e('Rejected', 'job-posting-manager'); ?></option>
+                                </select>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="jpm-application-details-modal" style="display: none;">
+            <div class="jpm-modal-content">
+                <span class="jpm-modal-close">&times;</span>
+                <div id="jpm-application-details-content"></div>
+            </div>
+        </div>
+
+        <style>
+            .jpm-status-badge {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 3px;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            .jpm-status-pending {
+                background: #ffc107;
+                color: #000;
+            }
+
+            .jpm-status-reviewed {
+                background: #17a2b8;
+                color: #fff;
+            }
+
+            .jpm-status-accepted {
+                background: #28a745;
+                color: #fff;
+            }
+
+            .jpm-status-rejected {
+                background: #dc3545;
+                color: #fff;
+            }
+
+            .jpm-view-application-details {
+                cursor: pointer;
+                color: #2271b1;
+            }
+
+            .jpm-view-application-details:hover {
+                text-decoration: underline;
+            }
+        </style>
+
+        <script>
+            jQuery(document).ready(function ($) {
+                // Update status on change
+                $('.jpm-application-status').on('change', function () {
+                    var $select = $(this);
+                    var applicationId = $select.data('application-id');
+                    var newStatus = $select.val();
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_update_application_status',
+                            application_id: applicationId,
+                            status: newStatus,
+                            nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>'
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                location.reload();
+                            } else {
+                                alert('Error updating status');
+                            }
+                        }
+                    });
+                });
+            });
+        </script>
         <?php
     }
 
@@ -511,5 +802,41 @@ class JPM_Admin
             JPM_Emails::send_status_update($id);
         }
         wp_die(__('Updated', 'job-posting-manager'));
+    }
+
+    /**
+     * Update application status via AJAX
+     */
+    public function update_application_status()
+    {
+        check_ajax_referer('jpm_update_status', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = intval($_POST['application_id'] ?? 0);
+        $status = sanitize_text_field($_POST['status'] ?? '');
+
+        if (!$application_id || !$status) {
+            wp_send_json_error(['message' => __('Invalid data', 'job-posting-manager')]);
+        }
+
+        $result = JPM_DB::update_status($application_id, $status);
+
+        if ($result !== false) {
+            // Send email notification if email class exists
+            if (class_exists('JPM_Emails')) {
+                try {
+                    JPM_Emails::send_status_update($application_id);
+                } catch (Exception $e) {
+                    // Log error but don't fail the request
+                    error_log('JPM Email Error: ' . $e->getMessage());
+                }
+            }
+            wp_send_json_success(['message' => __('Status updated successfully', 'job-posting-manager')]);
+        } else {
+            wp_send_json_error(['message' => __('Failed to update status', 'job-posting-manager')]);
+        }
     }
 }
