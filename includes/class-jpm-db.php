@@ -66,13 +66,17 @@ class JPM_Admin
                         <select name="status">
                             <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
                             <option value="pending" <?php selected($filters['status'], 'pending'); ?>>
-                                <?php _e('Pending', 'job-posting-manager'); ?></option>
+                                <?php _e('Pending', 'job-posting-manager'); ?>
+                            </option>
                             <option value="reviewed" <?php selected($filters['status'], 'reviewed'); ?>>
-                                <?php _e('Reviewed', 'job-posting-manager'); ?></option>
+                                <?php _e('Reviewed', 'job-posting-manager'); ?>
+                            </option>
                             <option value="accepted" <?php selected($filters['status'], 'accepted'); ?>>
-                                <?php _e('Accepted', 'job-posting-manager'); ?></option>
+                                <?php _e('Accepted', 'job-posting-manager'); ?>
+                            </option>
                             <option value="rejected" <?php selected($filters['status'], 'rejected'); ?>>
-                                <?php _e('Rejected', 'job-posting-manager'); ?></option>
+                                <?php _e('Rejected', 'job-posting-manager'); ?>
+                            </option>
                         </select>
                     </label>
                     <input type="submit" class="button" value="<?php _e('Filter', 'job-posting-manager'); ?>">
@@ -91,6 +95,7 @@ class JPM_Admin
                             <th><?php _e('Status', 'job-posting-manager'); ?></th>
                             <th><?php _e('User', 'job-posting-manager'); ?></th>
                             <th><?php _e('Application Number', 'job-posting-manager'); ?></th>
+                            <th><?php _e('Actions', 'job-posting-manager'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -125,6 +130,23 @@ class JPM_Admin
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo esc_html($application_number); ?></td>
+                                <td>
+                                    <select class="jpm-application-status-select"
+                                        data-application-id="<?php echo esc_attr($application->id); ?>" style="min-width: 120px;">
+                                        <option value="pending" <?php selected($application->status, 'pending'); ?>>
+                                            <?php _e('Pending', 'job-posting-manager'); ?>
+                                        </option>
+                                        <option value="reviewed" <?php selected($application->status, 'reviewed'); ?>>
+                                            <?php _e('Reviewed', 'job-posting-manager'); ?>
+                                        </option>
+                                        <option value="accepted" <?php selected($application->status, 'accepted'); ?>>
+                                            <?php _e('Accepted', 'job-posting-manager'); ?>
+                                        </option>
+                                        <option value="rejected" <?php selected($application->status, 'rejected'); ?>>
+                                            <?php _e('Rejected', 'job-posting-manager'); ?>
+                                        </option>
+                                    </select>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -160,7 +182,66 @@ class JPM_Admin
                 background: #dc3545;
                 color: #fff;
             }
+
+            .jpm-application-status-select {
+                padding: 4px 8px;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                font-size: 13px;
+            }
         </style>
+
+        <script>
+            jQuery(document).ready(function ($) {
+                // Update status on change
+                $('.jpm-application-status-select').on('change', function () {
+                    var $select = $(this);
+                    var applicationId = $select.data('application-id');
+                    var newStatus = $select.val();
+                    var $row = $select.closest('tr');
+
+                    // Disable select while updating
+                    $select.prop('disabled', true);
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_update_application_status',
+                            application_id: applicationId,
+                            status: newStatus,
+                            nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>'
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                // Update status badge in the same row
+                                var $statusBadge = $row.find('.jpm-status-badge');
+                                $statusBadge.removeClass('jpm-status-pending jpm-status-reviewed jpm-status-accepted jpm-status-rejected');
+                                $statusBadge.addClass('jpm-status-' + newStatus);
+                                $statusBadge.text(newStatus.charAt(0).toUpperCase() + newStatus.slice(1));
+
+                                // Show success message
+                                $select.after('<span class="jpm-status-update-success" style="color: #28a745; margin-left: 5px; font-size: 12px;">✓ Updated</span>');
+                                setTimeout(function () {
+                                    $select.siblings('.jpm-status-update-success').fadeOut(function () {
+                                        $(this).remove();
+                                    });
+                                }, 2000);
+                            } else {
+                                alert('Error updating status: ' + (response.data && response.data.message ? response.data.message : 'Unknown error'));
+                                // Revert select to original value
+                                location.reload();
+                            }
+                            $select.prop('disabled', false);
+                        },
+                        error: function () {
+                            alert('Error updating status. Please try again.');
+                            location.reload();
+                        }
+                    });
+                });
+            });
+        </script>
         <?php
     }
 
@@ -416,13 +497,17 @@ class JPM_Admin
                                 <select class="jpm-application-status"
                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                     <option value="pending" <?php selected($application->status, 'pending'); ?>>
-                                        <?php _e('Pending', 'job-posting-manager'); ?></option>
+                                        <?php _e('Pending', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="reviewed" <?php selected($application->status, 'reviewed'); ?>>
-                                        <?php _e('Reviewed', 'job-posting-manager'); ?></option>
+                                        <?php _e('Reviewed', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="accepted" <?php selected($application->status, 'accepted'); ?>>
-                                        <?php _e('Accepted', 'job-posting-manager'); ?></option>
+                                        <?php _e('Accepted', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="rejected" <?php selected($application->status, 'rejected'); ?>>
-                                        <?php _e('Rejected', 'job-posting-manager'); ?></option>
+                                        <?php _e('Rejected', 'job-posting-manager'); ?>
+                                    </option>
                                 </select>
                             </td>
                         </tr>
