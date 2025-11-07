@@ -99,19 +99,81 @@ class JPM_Form_Builder
                 <div class="jpm-form-rows">
                     <?php if (!empty($form_fields)): ?>
                         <?php
-                        // Render each field in its own row
+                        // Group fields into rows based on column width
+                        $current_row = [];
+                        $current_row_width = 0;
+                        $row_index = 0;
+
                         foreach ($form_fields as $index => $field):
-                            echo '<div class="jpm-form-row" data-row-index="' . esc_attr($index) . '">';
-                            $this->render_field_editor($field, $index);
-                            echo '</div>';
+                            $column_width = intval($field['column_width'] ?? 12);
+
+                            // If adding this field would exceed 12 columns, start a new row
+                            if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                                // Render current row
+                                echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
+                                foreach ($current_row as $row_field) {
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '<div class="jpm-form-column">';
+                                    }
+                                    $this->render_field_editor($row_field['field'], $row_field['index']);
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '</div>';
+                                    }
+                                }
+                                echo '</div>';
+                                $current_row = [];
+                                $current_row_width = 0;
+                                $row_index++;
+                            }
+
+                            // Add field to current row
+                            $current_row[] = [
+                                'field' => $field,
+                                'index' => $index,
+                                'column_width' => $column_width
+                            ];
+                            $current_row_width += $column_width;
+
+                            // If row is full (12 columns), render it
+                            if ($current_row_width >= 12) {
+                                echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
+                                foreach ($current_row as $row_field) {
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '<div class="jpm-form-column">';
+                                    }
+                                    $this->render_field_editor($row_field['field'], $row_field['index']);
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '</div>';
+                                    }
+                                }
+                                echo '</div>';
+                                $current_row = [];
+                                $current_row_width = 0;
+                                $row_index++;
+                            }
                         endforeach;
+
+                        // Render any remaining fields
+                        if (!empty($current_row)) {
+                            echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
+                            foreach ($current_row as $row_field) {
+                                if ($row_field['column_width'] < 12) {
+                                    echo '<div class="jpm-form-column">';
+                                }
+                                $this->render_field_editor($row_field['field'], $row_field['index']);
+                                if ($row_field['column_width'] < 12) {
+                                    echo '</div>';
+                                }
+                            }
+                            echo '</div>';
+                        }
                         ?>
                     <?php endif; ?>
                 </div>
             </div>
 
             <input type="hidden" name="jpm_form_fields_json" id="jpm-form-fields-json"
-                value="<?php echo esc_attr(json_encode($form_fields)); ?>">
+                value="<?php echo esc_attr(json_encode($form_fields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>">
         </div>
         <?php
     }
@@ -262,9 +324,25 @@ class JPM_Form_Builder
      */
     public function save_form_fields($post_id)
     {
-        // Check if nonce is set and verify
-        if (!isset($_POST['jpm_form_builder_nonce']) || !wp_verify_nonce($_POST['jpm_form_builder_nonce'], 'jpm_form_builder')) {
+        // Check post type first (before nonce check for autosaves)
+        if (get_post_type($post_id) !== 'job_posting') {
             return;
+        }
+
+        // Check if nonce is set and verify
+        // Note: For autosaves, nonce might not be present, but we still want to save form fields
+        if (isset($_POST['jpm_form_builder_nonce'])) {
+            if (!wp_verify_nonce($_POST['jpm_form_builder_nonce'], 'jpm_form_builder')) {
+                return;
+            }
+        } else {
+            // If nonce is not present, only proceed if it's an autosave or we have form fields data
+            if (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE) {
+                // For regular saves, nonce is required
+                if (!isset($_POST['jpm_form_fields_json']) || empty($_POST['jpm_form_fields_json'])) {
+                    return;
+                }
+            }
         }
 
         // Check if user has permissions
@@ -272,14 +350,18 @@ class JPM_Form_Builder
             return;
         }
 
-        // Check if this is an autosave
-        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-            return;
-        }
-
         // Save form fields
-        if (isset($_POST['jpm_form_fields_json'])) {
-            $form_fields = json_decode(stripslashes($_POST['jpm_form_fields_json']), true);
+        if (isset($_POST['jpm_form_fields_json']) && !empty($_POST['jpm_form_fields_json'])) {
+            $form_fields_json = stripslashes($_POST['jpm_form_fields_json']);
+            $form_fields = json_decode($form_fields_json, true);
+
+            // Check for JSON decode errors
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log('JPM Form Builder: JSON decode error - ' . json_last_error_msg());
+                error_log('JPM Form Builder: JSON data - ' . substr($form_fields_json, 0, 500));
+                return;
+            }
+
             if (is_array($form_fields)) {
                 // Sanitize form fields
                 $sanitized_fields = [];
