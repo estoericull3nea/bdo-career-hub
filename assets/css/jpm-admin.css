@@ -55,6 +55,23 @@
   transition: all 0.3s ease;
 }
 
+.jpm-form-row.jpm-row-has-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.jpm-form-column {
+  min-height: 60px;
+  background: #fff;
+  border-radius: 4px;
+  position: relative;
+}
+
+.jpm-form-column .jpm-field-editor {
+  margin-bottom: 0;
+}
+
 .jpm-form-row:hover {
   border-color: #0073aa;
   background: #f0f8ff;
@@ -75,6 +92,112 @@
 .jpm-form-row.jpm-drop-active {
   border-color: #005177;
   background: #cce7ff;
+}
+
+/* Visual indicators for drop zones */
+.jpm-form-row.jpm-drop-top,
+.jpm-form-column.jpm-drop-top {
+  border-top: 4px solid #0073aa;
+  position: relative;
+}
+
+.jpm-form-row.jpm-drop-top::before,
+.jpm-form-column.jpm-drop-top::before {
+  content: "↑ Drop above";
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0073aa;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.jpm-form-row.jpm-drop-bottom,
+.jpm-form-column.jpm-drop-bottom {
+  border-bottom: 4px solid #0073aa;
+  position: relative;
+}
+
+.jpm-form-row.jpm-drop-bottom::after,
+.jpm-form-column.jpm-drop-bottom::after {
+  content: "↓ Drop below";
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0073aa;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.jpm-form-row.jpm-drop-left,
+.jpm-form-column.jpm-drop-left {
+  border-left: 4px solid #0073aa;
+  position: relative;
+}
+
+.jpm-form-row.jpm-drop-left::before,
+.jpm-form-column.jpm-drop-left::before {
+  content: "← Drop left";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0073aa;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.jpm-form-row.jpm-drop-right,
+.jpm-form-column.jpm-drop-right {
+  border-right: 4px solid #0073aa;
+  position: relative;
+}
+
+.jpm-form-row.jpm-drop-right::after,
+.jpm-form-column.jpm-drop-right::after {
+  content: "Drop right →";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0073aa;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.jpm-form-row.jpm-drop-middle {
+  border: 2px solid #0073aa;
+  background: #e6f3ff;
 }
 
 .jpm-field-editor {
