@@ -10,6 +10,7 @@ class JPM_Admin
         add_filter('the_content', [$this, 'display_job_details'], 10);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_media_uploader']);
         add_filter('the_title', [$this, 'display_company_image_with_title'], 10, 2);
+        add_action('template_redirect', [$this, 'restrict_draft_job_access']);
     }
 
     public function add_menu()
@@ -392,6 +393,90 @@ class JPM_Admin
             // No image, just wrap title and badge
             return '<div class="jpm-title-wrapper">' . $title_html . '</div>';
         }
+    }
+
+    /**
+     * Restrict draft job posts to admins only
+     * Show "job not found" message for non-admins
+     */
+    public function restrict_draft_job_access()
+    {
+        // Only on single job posting pages
+        if (!is_singular('job_posting')) {
+            return;
+        }
+
+        global $post;
+
+        // Check if post exists and is a draft
+        if (!$post || get_post_status($post->ID) !== 'draft') {
+            return;
+        }
+
+        // Check if user is admin
+        if (!current_user_can('manage_options')) {
+            // Set 404 status
+            global $wp_query;
+            $wp_query->set_404();
+            status_header(404);
+            nocache_headers();
+
+            // Replace content with "job not found" message
+            add_filter('the_content', [$this, 'show_job_not_found_message'], 999);
+            add_filter('the_title', [$this, 'show_job_not_found_title'], 999);
+        }
+    }
+
+    /**
+     * Show "job not found" message
+     * @param string $content The post content
+     * @return string "Job not found" message
+     */
+    public function show_job_not_found_message($content)
+    {
+        // Only on single job posting pages
+        if (!is_singular('job_posting')) {
+            return $content;
+        }
+
+        global $post;
+        if (!$post || get_post_status($post->ID) !== 'draft') {
+            return $content;
+        }
+
+        // Check if user is admin
+        if (current_user_can('manage_options')) {
+            return $content;
+        }
+
+        // Return "job not found" message
+        return '<div class="jpm-job-not-found"><p>' . __('This job is not found.', 'job-posting-manager') . '</p></div>';
+    }
+
+    /**
+     * Show "job not found" title
+     * @param string $title The post title
+     * @return string "Job not found" title
+     */
+    public function show_job_not_found_title($title)
+    {
+        // Only on single job posting pages
+        if (!is_singular('job_posting')) {
+            return $title;
+        }
+
+        global $post;
+        if (!$post || get_post_status($post->ID) !== 'draft') {
+            return $title;
+        }
+
+        // Check if user is admin
+        if (current_user_can('manage_options')) {
+            return $title;
+        }
+
+        // Return "job not found" title
+        return __('Job Not Found', 'job-posting-manager');
     }
 
     public function bulk_update()
