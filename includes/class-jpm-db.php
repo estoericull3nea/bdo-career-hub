@@ -14,6 +14,7 @@ class JPM_Admin
         add_action('wp_ajax_jpm_update_application_status', [$this, 'update_application_status']);
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
+        add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
     }
 
     public function add_menu()
@@ -215,17 +216,23 @@ class JPM_Admin
                                 </td>
                                 <td><?php echo esc_html($application_number); ?></td>
                                 <td>
-                                    <select class="jpm-application-status-select"
-                                        data-application-id="<?php echo esc_attr($application->id); ?>" style="min-width: 120px;">
-                                        <?php
-                                        $status_options = self::get_status_options();
-                                        foreach ($status_options as $slug => $name):
-                                            ?>
-                                            <option value="<?php echo esc_attr($slug); ?>" <?php selected($application->status, $slug); ?>>
-                                                <?php echo esc_html($name); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                        <select class="jpm-application-status-select"
+                                            data-application-id="<?php echo esc_attr($application->id); ?>" style="min-width: 120px;">
+                                            <?php
+                                            $status_options = self::get_status_options();
+                                            foreach ($status_options as $slug => $name):
+                                                ?>
+                                                <option value="<?php echo esc_attr($slug); ?>" <?php selected($application->status, $slug); ?>>
+                                                    <?php echo esc_html($name); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&action=print&application_id=' . $application->id); ?>"
+                                            target="_blank" class="button button-small" style="text-decoration: none;">
+                                            <?php _e('Print', 'job-posting-manager'); ?>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -2420,5 +2427,759 @@ class JPM_Admin
         }
 
         return ['success' => true];
+    }
+
+    /**
+     * Handle print action early to prevent admin template loading
+     */
+    public function handle_print()
+    {
+        // Check if print is requested
+        if (!isset($_GET['page']) || $_GET['page'] !== 'jpm-applications' || !isset($_GET['action']) || $_GET['action'] !== 'print' || !isset($_GET['application_id'])) {
+            return;
+        }
+
+        // Prevent WordPress admin from loading - must be defined before admin template loads
+        if (!defined('IFRAME_REQUEST')) {
+            define('IFRAME_REQUEST', true);
+        }
+
+        // Check user capabilities
+        if (!current_user_can('edit_posts')) {
+            wp_die(__('You do not have permission to view this page.', 'job-posting-manager'));
+        }
+
+        $application_id = absint($_GET['application_id'] ?? 0);
+
+        if ($application_id <= 0) {
+            wp_die(__('Invalid application ID.', 'job-posting-manager'));
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $application_id));
+
+        if (!$application) {
+            wp_die(__('Application not found.', 'job-posting-manager'));
+        }
+
+        // Disable admin bar completely
+        add_filter('show_admin_bar', '__return_false');
+        add_action('admin_head', function () {
+            echo '<style>#wpadminbar, #adminmenumain, #adminmenuback, #adminmenuwrap { display: none !important; }</style>';
+        }, 999);
+
+        // Remove all admin menu and header actions
+        remove_all_actions('admin_head');
+        remove_all_actions('admin_footer');
+        remove_all_actions('admin_notices');
+
+        // Output print page and exit immediately - this prevents WordPress from loading admin template
+        $this->print_application_page($application, $application_id);
+        exit;
+    }
+
+    /**
+     * Print application page
+     */
+    private function print_application_page($application, $application_id)
+    {
+
+        // Get job details
+        $job = get_post($application->job_id);
+        $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+        $form_data = json_decode($application->notes, true);
+
+        if (!is_array($form_data)) {
+            $form_data = [];
+        }
+
+        // Extract customer information
+        $first_name = '';
+        $middle_name = '';
+        $last_name = '';
+        $email = '';
+        $application_number = '';
+        $date_of_registration = '';
+
+        // First name variations
+        $first_name_fields = ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name'];
+        foreach ($first_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $first_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // Middle name variations
+        $middle_name_fields = ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name'];
+        foreach ($middle_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $middle_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // Last name variations
+        $last_name_fields = ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name'];
+        foreach ($last_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $last_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // Email variations
+        $email_fields = ['email', 'email_address', 'e-mail', 'email-address'];
+        foreach ($email_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $email = sanitize_email($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // Application number and date of registration
+        if (isset($form_data['application_number'])) {
+            $application_number = sanitize_text_field($form_data['application_number']);
+        }
+        if (isset($form_data['date_of_registration'])) {
+            $date_of_registration = sanitize_text_field($form_data['date_of_registration']);
+        }
+
+        // Fallback to user data if not found in form data
+        if (empty($first_name) && $user) {
+            $first_name = $user->first_name;
+        }
+        if (empty($last_name) && $user) {
+            $last_name = $user->last_name;
+        }
+        if (empty($email) && $user) {
+            $email = $user->user_email;
+        }
+
+        $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
+        $full_name = preg_replace('/\s+/', ' ', $full_name);
+
+        // Get status information
+        $status_info = self::get_status_by_slug($application->status);
+        $status_name = $status_info ? $status_info['name'] : ucfirst($application->status);
+        $status_color = $status_info ? $status_info['color'] : '#ffc107';
+        $status_text_color = $status_info ? $status_info['text_color'] : '#000000';
+
+        // Print page - standalone HTML without WordPress admin
+        // Send headers to prevent caching
+        nocache_headers();
+        ?>
+        <!DOCTYPE html>
+        <html <?php language_attributes(); ?>>
+
+        <head>
+            <meta charset="<?php bloginfo('charset'); ?>">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title><?php printf(__('Application #%d - Print', 'job-posting-manager'), $application_id); ?></title>
+            <style>
+                /* Hide all WordPress admin elements */
+                #wpadminbar,
+                #adminmenumain,
+                #adminmenuback,
+                #adminmenuwrap,
+                #wpcontent,
+                #wpfooter,
+                .wp-core-ui,
+                .wp-admin,
+                body.wp-admin,
+                body.admin-bar {
+                    display: none !important;
+                    visibility: hidden !important;
+                    height: 0 !important;
+                    width: 0 !important;
+                    overflow: hidden !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+
+                html,
+                body {
+                    width: 100% !important;
+                    height: 100% !important;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+                    font-size: 11pt !important;
+                    line-height: 1.7 !important;
+                    color: #2c3e50 !important;
+                    background: #fff !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border: 0 !important;
+                    overflow: visible !important;
+                }
+
+                /* Remove all top spacing */
+                body>* {
+                    margin-top: 0 !important;
+                    padding-top: 0 !important;
+                }
+
+                /* Ensure print container starts at top */
+                body>.print-container {
+                    margin-top: 0 !important;
+                    padding-top: 0 !important;
+                }
+
+                body>.print-container>.print-header {
+                    margin-top: 0 !important;
+                    padding-top: 0 !important;
+                }
+
+                @media print {
+
+                    html,
+                    body {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        border: 0 !important;
+                    }
+
+                    body>* {
+                        margin-top: 0 !important;
+                        padding-top: 0 !important;
+                    }
+
+                    body>.print-container {
+                        margin-top: 0 !important;
+                        padding-top: 0 !important;
+                    }
+
+                    body>.print-container>.print-header {
+                        margin-top: 0 !important;
+                        padding-top: 0 !important;
+                        margin-bottom: 25px !important;
+                    }
+
+                    body>.print-container>.print-header>h1 {
+                        margin-top: 0 !important;
+                        padding-top: 0 !important;
+                    }
+
+                    .no-print {
+                        display: none !important;
+                    }
+
+                    @page {
+                        size: A4;
+                        margin: 0 1cm 1cm 1cm;
+                    }
+
+                    .section {
+                        page-break-inside: avoid;
+                        margin-bottom: 30px;
+                    }
+
+                    .print-header {
+                        page-break-after: avoid;
+                        margin-top: 0 !important;
+                        margin-bottom: 30px !important;
+                        padding-top: 0 !important;
+                        padding-bottom: 20px;
+                    }
+
+                    .print-header h1 {
+                        margin-top: 0 !important;
+                        padding-top: 0 !important;
+                    }
+
+                    .print-container {
+                        padding: 0 !important;
+                        padding-top: 0 !important;
+                        margin-top: 0 !important;
+                        max-width: 100%;
+                    }
+
+                    .info-row {
+                        page-break-inside: avoid;
+                    }
+
+                    .form-field {
+                        page-break-inside: avoid;
+                        margin-bottom: 15px;
+                    }
+
+                    .footer {
+                        margin-top: 50px;
+                        padding-top: 20px;
+                    }
+                }
+
+                .print-container {
+                    max-width: 210mm;
+                    margin: 0 auto !important;
+                    padding: 0 40px 30px 40px !important;
+                    padding-top: 0 !important;
+                    margin-top: 0 !important;
+                    background: #fff;
+                }
+
+                .print-actions {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 1000;
+                    background: #fff;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                }
+
+                .print-actions button {
+                    padding: 10px 20px;
+                    font-size: 14px;
+                    background: #2c3e50;
+                    color: #fff;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    margin: 0 5px;
+                    font-weight: 500;
+                    transition: background 0.3s;
+                }
+
+                .print-actions button:hover {
+                    background: #34495e;
+                }
+
+                .print-actions button.print-btn {
+                    background: #27ae60;
+                }
+
+                .print-actions button.print-btn:hover {
+                    background: #229954;
+                }
+
+                .print-header {
+                    text-align: center;
+                    border-bottom: 3px solid #2c3e50;
+                    padding-bottom: 25px;
+                    padding-top: 0 !important;
+                    margin-top: 0 !important;
+                    margin-bottom: 45px;
+                    position: relative;
+                }
+
+                .print-header::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -3px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 120px;
+                    height: 3px;
+                    background: #3498db;
+                }
+
+                .print-header h1 {
+                    font-size: 32pt;
+                    margin-top: 0 !important;
+                    margin-bottom: 10px;
+                    padding-top: 0 !important;
+                    color: #2c3e50;
+                    font-weight: 700;
+                    letter-spacing: -0.5px;
+                    line-height: 1.2;
+                }
+
+                .print-header .subtitle {
+                    font-size: 16pt;
+                    color: #7f8c8d;
+                    font-weight: 400;
+                    margin-bottom: 8px;
+                }
+
+                .print-header .company-info {
+                    margin-top: 12px;
+                    font-size: 12pt;
+                    color: #95a5a6;
+                    font-weight: 500;
+                }
+
+                .section {
+                    margin-bottom: 40px;
+                    page-break-inside: avoid;
+                }
+
+                .section-title {
+                    font-size: 15pt;
+                    font-weight: 700;
+                    color: #2c3e50;
+                    border-bottom: 2px solid #3498db;
+                    padding-bottom: 10px;
+                    margin-bottom: 25px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.8px;
+                    line-height: 1.3;
+                }
+
+                .info-grid {
+                    display: table;
+                    width: 100%;
+                    border-collapse: collapse;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+
+                .info-row {
+                    display: table-row;
+                    border-bottom: 1px solid #e8e8e8;
+                }
+
+                .info-row:last-child {
+                    border-bottom: none;
+                }
+
+                .info-label {
+                    display: table-cell;
+                    width: 38%;
+                    padding: 14px 18px;
+                    font-weight: 600;
+                    color: #34495e;
+                    background: #f5f7fa;
+                    vertical-align: middle;
+                    border-right: 1px solid #e8e8e8;
+                    font-size: 10.5pt;
+                    line-height: 1.5;
+                }
+
+                .info-value {
+                    display: table-cell;
+                    padding: 14px 18px;
+                    color: #2c3e50;
+                    vertical-align: middle;
+                    font-size: 11pt;
+                    line-height: 1.6;
+                }
+
+                .status-badge {
+                    display: inline-block;
+                    padding: 7px 20px;
+                    border-radius: 20px;
+                    font-weight: 600;
+                    font-size: 10pt;
+                    text-transform: uppercase;
+                    letter-spacing: 0.8px;
+                    line-height: 1.2;
+                }
+
+                .form-data-section {
+                    margin-top: 35px;
+                }
+
+                .form-field {
+                    margin-bottom: 18px;
+                    padding: 18px 20px;
+                    background: #f8f9fa;
+                    border-left: 4px solid #3498db;
+                    border-radius: 4px;
+                    transition: box-shadow 0.3s;
+                    page-break-inside: avoid;
+                }
+
+                .form-field:hover {
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                }
+
+                .form-field-label {
+                    font-weight: 600;
+                    color: #34495e;
+                    margin-bottom: 10px;
+                    display: block;
+                    font-size: 10.5pt;
+                    text-transform: uppercase;
+                    letter-spacing: 0.8px;
+                    line-height: 1.3;
+                }
+
+                .form-field-value {
+                    color: #2c3e50;
+                    font-size: 11pt;
+                    line-height: 1.7;
+                    word-wrap: break-word;
+                }
+
+                .footer {
+                    margin-top: 70px;
+                    padding-top: 25px;
+                    border-top: 2px solid #e0e0e0;
+                    text-align: center;
+                    font-size: 9.5pt;
+                    color: #95a5a6;
+                    line-height: 1.6;
+                }
+
+                .divider {
+                    height: 0;
+                    border: none;
+                    border-top: 1px solid #e0e0e0;
+                    margin: 35px 0;
+                }
+
+                @media screen {
+                    body {
+                        background: #f5f6fa;
+                        padding: 20px;
+                        min-height: 100vh;
+                    }
+
+                    .print-container {
+                        background: #fff;
+                        box-shadow: 0 0 25px rgba(0, 0, 0, 0.08);
+                        border-radius: 8px;
+                        padding: 40px 50px;
+                        margin-bottom: 30px;
+                    }
+                }
+
+                /* Remove extra whitespace */
+                .print-container>*:first-child {
+                    margin-top: 0;
+                }
+
+                .print-container>*:last-child {
+                    margin-bottom: 0;
+                }
+
+                /* Better spacing for nested elements */
+                .section>*:first-child {
+                    margin-top: 0;
+                }
+
+                .section>*:last-child {
+                    margin-bottom: 0;
+                }
+            </style>
+        </head>
+
+        <body style="margin: 0 !important; padding: 0 !important; border: 0 !important;">
+            <div class="print-actions no-print">
+                <button class="print-btn" onclick="window.print()"><?php _e('Print', 'job-posting-manager'); ?></button>
+                <button onclick="window.close()"><?php _e('Close', 'job-posting-manager'); ?></button>
+            </div>
+
+            <div class="print-container" style="margin-top: 0 !important; padding-top: 0 !important;">
+                <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important; margin-bottom: 30px;">
+                    <h1><?php _e('Job Application', 'job-posting-manager'); ?></h1>
+                    <div class="subtitle"><?php printf(__('Application #%d', 'job-posting-manager'), $application_id); ?></div>
+                    <?php if (get_bloginfo('name')): ?>
+                        <div class="company-info"><?php echo esc_html(get_bloginfo('name')); ?></div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Application Information -->
+                <div class="section">
+                    <div class="section-title"><?php _e('Application Information', 'job-posting-manager'); ?></div>
+                    <div class="info-grid">
+                        <div class="info-row">
+                            <div class="info-label"><?php _e('Application ID', 'job-posting-manager'); ?></div>
+                            <div class="info-value"><strong
+                                    style="color: #2c3e50; font-size: 11.5pt;">#<?php echo esc_html($application_id); ?></strong>
+                            </div>
+                        </div>
+
+                        <?php if (!empty($application_number)): ?>
+                            <div class="info-row">
+                                <div class="info-label"><?php _e('Application Number', 'job-posting-manager'); ?></div>
+                                <div class="info-value" style="font-weight: 500;"><?php echo esc_html($application_number); ?></div>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="info-row">
+                            <div class="info-label"><?php _e('Application Date', 'job-posting-manager'); ?></div>
+                            <div class="info-value">
+                                <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
+                            </div>
+                        </div>
+
+                        <div class="info-row">
+                            <div class="info-label"><?php _e('Status', 'job-posting-manager'); ?></div>
+                            <div class="info-value">
+                                <span class="status-badge"
+                                    style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
+                                    <?php echo esc_html($status_name); ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <?php if (!empty($date_of_registration)): ?>
+                            <div class="info-row">
+                                <div class="info-label"><?php _e('Date of Registration', 'job-posting-manager'); ?></div>
+                                <div class="info-value"><?php echo esc_html($date_of_registration); ?></div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Job Information -->
+                <div class="section">
+                    <div class="section-title"><?php _e('Job Information', 'job-posting-manager'); ?></div>
+                    <div class="info-grid">
+                        <div class="info-row">
+                            <div class="info-label"><?php _e('Job Title', 'job-posting-manager'); ?></div>
+                            <div class="info-value"><strong style="color: #2c3e50; font-size: 11.5pt;">
+                                    <?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
+                                </strong></div>
+                        </div>
+
+                        <div class="info-row">
+                            <div class="info-label">
+                                <?php _e('Job ID', 'job-posting-manager'); ?>
+                            </div>
+                            <div class="info-value">#
+                                <?php echo esc_html($application->job_id); ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Applicant Information -->
+                <div class="section">
+                    <div class="section-title">
+                        <?php _e('Applicant Information', 'job-posting-manager'); ?>
+                    </div>
+                    <div class="info-grid">
+                        <?php if (!empty($full_name)): ?>
+                            <div class="info-row">
+                                <div class="info-label"><?php _e('Full Name', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="info-value"><strong style="color: #2c3e50; font-size: 11.5pt;">
+                                        <?php echo esc_html($full_name); ?>
+                                    </strong></div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($first_name)): ?>
+                            <div class="info-row">
+                                <div class="info-label"><?php _e('First Name', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="info-value">
+                                    <?php echo esc_html($first_name); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($middle_name)): ?>
+                            <div class="info-row">
+                                <div class="info-label"><?php _e('Middle Name', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="info-value">
+                                    <?php echo esc_html($middle_name); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($last_name)): ?>
+                            <div class="info-row">
+                                <div class="info-label"><?php _e('Last Name', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="info-value">
+                                    <?php echo esc_html($last_name); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($email)): ?>
+                            <div class="info-row">
+                                <div class="info-label">
+                                    <?php _e('Email', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="info-value">
+                                    <?php echo esc_html($email); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="info-row">
+                            <div class="info-label">
+                                <?php _e('User Account', 'job-posting-manager'); ?>
+                            </div>
+                            <div class="info-value">
+                                <?php if ($user): ?>
+                                    <?php echo esc_html($user->display_name); ?> <span style="color: #95a5a6;">(ID:
+                                        <?php echo esc_html($user->ID); ?>)</span>
+                                <?php else: ?>
+                                    <em style="color: #95a5a6;"><?php _e('Guest Application', 'job-posting-manager'); ?></em>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Application Form Data -->
+                <?php if (!empty($form_data)): ?>
+                    <div class="section form-data-section">
+                        <div class="section-title">
+                            <?php _e('Application Form Data', 'job-posting-manager'); ?>
+                        </div>
+                        <?php
+                        // Exclude internal fields from display
+                        $excluded_fields = ['application_number', 'date_of_registration'];
+
+                        foreach ($form_data as $field_name => $field_value):
+                            if (in_array($field_name, $excluded_fields)) {
+                                continue;
+                            }
+
+                            // Skip if already displayed in applicant information
+                            $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
+                            $skip_fields = ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email'];
+                            if (in_array($field_name_lower, $skip_fields)) {
+                                continue;
+                            }
+
+                            if (empty($field_value)) {
+                                continue;
+                            }
+
+                            $field_label = ucwords(str_replace(['_', '-'], ' ', $field_name));
+                            ?>
+                            <div class="form-field">
+                                <span class="form-field-label"><?php echo esc_html($field_label); ?></span>
+                                <div class="form-field-value">
+                                    <?php
+                                    if (is_array($field_value)) {
+                                        echo esc_html(implode(', ', $field_value));
+                                    } else {
+                                        echo esc_html($field_value);
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="footer">
+                    <p><?php printf(__('Printed on %s from %s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')), get_bloginfo('name')); ?>
+                    </p>
+                </div>
+            </div>
+
+            <script>
+                        // Auto-print w         hen         page loads (optional)
+                        // window.onload = function() { window.print(); };
+                    </script>
+                </body>
+
+                </html>
+                <?php
     }
 }
