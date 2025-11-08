@@ -13,6 +13,7 @@ class JPM_Admin
         add_action('template_redirect', [$this, 'restrict_draft_job_access']);
         add_action('wp_ajax_jpm_update_application_status', [$this, 'update_application_status']);
         add_action('admin_init', [$this, 'handle_export']);
+        add_action('admin_init', [$this, 'handle_import']);
     }
 
     public function add_menu()
@@ -103,22 +104,52 @@ class JPM_Admin
                     </div>
                 </form>
 
-                <?php if (current_user_can('edit_posts') && !empty($applications)): ?>
+                <?php if (current_user_can('edit_posts')): ?>
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                        <strong><?php _e('Export Applications:', 'job-posting-manager'); ?></strong>
-                        <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)); ?>"
-                                class="button">
-                                <?php _e('Export to CSV', 'job-posting-manager'); ?>
-                            </a>
-                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)); ?>"
-                                class="button">
-                                <?php _e('Export to JSON', 'job-posting-manager'); ?>
-                            </a>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <!-- Export Section -->
+                            <?php if (!empty($applications)): ?>
+                                <div>
+                                    <strong><?php _e('Export Applications:', 'job-posting-manager'); ?></strong>
+                                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)); ?>"
+                                            class="button">
+                                            <?php _e('Export to CSV', 'job-posting-manager'); ?>
+                                        </a>
+                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)); ?>"
+                                            class="button">
+                                            <?php _e('Export to JSON', 'job-posting-manager'); ?>
+                                        </a>
+                                    </div>
+                                    <p class="description" style="margin-top: 5px;">
+                                        <?php _e('Export will include all applications matching your current filters and search.', 'job-posting-manager'); ?>
+                                    </p>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Import Section -->
+                            <div>
+                                <strong><?php _e('Import Applications:', 'job-posting-manager'); ?></strong>
+                                <form method="post" action="" enctype="multipart/form-data" style="margin-top: 10px;">
+                                    <?php wp_nonce_field('jpm_import_applications', 'jpm_import_nonce'); ?>
+                                    <input type="hidden" name="jpm_import_action" value="import">
+                                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                        <input type="file" name="jpm_import_file" accept=".csv,.json" required
+                                            style="padding: 5px;">
+                                        <select name="jpm_import_format" required style="padding: 5px;">
+                                            <option value=""><?php _e('Select Format', 'job-posting-manager'); ?></option>
+                                            <option value="csv"><?php _e('CSV', 'job-posting-manager'); ?></option>
+                                            <option value="json"><?php _e('JSON', 'job-posting-manager'); ?></option>
+                                        </select>
+                                        <input type="submit" name="jpm_import_submit" class="button button-primary"
+                                            value="<?php _e('Import', 'job-posting-manager'); ?>">
+                                    </div>
+                                    <p class="description" style="margin-top: 5px;">
+                                        <?php _e('Import applications from a previously exported CSV or JSON file. File must match the export format.', 'job-posting-manager'); ?>
+                                    </p>
+                                </form>
+                            </div>
                         </div>
-                        <p class="description" style="margin-top: 5px;">
-                            <?php _e('Export will include all applications matching your current filters and search.', 'job-posting-manager'); ?>
-                        </p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -1709,5 +1740,530 @@ class JPM_Admin
         // Output JSON
         echo json_encode($export_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    /**
+     * Handle import requests
+     */
+    public function handle_import()
+    {
+        // Check if import is requested
+        if (!isset($_POST['jpm_import_action']) || $_POST['jpm_import_action'] !== 'import') {
+            return;
+        }
+
+        // Check user capabilities (admin or editor)
+        if (!current_user_can('edit_posts')) {
+            wp_die(__('You do not have permission to import applications.', 'job-posting-manager'));
+        }
+
+        // Verify nonce
+        if (!isset($_POST['jpm_import_nonce']) || !wp_verify_nonce($_POST['jpm_import_nonce'], 'jpm_import_applications')) {
+            wp_die(__('Security check failed. Please try again.', 'job-posting-manager'));
+        }
+
+        // Check if file was uploaded
+        if (!isset($_FILES['jpm_import_file']) || $_FILES['jpm_import_file']['error'] !== UPLOAD_ERR_OK) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p>' . __('Error: No file uploaded or upload failed.', 'job-posting-manager') . '</p></div>';
+            });
+            return;
+        }
+
+        $file = $_FILES['jpm_import_file'];
+        $format = sanitize_text_field($_POST['jpm_import_format'] ?? '');
+
+        if (!in_array($format, ['csv', 'json'])) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p>' . __('Error: Invalid import format.', 'job-posting-manager') . '</p></div>';
+            });
+            return;
+        }
+
+        // Check file extension matches format
+        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (($format === 'csv' && $file_ext !== 'csv') || ($format === 'json' && $file_ext !== 'json')) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p>' . __('Error: File extension does not match selected format.', 'job-posting-manager') . '</p></div>';
+            });
+            return;
+        }
+
+        // Process import
+        $result = null;
+        if ($format === 'csv') {
+            $result = $this->import_from_csv($file);
+        } elseif ($format === 'json') {
+            $result = $this->import_from_json($file);
+        }
+
+        // Show results
+        if ($result) {
+            $success_count = $result['success'] ?? 0;
+            $error_count = $result['errors'] ?? 0;
+            $errors = $result['error_messages'] ?? [];
+
+            if ($success_count > 0) {
+                add_action('admin_notices', function () use ($success_count) {
+                    echo '<div class="notice notice-success is-dismissible"><p>' .
+                        sprintf(__('Successfully imported %d application(s).', 'job-posting-manager'), $success_count) .
+                        '</p></div>';
+                });
+            }
+
+            if ($error_count > 0) {
+                $error_message = sprintf(__('Failed to import %d application(s).', 'job-posting-manager'), $error_count);
+                if (!empty($errors)) {
+                    $error_message .= '<ul style="margin-left: 20px;">';
+                    foreach (array_slice($errors, 0, 10) as $error) { // Show first 10 errors
+                        $error_message .= '<li>' . esc_html($error) . '</li>';
+                    }
+                    if (count($errors) > 10) {
+                        $error_message .= '<li>' . sprintf(__('... and %d more errors.', 'job-posting-manager'), count($errors) - 10) . '</li>';
+                    }
+                    $error_message .= '</ul>';
+                }
+                add_action('admin_notices', function () use ($error_message) {
+                    echo '<div class="notice notice-error is-dismissible"><p>' . $error_message . '</p></div>';
+                });
+            }
+        }
+    }
+
+    /**
+     * Import applications from CSV
+     */
+    private function import_from_csv($file)
+    {
+        $success_count = 0;
+        $error_count = 0;
+        $error_messages = [];
+
+        // Read CSV file
+        $handle = fopen($file['tmp_name'], 'r');
+        if ($handle === false) {
+            $error_messages[] = __('Failed to open CSV file.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        // Skip BOM if present
+        $first_line = fgets($handle);
+        rewind($handle);
+        if (substr($first_line, 0, 3) === chr(0xEF) . chr(0xBB) . chr(0xBF)) {
+            fseek($handle, 3);
+        }
+
+        // Read headers
+        $headers = fgetcsv($handle);
+        if ($headers === false) {
+            fclose($handle);
+            $error_messages[] = __('Failed to read CSV headers.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        // Map headers to lowercase for easier matching
+        $headers = array_map('strtolower', $headers);
+        $headers = array_map('trim', $headers);
+
+        // Process rows
+        $row_num = 1;
+        while (($row = fgetcsv($handle)) !== false) {
+            $row_num++;
+
+            if (count($row) < count($headers)) {
+                $error_messages[] = sprintf(__('Row %d: Insufficient columns.', 'job-posting-manager'), $row_num);
+                $error_count++;
+                continue;
+            }
+
+            // Map row data
+            $data = [];
+            foreach ($headers as $index => $header) {
+                $data[$header] = isset($row[$index]) ? trim($row[$index]) : '';
+            }
+
+            // Import this application
+            $result = $this->import_application($data, $row_num);
+            if ($result['success']) {
+                $success_count++;
+            } else {
+                $error_count++;
+                $error_messages[] = $result['error'];
+            }
+        }
+
+        fclose($handle);
+
+        return [
+            'success' => $success_count,
+            'errors' => $error_count,
+            'error_messages' => $error_messages
+        ];
+    }
+
+    /**
+     * Import applications from JSON
+     */
+    private function import_from_json($file)
+    {
+        $success_count = 0;
+        $error_count = 0;
+        $error_messages = [];
+
+        // Read JSON file
+        $json_content = file_get_contents($file['tmp_name']);
+        if ($json_content === false) {
+            $error_messages[] = __('Failed to read JSON file.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        // Decode JSON
+        $data = json_decode($json_content, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $error_messages[] = __('Invalid JSON format: ', 'job-posting-manager') . json_last_error_msg();
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        // Check if it's the export format
+        if (!isset($data['applications']) || !is_array($data['applications'])) {
+            $error_messages[] = __('Invalid JSON format: Missing applications array.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        // Process each application
+        $index = 0;
+        foreach ($data['applications'] as $app_data) {
+            $index++;
+            $result = $this->import_application_from_json($app_data, $index);
+            if ($result['success']) {
+                $success_count++;
+            } else {
+                $error_count++;
+                $error_messages[] = $result['error'];
+            }
+        }
+
+        return [
+            'success' => $success_count,
+            'errors' => $error_count,
+            'error_messages' => $error_messages
+        ];
+    }
+
+    /**
+     * Import a single application from CSV data
+     */
+    private function import_application($data, $row_num = 0)
+    {
+        global $wpdb;
+
+        // Get job ID (required)
+        $job_id = 0;
+        if (isset($data['job id']) && !empty($data['job id'])) {
+            $job_id = absint($data['job id']);
+        } elseif (isset($data['job_id']) && !empty($data['job_id'])) {
+            $job_id = absint($data['job_id']);
+        }
+
+        if ($job_id <= 0 || !get_post($job_id)) {
+            return [
+                'success' => false,
+                'error' => sprintf(__('Row %d: Invalid or missing job ID.', 'job-posting-manager'), $row_num)
+            ];
+        }
+
+        // Get or create user
+        $user_id = 0;
+        $email = '';
+
+        // Try to get email from various fields
+        $email_fields = ['email', 'user email'];
+        foreach ($email_fields as $field) {
+            if (isset($data[$field]) && !empty($data[$field]) && is_email($data[$field])) {
+                $email = sanitize_email($data[$field]);
+                break;
+            }
+        }
+
+        // Try to find existing user by email
+        if (!empty($email)) {
+            $user = get_user_by('email', $email);
+            if ($user) {
+                $user_id = $user->ID;
+            } else {
+                // Create new user if email provided
+                $first_name = '';
+                $last_name = '';
+
+                if (isset($data['first name']) && !empty($data['first name'])) {
+                    $first_name = sanitize_text_field($data['first name']);
+                } elseif (isset($data['first_name']) && !empty($data['first_name'])) {
+                    $first_name = sanitize_text_field($data['first_name']);
+                }
+
+                if (isset($data['last name']) && !empty($data['last name'])) {
+                    $last_name = sanitize_text_field($data['last name']);
+                } elseif (isset($data['last_name']) && !empty($data['last_name'])) {
+                    $last_name = sanitize_text_field($data['last_name']);
+                }
+
+                if (!empty($first_name) && !empty($last_name)) {
+                    $username = sanitize_user($email, true);
+                    $original_username = $username;
+                    $counter = 1;
+                    while (username_exists($username)) {
+                        $username = $original_username . $counter;
+                        $counter++;
+                    }
+
+                    $password = wp_generate_password(32, false);
+                    $user_id = wp_create_user($username, $password, $email);
+
+                    if (!is_wp_error($user_id)) {
+                        $user = new WP_User($user_id);
+                        if (get_role('customer')) {
+                            $user->set_role('customer');
+                        } else {
+                            $user->set_role('subscriber');
+                        }
+
+                        update_user_meta($user_id, 'first_name', $first_name);
+                        update_user_meta($user_id, 'last_name', $last_name);
+                        wp_update_user([
+                            'ID' => $user_id,
+                            'display_name' => trim($first_name . ' ' . $last_name),
+                            'first_name' => $first_name,
+                            'last_name' => $last_name
+                        ]);
+                    } else {
+                        $user_id = 0; // Continue as guest if user creation fails
+                    }
+                }
+            }
+        }
+
+        // Build form data (notes) from CSV data
+        $form_data = [];
+        $csv_field_mapping = [
+            'application number' => 'application_number',
+            'application_number' => 'application_number',
+            'first name' => 'first_name',
+            'first_name' => 'first_name',
+            'middle name' => 'middle_name',
+            'middle_name' => 'middle_name',
+            'last name' => 'last_name',
+            'last_name' => 'last_name',
+            'email' => 'email',
+            'date of registration' => 'date_of_registration',
+            'date_of_registration' => 'date_of_registration',
+        ];
+
+        foreach ($csv_field_mapping as $csv_field => $form_field) {
+            if (isset($data[$csv_field]) && !empty($data[$csv_field])) {
+                $form_data[$form_field] = sanitize_text_field($data[$csv_field]);
+            }
+        }
+
+        // Get status
+        $status = 'pending';
+        if (isset($data['status']) && !empty($data['status'])) {
+            $status_slug = sanitize_text_field($data['status']);
+            // Check if status exists
+            $status_options = self::get_status_options();
+            if (isset($status_options[$status_slug])) {
+                $status = $status_slug;
+            } else {
+                // Try to find by name
+                foreach ($status_options as $slug => $name) {
+                    if (strtolower($name) === strtolower($status_slug)) {
+                        $status = $slug;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Get application date
+        $application_date = current_time('mysql');
+        if (isset($data['application date']) && !empty($data['application date'])) {
+            $date_str = sanitize_text_field($data['application date']);
+            $parsed_date = strtotime($date_str);
+            if ($parsed_date !== false) {
+                $application_date = date('Y-m-d H:i:s', $parsed_date);
+            }
+        }
+
+        // Insert application
+        $table = $wpdb->prefix . 'job_applications';
+        $result = $wpdb->insert($table, [
+            'user_id' => $user_id,
+            'job_id' => $job_id,
+            'resume_file_path' => '',
+            'notes' => json_encode($form_data, JSON_UNESCAPED_UNICODE),
+            'status' => $status,
+            'application_date' => $application_date,
+        ]);
+
+        if ($result === false) {
+            return [
+                'success' => false,
+                'error' => sprintf(__('Row %d: Failed to insert application into database.', 'job-posting-manager'), $row_num)
+            ];
+        }
+
+        return ['success' => true];
+    }
+
+    /**
+     * Import a single application from JSON data
+     */
+    private function import_application_from_json($app_data, $index = 0)
+    {
+        global $wpdb;
+
+        // Get job ID (required)
+        $job_id = 0;
+        if (isset($app_data['job']['id']) && !empty($app_data['job']['id'])) {
+            $job_id = absint($app_data['job']['id']);
+        } elseif (isset($app_data['job_id']) && !empty($app_data['job_id'])) {
+            $job_id = absint($app_data['job_id']);
+        }
+
+        if ($job_id <= 0 || !get_post($job_id)) {
+            return [
+                'success' => false,
+                'error' => sprintf(__('Application %d: Invalid or missing job ID.', 'job-posting-manager'), $index)
+            ];
+        }
+
+        // Get or create user
+        $user_id = 0;
+        $email = '';
+
+        // Get email from applicant or user data
+        if (isset($app_data['applicant']['email']) && !empty($app_data['applicant']['email'])) {
+            $email = sanitize_email($app_data['applicant']['email']);
+        } elseif (isset($app_data['user']['email']) && !empty($app_data['user']['email'])) {
+            $email = sanitize_email($app_data['user']['email']);
+        }
+
+        // Try to find existing user by email
+        if (!empty($email)) {
+            $user = get_user_by('email', $email);
+            if ($user) {
+                $user_id = $user->ID;
+            } else {
+                // Create new user if email and name provided
+                $first_name = $app_data['applicant']['first_name'] ?? '';
+                $last_name = $app_data['applicant']['last_name'] ?? '';
+
+                if (!empty($first_name) && !empty($last_name)) {
+                    $username = sanitize_user($email, true);
+                    $original_username = $username;
+                    $counter = 1;
+                    while (username_exists($username)) {
+                        $username = $original_username . $counter;
+                        $counter++;
+                    }
+
+                    $password = wp_generate_password(32, false);
+                    $user_id = wp_create_user($username, $password, $email);
+
+                    if (!is_wp_error($user_id)) {
+                        $user = new WP_User($user_id);
+                        if (get_role('customer')) {
+                            $user->set_role('customer');
+                        } else {
+                            $user->set_role('subscriber');
+                        }
+
+                        update_user_meta($user_id, 'first_name', $first_name);
+                        update_user_meta($user_id, 'last_name', $last_name);
+                        wp_update_user([
+                            'ID' => $user_id,
+                            'display_name' => trim($first_name . ' ' . $last_name),
+                            'first_name' => $first_name,
+                            'last_name' => $last_name
+                        ]);
+                    } else {
+                        $user_id = 0; // Continue as guest if user creation fails
+                    }
+                }
+            }
+        }
+
+        // Get form data
+        $form_data = [];
+        if (isset($app_data['form_data']) && is_array($app_data['form_data'])) {
+            $form_data = $app_data['form_data'];
+        } else {
+            // Build from applicant data
+            if (isset($app_data['applicant'])) {
+                $applicant = $app_data['applicant'];
+                if (isset($applicant['first_name']))
+                    $form_data['first_name'] = $applicant['first_name'];
+                if (isset($applicant['middle_name']))
+                    $form_data['middle_name'] = $applicant['middle_name'];
+                if (isset($applicant['last_name']))
+                    $form_data['last_name'] = $applicant['last_name'];
+                if (isset($applicant['email']))
+                    $form_data['email'] = $applicant['email'];
+            }
+            if (isset($app_data['application_number'])) {
+                $form_data['application_number'] = $app_data['application_number'];
+            }
+            if (isset($app_data['date_of_registration'])) {
+                $form_data['date_of_registration'] = $app_data['date_of_registration'];
+            }
+        }
+
+        // Get status
+        $status = 'pending';
+        if (isset($app_data['status_slug']) && !empty($app_data['status_slug'])) {
+            $status_slug = sanitize_text_field($app_data['status_slug']);
+            $status_options = self::get_status_options();
+            if (isset($status_options[$status_slug])) {
+                $status = $status_slug;
+            }
+        } elseif (isset($app_data['status']) && !empty($app_data['status'])) {
+            $status_name = sanitize_text_field($app_data['status']);
+            $status_options = self::get_status_options();
+            foreach ($status_options as $slug => $name) {
+                if (strtolower($name) === strtolower($status_name)) {
+                    $status = $slug;
+                    break;
+                }
+            }
+        }
+
+        // Get application date
+        $application_date = current_time('mysql');
+        if (isset($app_data['application_date']) && !empty($app_data['application_date'])) {
+            $date_str = sanitize_text_field($app_data['application_date']);
+            $parsed_date = strtotime($date_str);
+            if ($parsed_date !== false) {
+                $application_date = date('Y-m-d H:i:s', $parsed_date);
+            }
+        }
+
+        // Insert application
+        $table = $wpdb->prefix . 'job_applications';
+        $result = $wpdb->insert($table, [
+            'user_id' => $user_id,
+            'job_id' => $job_id,
+            'resume_file_path' => '',
+            'notes' => json_encode($form_data, JSON_UNESCAPED_UNICODE),
+            'status' => $status,
+            'application_date' => $application_date,
+        ]);
+
+        if ($result === false) {
+            return [
+                'success' => false,
+                'error' => sprintf(__('Application %d: Failed to insert application into database.', 'job-posting-manager'), $index)
+            ];
+        }
+
+        return ['success' => true];
     }
 }
