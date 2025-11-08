@@ -26,6 +26,7 @@ class JPM_Settings
     {
         $smtp_settings = get_option('jpm_smtp_settings', []);
         $test_message = '';
+        $has_external_smtp = JPM_SMTP::has_existing_smtp_plugin();
 
         if (isset($_GET['smtp_test']) && $_GET['smtp_test'] === 'success') {
             $test_message = '<div class="notice notice-success"><p>' . __('SMTP test email sent successfully!', 'job-posting-manager') . '</p></div>';
@@ -39,42 +40,68 @@ class JPM_Settings
 
             <?php echo $test_message; ?>
 
+            <?php if ($has_external_smtp): ?>
+                <div class="notice notice-info">
+                    <p><strong><?php _e('External SMTP Plugin Detected', 'job-posting-manager'); ?></strong></p>
+                    <p><?php _e('Another SMTP plugin is currently active. Email notifications will use that plugin\'s SMTP settings. This plugin\'s SMTP configuration is disabled.', 'job-posting-manager'); ?>
+                    </p>
+                </div>
+            <?php else: ?>
+                <div class="notice notice-warning">
+                    <p><strong><?php _e('SMTP Plugin Required', 'job-posting-manager'); ?></strong></p>
+                    <p><?php _e('No SMTP plugin is currently active. Email notifications will not be sent. Please install and configure an SMTP plugin (such as WP Mail SMTP) to enable email notifications.', 'job-posting-manager'); ?>
+                    </p>
+                    <p>
+                        <a href="<?php echo admin_url('plugin-install.php?s=wp+mail+smtp&tab=search&type=term'); ?>"
+                            class="button button-primary">
+                            <?php _e('Install WP Mail SMTP', 'job-posting-manager'); ?>
+                        </a>
+                    </p>
+                </div>
+            <?php endif; ?>
+
             <h2><?php _e('SMTP Configuration', 'job-posting-manager'); ?></h2>
-            <p><?php _e('Email notifications are sent using the following SMTP settings:', 'job-posting-manager'); ?></p>
 
-            <table class="form-table">
-                <tr>
-                    <th><?php _e('SMTP Host', 'job-posting-manager'); ?></th>
-                    <td><?php echo esc_html($smtp_settings['host'] ?? 'smtp.gmail.com'); ?></td>
-                </tr>
-                <tr>
-                    <th><?php _e('Port', 'job-posting-manager'); ?></th>
-                    <td><?php echo esc_html($smtp_settings['port'] ?? '587'); ?></td>
-                </tr>
-                <tr>
-                    <th><?php _e('Encryption', 'job-posting-manager'); ?></th>
-                    <td><?php echo esc_html(strtoupper($smtp_settings['encryption'] ?? 'tls')); ?></td>
-                </tr>
-                <tr>
-                    <th><?php _e('Authentication', 'job-posting-manager'); ?></th>
-                    <td><?php echo !empty($smtp_settings['auth']) ? __('Enabled', 'job-posting-manager') : __('Disabled', 'job-posting-manager'); ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th><?php _e('Username', 'job-posting-manager'); ?></th>
-                    <td><?php echo esc_html($smtp_settings['username'] ?? 'noreply050623@gmail.com'); ?></td>
-                </tr>
-                <tr>
-                    <th><?php _e('From Email', 'job-posting-manager'); ?></th>
-                    <td><?php echo esc_html($smtp_settings['from_email'] ?? 'noreply050623@gmail.com'); ?></td>
-                </tr>
-            </table>
+            <?php if ($has_external_smtp): ?>
+                <p><?php _e('SMTP is being handled by another plugin. Please configure SMTP settings in that plugin.', 'job-posting-manager'); ?>
+                </p>
+            <?php else: ?>
+                <p><?php _e('Email notifications are sent using the following SMTP settings:', 'job-posting-manager'); ?></p>
 
-            <p>
-                <a href="<?php echo admin_url('admin.php?page=jpm-settings&test_smtp=1'); ?>" class="button">
-                    <?php _e('Test SMTP Connection', 'job-posting-manager'); ?>
-                </a>
-            </p>
+                <table class="form-table">
+                    <tr>
+                        <th><?php _e('SMTP Host', 'job-posting-manager'); ?></th>
+                        <td><?php echo esc_html($smtp_settings['host'] ?? 'smtp.gmail.com'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Port', 'job-posting-manager'); ?></th>
+                        <td><?php echo esc_html($smtp_settings['port'] ?? '587'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Encryption', 'job-posting-manager'); ?></th>
+                        <td><?php echo esc_html(strtoupper($smtp_settings['encryption'] ?? 'tls')); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Authentication', 'job-posting-manager'); ?></th>
+                        <td><?php echo !empty($smtp_settings['auth']) ? __('Enabled', 'job-posting-manager') : __('Disabled', 'job-posting-manager'); ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('Username', 'job-posting-manager'); ?></th>
+                        <td><?php echo esc_html($smtp_settings['username'] ?? 'noreply050623@gmail.com'); ?></td>
+                    </tr>
+                    <tr>
+                        <th><?php _e('From Email', 'job-posting-manager'); ?></th>
+                        <td><?php echo esc_html($smtp_settings['from_email'] ?? 'noreply050623@gmail.com'); ?></td>
+                    </tr>
+                </table>
+
+                <p>
+                    <a href="<?php echo admin_url('admin.php?page=jpm-settings&test_smtp=1'); ?>" class="button">
+                        <?php _e('Test SMTP Connection', 'job-posting-manager'); ?>
+                    </a>
+                </p>
+            <?php endif; ?>
 
             <hr>
 
@@ -99,6 +126,11 @@ class JPM_Settings
     public function save_smtp_settings()
     {
         if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Don't save if another SMTP plugin is active
+        if (JPM_SMTP::has_existing_smtp_plugin()) {
             return;
         }
 

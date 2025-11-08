@@ -34,7 +34,10 @@ register_activation_hook(__FILE__, 'jpm_activate_plugin');
 function jpm_activate_plugin()
 {
     JPM_DB::create_tables();
-    JPM_SMTP::init_default_settings();
+    // Only initialize SMTP settings if no external SMTP plugin is active
+    if (!JPM_SMTP::has_existing_smtp_plugin()) {
+        JPM_SMTP::init_default_settings();
+    }
     JPM_Templates::init_default_template();
     flush_rewrite_rules();
 }
@@ -130,9 +133,12 @@ function jpm_load_textdomain()
 add_action('plugins_loaded', 'jpm_init_smtp_settings');
 function jpm_init_smtp_settings()
 {
-    // Initialize default SMTP settings if not already set
-    if (get_option('jpm_smtp_settings') === false) {
-        JPM_SMTP::init_default_settings();
+    // Only initialize if no other SMTP plugin is active
+    // Note: We don't initialize default settings - user must configure an SMTP plugin
+    // This ensures emails won't work unless an SMTP plugin is properly configured
+    if (!JPM_SMTP::has_existing_smtp_plugin()) {
+        // Don't initialize default settings - require user to configure SMTP plugin
+        // Emails will not be sent until an SMTP plugin is installed and configured
     }
 }
 
@@ -151,6 +157,9 @@ new JPM_Admin();
 new JPM_Frontend();
 new JPM_Emails();
 new JPM_Settings();
-new JPM_SMTP();
+// Only initialize JPM_SMTP if no other SMTP plugin is active
+if (!JPM_SMTP::has_existing_smtp_plugin()) {
+    new JPM_SMTP();
+}
 new JPM_Templates();
 new JPM_Form_Builder();

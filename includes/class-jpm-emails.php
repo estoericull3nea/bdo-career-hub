@@ -2,6 +2,27 @@
 class JPM_Emails
 {
     /**
+     * Check if SMTP is available (either external plugin or our own configured)
+     * 
+     * @return bool True if SMTP is available
+     */
+    public static function is_smtp_available()
+    {
+        // Check if external SMTP plugin is active
+        if (JPM_SMTP::has_existing_smtp_plugin()) {
+            return true;
+        }
+
+        // Check if our own SMTP is configured
+        $smtp_settings = get_option('jpm_smtp_settings', []);
+        if (!empty($smtp_settings) && !empty($smtp_settings['host'])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Send confirmation email to applicant
      * 
      * @param int $app_id Application ID
@@ -13,6 +34,11 @@ class JPM_Emails
      */
     public static function send_confirmation($app_id, $job_id = 0, $customer_email = '', $first_name = '', $last_name = '', $form_data = [])
     {
+        // Check if SMTP is available
+        if (!self::is_smtp_available()) {
+            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            return false;
+        }
         $settings = get_option('jpm_settings', []);
 
         // Get customer information
@@ -124,6 +150,11 @@ class JPM_Emails
      */
     public static function send_status_update($app_id)
     {
+        // Check if SMTP is available
+        if (!self::is_smtp_available()) {
+            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            return false;
+        }
         global $wpdb;
 
         // Get application details
@@ -349,6 +380,12 @@ class JPM_Emails
      */
     public static function send_admin_notification($application_id, $job_id, $form_data, $admin_email = 'palisocericson87@gmail.com', $customer_email = '', $first_name = '', $last_name = '')
     {
+        // Check if SMTP is available
+        if (!self::is_smtp_available()) {
+            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            return false;
+        }
+
         // Get job details
         $job_title = get_the_title($job_id);
         $job_link = admin_url('post.php?post=' . $job_id . '&action=edit');
@@ -546,6 +583,12 @@ class JPM_Emails
      */
     public static function send_account_creation_notification($user_id, $email, $password, $first_name, $last_name)
     {
+        // Check if SMTP is available
+        if (!self::is_smtp_available()) {
+            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            return false;
+        }
+
         $full_name = trim($first_name . ' ' . $last_name);
 
         // Build email subject
@@ -593,6 +636,12 @@ class JPM_Emails
      */
     public static function send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email = 'palisocericson87@gmail.com')
     {
+        // Check if SMTP is available
+        if (!self::is_smtp_available()) {
+            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            return false;
+        }
+
         $full_name = trim($first_name . ' ' . $last_name);
         $user_link = admin_url('user-edit.php?user_id=' . $user_id);
 

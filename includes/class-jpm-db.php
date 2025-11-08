@@ -3174,12 +3174,12 @@ class JPM_Admin
             </div>
 
             <script>
-                        // Auto-print w         hen         page loads (optional)
-                        // window.onload = function() { window.print(); };
-                    </script>
-                </body>
+                // Auto-print w         hen         page loads (optional)
+                // window.onload = function() { window.print(); };
+            </script>
+        </body>
 
-                </html>
-                <?php
+        </html>
+        <?php
     }
 }
