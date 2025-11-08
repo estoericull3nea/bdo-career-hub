@@ -12,6 +12,7 @@ class JPM_Admin
         add_filter('the_title', [$this, 'display_company_image_with_title'], 10, 2);
         add_action('template_redirect', [$this, 'restrict_draft_job_access']);
         add_action('wp_ajax_jpm_update_application_status', [$this, 'update_application_status']);
+        add_action('admin_init', [$this, 'handle_export']);
     }
 
     public function add_menu()
@@ -101,6 +102,25 @@ class JPM_Admin
                         <?php endif; ?>
                     </div>
                 </form>
+
+                <?php if (current_user_can('edit_posts') && !empty($applications)): ?>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                        <strong><?php _e('Export Applications:', 'job-posting-manager'); ?></strong>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)); ?>"
+                                class="button">
+                                <?php _e('Export to CSV', 'job-posting-manager'); ?>
+                            </a>
+                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)); ?>"
+                                class="button">
+                                <?php _e('Export to JSON', 'job-posting-manager'); ?>
+                            </a>
+                        </div>
+                        <p class="description" style="margin-top: 5px;">
+                            <?php _e('Export will include all applications matching your current filters and search.', 'job-posting-manager'); ?>
+                        </p>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <?php if (empty($applications)): ?>
@@ -1372,5 +1392,322 @@ class JPM_Admin
         }
 
         return null;
+    }
+
+    /**
+     * Handle export requests
+     */
+    public function handle_export()
+    {
+        // Check if export is requested
+        if (!isset($_GET['page']) || $_GET['page'] !== 'jpm-applications' || !isset($_GET['export'])) {
+            return;
+        }
+
+        // Check user capabilities (admin or editor)
+        if (!current_user_can('edit_posts')) {
+            wp_die(__('You do not have permission to export applications.', 'job-posting-manager'));
+        }
+
+        $export_format = sanitize_text_field($_GET['export'] ?? '');
+
+        if (!in_array($export_format, ['csv', 'json'])) {
+            wp_die(__('Invalid export format.', 'job-posting-manager'));
+        }
+
+        // Get filters
+        $filters = [
+            'status' => $_GET['status'] ?? '',
+            'job_id' => $_GET['job_id'] ?? '',
+            'search' => $_GET['search'] ?? '',
+        ];
+
+        // Get applications
+        $applications = JPM_DB::get_applications($filters);
+
+        if ($export_format === 'csv') {
+            $this->export_to_csv($applications);
+        } elseif ($export_format === 'json') {
+            $this->export_to_json($applications);
+        }
+
+        exit;
+    }
+
+    /**
+     * Export applications to CSV
+     */
+    private function export_to_csv($applications)
+    {
+        // Set headers for CSV download
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=applications-' . date('Y-m-d-H-i-s') . '.csv');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        // Create output stream
+        $output = fopen('php://output', 'w');
+
+        // Add BOM for UTF-8
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        // Define CSV headers
+        $headers = [
+            __('ID', 'job-posting-manager'),
+            __('Application Number', 'job-posting-manager'),
+            __('Application Date', 'job-posting-manager'),
+            __('Status', 'job-posting-manager'),
+            __('Job Title', 'job-posting-manager'),
+            __('Job ID', 'job-posting-manager'),
+            __('First Name', 'job-posting-manager'),
+            __('Middle Name', 'job-posting-manager'),
+            __('Last Name', 'job-posting-manager'),
+            __('Full Name', 'job-posting-manager'),
+            __('Email', 'job-posting-manager'),
+            __('User ID', 'job-posting-manager'),
+            __('User Name', 'job-posting-manager'),
+            __('User Email', 'job-posting-manager'),
+            __('Date of Registration', 'job-posting-manager'),
+        ];
+
+        // Write headers
+        fputcsv($output, $headers);
+
+        // Write application data
+        foreach ($applications as $application) {
+            $job = get_post($application->job_id);
+            $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+            $form_data = json_decode($application->notes, true);
+
+            if (!is_array($form_data)) {
+                $form_data = [];
+            }
+
+            // Extract customer information
+            $first_name = '';
+            $middle_name = '';
+            $last_name = '';
+            $email = '';
+            $application_number = '';
+            $date_of_registration = '';
+
+            // First name variations
+            $first_name_fields = ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name'];
+            foreach ($first_name_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $first_name = sanitize_text_field($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Middle name variations
+            $middle_name_fields = ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name'];
+            foreach ($middle_name_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $middle_name = sanitize_text_field($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Last name variations
+            $last_name_fields = ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name'];
+            foreach ($last_name_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $last_name = sanitize_text_field($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Email variations
+            $email_fields = ['email', 'email_address', 'e-mail', 'email-address'];
+            foreach ($email_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $email = sanitize_email($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Application number and date of registration
+            if (isset($form_data['application_number'])) {
+                $application_number = sanitize_text_field($form_data['application_number']);
+            }
+            if (isset($form_data['date_of_registration'])) {
+                $date_of_registration = sanitize_text_field($form_data['date_of_registration']);
+            }
+
+            // Fallback to user data if not found in form data
+            if (empty($first_name) && $user) {
+                $first_name = $user->first_name;
+            }
+            if (empty($last_name) && $user) {
+                $last_name = $user->last_name;
+            }
+            if (empty($email) && $user) {
+                $email = $user->user_email;
+            }
+
+            $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
+            $full_name = preg_replace('/\s+/', ' ', $full_name); // Remove extra spaces
+
+            // Get status name
+            $status_info = self::get_status_by_slug($application->status);
+            $status_name = $status_info ? $status_info['name'] : ucfirst($application->status);
+
+            // Prepare row data
+            $row = [
+                $application->id,
+                $application_number,
+                date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date)),
+                $status_name,
+                $job ? $job->post_title : __('Job Deleted', 'job-posting-manager'),
+                $application->job_id,
+                $first_name,
+                $middle_name,
+                $last_name,
+                $full_name,
+                $email,
+                $application->user_id,
+                $user ? $user->display_name : __('Guest', 'job-posting-manager'),
+                $user ? $user->user_email : '',
+                $date_of_registration,
+            ];
+
+            // Write row
+            fputcsv($output, $row);
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Export applications to JSON
+     */
+    private function export_to_json($applications)
+    {
+        // Set headers for JSON download
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename=applications-' . date('Y-m-d-H-i-s') . '.json');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $export_data = [
+            'export_date' => date_i18n(get_option('date_format') . ' ' . get_option('time_format')),
+            'total_applications' => count($applications),
+            'applications' => [],
+        ];
+
+        foreach ($applications as $application) {
+            $job = get_post($application->job_id);
+            $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+            $form_data = json_decode($application->notes, true);
+
+            if (!is_array($form_data)) {
+                $form_data = [];
+            }
+
+            // Extract customer information
+            $first_name = '';
+            $middle_name = '';
+            $last_name = '';
+            $email = '';
+            $application_number = '';
+            $date_of_registration = '';
+
+            // First name variations
+            $first_name_fields = ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name'];
+            foreach ($first_name_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $first_name = sanitize_text_field($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Middle name variations
+            $middle_name_fields = ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name'];
+            foreach ($middle_name_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $middle_name = sanitize_text_field($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Last name variations
+            $last_name_fields = ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name'];
+            foreach ($last_name_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $last_name = sanitize_text_field($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Email variations
+            $email_fields = ['email', 'email_address', 'e-mail', 'email-address'];
+            foreach ($email_fields as $field_name) {
+                if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                    $email = sanitize_email($form_data[$field_name]);
+                    break;
+                }
+            }
+
+            // Application number and date of registration
+            if (isset($form_data['application_number'])) {
+                $application_number = sanitize_text_field($form_data['application_number']);
+            }
+            if (isset($form_data['date_of_registration'])) {
+                $date_of_registration = sanitize_text_field($form_data['date_of_registration']);
+            }
+
+            // Fallback to user data if not found in form data
+            if (empty($first_name) && $user) {
+                $first_name = $user->first_name;
+            }
+            if (empty($last_name) && $user) {
+                $last_name = $user->last_name;
+            }
+            if (empty($email) && $user) {
+                $email = $user->user_email;
+            }
+
+            $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
+            $full_name = preg_replace('/\s+/', ' ', $full_name); // Remove extra spaces
+
+            // Get status name
+            $status_info = self::get_status_by_slug($application->status);
+            $status_name = $status_info ? $status_info['name'] : ucfirst($application->status);
+
+            // Build application data
+            $app_data = [
+                'id' => $application->id,
+                'application_number' => $application_number,
+                'application_date' => date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date)),
+                'status' => $status_name,
+                'status_slug' => $application->status,
+                'job' => [
+                    'id' => $application->job_id,
+                    'title' => $job ? $job->post_title : __('Job Deleted', 'job-posting-manager'),
+                ],
+                'applicant' => [
+                    'first_name' => $first_name,
+                    'middle_name' => $middle_name,
+                    'last_name' => $last_name,
+                    'full_name' => $full_name,
+                    'email' => $email,
+                ],
+                'user' => [
+                    'id' => $application->user_id,
+                    'name' => $user ? $user->display_name : __('Guest', 'job-posting-manager'),
+                    'email' => $user ? $user->user_email : '',
+                ],
+                'date_of_registration' => $date_of_registration,
+                'form_data' => $form_data, // Include all form data
+            ];
+
+            $export_data['applications'][] = $app_data;
+        }
+
+        // Output JSON
+        echo json_encode($export_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
     }
 }
