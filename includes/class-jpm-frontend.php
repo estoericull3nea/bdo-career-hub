@@ -6,11 +6,14 @@ class JPM_Frontend
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
         add_shortcode('user_applications', [$this, 'user_applications_shortcode']);
         add_shortcode('latest_jobs', [$this, 'latest_jobs_shortcode']);
+        add_shortcode('all_jobs', [$this, 'all_jobs_shortcode']);
         add_action('wp_ajax_jpm_apply', [$this, 'handle_application']);
         add_action('wp_ajax_nopriv_jpm_apply', [$this, 'handle_application']); // But redirect if not logged in
         add_action('wp_ajax_jpm_get_status', [$this, 'get_status']);
         add_action('wp_ajax_jpm_get_job_details', [$this, 'get_job_details']);
         add_action('wp_ajax_nopriv_jpm_get_job_details', [$this, 'get_job_details']);
+        add_action('wp_ajax_jpm_filter_jobs', [$this, 'filter_jobs_ajax']);
+        add_action('wp_ajax_nopriv_jpm_filter_jobs', [$this, 'filter_jobs_ajax']);
     }
 
     public function job_listings_shortcode($atts)
@@ -281,5 +284,434 @@ class JPM_Frontend
         $html = ob_get_clean();
 
         wp_send_json_success(['html' => $html]);
+    }
+
+    /**
+     * Shortcode to display all jobs with filters, search, and pagination
+     * Usage: [all_jobs per_page="12"]
+     */
+    public function all_jobs_shortcode($atts)
+    {
+        $atts = shortcode_atts([
+            'per_page' => 12,
+        ], $atts);
+
+        $per_page = intval($atts['per_page']);
+        if ($per_page < 1) {
+            $per_page = 12;
+        }
+
+        // Get current page
+        $paged = isset($_GET['jpm_page']) ? max(1, intval($_GET['jpm_page'])) : 1;
+
+        // Get filter values
+        $search = isset($_GET['jpm_search']) ? sanitize_text_field($_GET['jpm_search']) : '';
+        $location_filter = isset($_GET['jpm_location']) ? sanitize_text_field($_GET['jpm_location']) : '';
+        $company_filter = isset($_GET['jpm_company']) ? sanitize_text_field($_GET['jpm_company']) : '';
+
+        // Query jobs with filters
+        $args = [
+            'post_type' => 'job_posting',
+            'posts_per_page' => $per_page,
+            'paged' => $paged,
+            'post_status' => 'publish',
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ];
+
+        // Add search filter
+        if (!empty($search)) {
+            $args['s'] = $search;
+        }
+
+        // Add meta query for location and company filters
+        $meta_query = [];
+        if (!empty($location_filter)) {
+            $meta_query[] = [
+                'key' => 'location',
+                'value' => $location_filter,
+                'compare' => 'LIKE'
+            ];
+        }
+        if (!empty($company_filter)) {
+            $meta_query[] = [
+                'key' => 'company_name',
+                'value' => $company_filter,
+                'compare' => 'LIKE'
+            ];
+        }
+        if (!empty($meta_query)) {
+            $args['meta_query'] = $meta_query;
+        }
+
+        $jobs_query = new WP_Query($args);
+
+        // Get unique locations and companies for filter dropdowns
+        $all_jobs = get_posts([
+            'post_type' => 'job_posting',
+            'posts_per_page' => -1,
+            'post_status' => 'publish'
+        ]);
+
+        $locations = [];
+        $companies = [];
+        foreach ($all_jobs as $job) {
+            $location = get_post_meta($job->ID, 'location', true);
+            $company = get_post_meta($job->ID, 'company_name', true);
+            if (!empty($location) && !in_array($location, $locations)) {
+                $locations[] = $location;
+            }
+            if (!empty($company) && !in_array($company, $companies)) {
+                $companies[] = $company;
+            }
+        }
+        sort($locations);
+        sort($companies);
+
+        ob_start();
+        ?>
+        <div class="jpm-all-jobs-wrapper">
+            <!-- Filters Section -->
+            <div class="jpm-jobs-filters">
+                <form method="get" action="" class="jpm-filter-form">
+                    <div class="jpm-filter-row">
+                        <div class="jpm-filter-group">
+                            <label for="jpm_search"><?php _e('Search', 'job-posting-manager'); ?></label>
+                            <input type="text" id="jpm_search" name="jpm_search" class="jpm-filter-input"
+                                value="<?php echo esc_attr($search); ?>"
+                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>">
+                        </div>
+                        <div class="jpm-filter-group">
+                            <label for="jpm_location"><?php _e('Location', 'job-posting-manager'); ?></label>
+                            <select id="jpm_location" name="jpm_location" class="jpm-filter-select">
+                                <option value=""><?php _e('All Locations', 'job-posting-manager'); ?></option>
+                                <?php foreach ($locations as $loc): ?>
+                                    <option value="<?php echo esc_attr($loc); ?>" <?php selected($location_filter, $loc); ?>>
+                                        <?php echo esc_html($loc); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="jpm-filter-group">
+                            <label for="jpm_company"><?php _e('Company', 'job-posting-manager'); ?></label>
+                            <select id="jpm_company" name="jpm_company" class="jpm-filter-select">
+                                <option value=""><?php _e('All Companies', 'job-posting-manager'); ?></option>
+                                <?php foreach ($companies as $comp): ?>
+                                    <option value="<?php echo esc_attr($comp); ?>" <?php selected($company_filter, $comp); ?>>
+                                        <?php echo esc_html($comp); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="jpm-filter-group jpm-filter-actions">
+                            <button type="submit" class="jpm-btn jpm-btn-filter">
+                                <?php _e('Filter', 'job-posting-manager'); ?>
+                            </button>
+                            <?php if (!empty($search) || !empty($location_filter) || !empty($company_filter)): ?>
+                                <a href="<?php echo esc_url(remove_query_arg(['jpm_search', 'jpm_location', 'jpm_company', 'jpm_page'])); ?>"
+                                    class="jpm-btn jpm-btn-reset">
+                                    <?php _e('Reset', 'job-posting-manager'); ?>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Count -->
+            <div class="jpm-jobs-results-count">
+                <p>
+                    <?php
+                    $total = $jobs_query->found_posts;
+                    $start = ($paged - 1) * $per_page + 1;
+                    $end = min($paged * $per_page, $total);
+                    if ($total > 0) {
+                        printf(
+                            __('Showing %d-%d of %d jobs', 'job-posting-manager'),
+                            $start,
+                            $end,
+                            $total
+                        );
+                    } else {
+                        _e('No jobs found.', 'job-posting-manager');
+                    }
+                    ?>
+                </p>
+            </div>
+
+            <!-- Jobs Grid -->
+            <?php if ($jobs_query->have_posts()): ?>
+                <div class="jpm-latest-jobs">
+                    <?php while ($jobs_query->have_posts()):
+                        $jobs_query->the_post();
+                        $job_id = get_the_ID();
+                        $company_name = get_post_meta($job_id, 'company_name', true);
+                        $location = get_post_meta($job_id, 'location', true);
+                        $salary = get_post_meta($job_id, 'salary', true);
+                        $duration = get_post_meta($job_id, 'duration', true);
+                        $company_image_id = get_post_meta($job_id, 'company_image', true);
+                        $company_image_url = '';
+                        if ($company_image_id) {
+                            $company_image_url = wp_get_attachment_image_url($company_image_id, 'thumbnail');
+                        }
+                        $job_link = get_permalink($job_id);
+                        $excerpt = wp_trim_words(get_the_excerpt(), 20);
+                        if (empty($excerpt)) {
+                            $excerpt = wp_trim_words(get_the_content(), 20);
+                        }
+                        ?>
+                        <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
+                            <?php if ($company_image_url): ?>
+                                <div class="jpm-job-card-image">
+                                    <img src="<?php echo esc_url($company_image_url); ?>"
+                                        alt="<?php echo esc_attr($company_name ?: get_the_title()); ?>">
+                                </div>
+                            <?php endif; ?>
+                            <div class="jpm-job-card-content">
+                                <h3 class="jpm-job-card-title">
+                                    <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
+                                </h3>
+                                <?php if (!empty($company_name)): ?>
+                                    <div class="jpm-job-card-meta">
+                                        <span class="jpm-job-company">
+                                            <i class="dashicons dashicons-building"></i>
+                                            <?php echo esc_html($company_name); ?>
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="jpm-job-card-info">
+                                    <?php if (!empty($location)): ?>
+                                        <span class="jpm-job-info-item">
+                                            <i class="dashicons dashicons-location"></i>
+                                            <?php echo esc_html($location); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($salary)): ?>
+                                        <span class="jpm-job-info-item">
+                                            <i class="dashicons dashicons-money-alt"></i>
+                                            <?php echo esc_html($salary); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($duration)): ?>
+                                        <span class="jpm-job-info-item">
+                                            <i class="dashicons dashicons-clock"></i>
+                                            <?php echo esc_html($duration); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($excerpt)): ?>
+                                    <p class="jpm-job-card-excerpt"><?php echo esc_html($excerpt); ?></p>
+                                <?php endif; ?>
+                                <div class="jpm-job-card-footer">
+                                    <span class="jpm-job-posted-date">
+                                        <i class="dashicons dashicons-calendar-alt"></i>
+                                        <?php echo esc_html(get_the_date()); ?>
+                                    </span>
+                                </div>
+                                <div class="jpm-job-card-actions">
+                                    <button type="button" class="jpm-btn jpm-btn-quick-view"
+                                        data-job-id="<?php echo esc_attr($job_id); ?>">
+                                        <?php _e('Quick View', 'job-posting-manager'); ?>
+                                    </button>
+                                    <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply">
+                                        <?php _e('Apply Now', 'job-posting-manager'); ?>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                </div>
+
+                <!-- Pagination -->
+                <?php
+                $total_pages = $jobs_query->max_num_pages;
+                if ($total_pages > 1):
+                    $current_url = remove_query_arg('jpm_page');
+                    $base_url = add_query_arg('jpm_page', '%#%', $current_url);
+                    ?>
+                    <div class="jpm-jobs-pagination">
+                        <?php
+                        echo paginate_links([
+                            'base' => str_replace('%#%', '%#%', $base_url),
+                            'format' => '',
+                            'current' => $paged,
+                            'total' => $total_pages,
+                            'prev_text' => __('&laquo; Previous', 'job-posting-manager'),
+                            'next_text' => __('Next &raquo;', 'job-posting-manager'),
+                            'type' => 'list',
+                            'end_size' => 2,
+                            'mid_size' => 1
+                        ]);
+                        ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php wp_reset_postdata(); ?>
+            <?php else: ?>
+                <div class="jpm-no-jobs">
+                    <p><?php _e('No jobs found matching your criteria.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Modal for Quick View (reuse from latest_jobs) -->
+        <div id="jpm-job-modal" class="jpm-modal">
+            <div class="jpm-modal-overlay"></div>
+            <div class="jpm-modal-content">
+                <button type="button" class="jpm-modal-close" aria-label="<?php esc_attr_e('Close', 'job-posting-manager'); ?>">
+                    <span class="dashicons dashicons-no-alt"></span>
+                </button>
+                <div class="jpm-modal-body">
+                    <div class="jpm-modal-loading">
+                        <span class="spinner is-active"></span>
+                        <p><?php _e('Loading job details...', 'job-posting-manager'); ?></p>
+                    </div>
+                    <div class="jpm-modal-job-content" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * AJAX handler for filtering jobs (optional - for dynamic filtering without page reload)
+     */
+    public function filter_jobs_ajax()
+    {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+        }
+
+        $per_page = intval($_POST['per_page'] ?? 12);
+        $paged = intval($_POST['paged'] ?? 1);
+        $search = sanitize_text_field($_POST['search'] ?? '');
+        $location_filter = sanitize_text_field($_POST['location'] ?? '');
+        $company_filter = sanitize_text_field($_POST['company'] ?? '');
+
+        $args = [
+            'post_type' => 'job_posting',
+            'posts_per_page' => $per_page,
+            'paged' => $paged,
+            'post_status' => 'publish',
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ];
+
+        if (!empty($search)) {
+            $args['s'] = $search;
+        }
+
+        $meta_query = [];
+        if (!empty($location_filter)) {
+            $meta_query[] = [
+                'key' => 'location',
+                'value' => $location_filter,
+                'compare' => 'LIKE'
+            ];
+        }
+        if (!empty($company_filter)) {
+            $meta_query[] = [
+                'key' => 'company_name',
+                'value' => $company_filter,
+                'compare' => 'LIKE'
+            ];
+        }
+        if (!empty($meta_query)) {
+            $args['meta_query'] = $meta_query;
+        }
+
+        $jobs_query = new WP_Query($args);
+
+        ob_start();
+        if ($jobs_query->have_posts()):
+            while ($jobs_query->have_posts()):
+                $jobs_query->the_post();
+                $job_id = get_the_ID();
+                $company_name = get_post_meta($job_id, 'company_name', true);
+                $location = get_post_meta($job_id, 'location', true);
+                $salary = get_post_meta($job_id, 'salary', true);
+                $duration = get_post_meta($job_id, 'duration', true);
+                $company_image_id = get_post_meta($job_id, 'company_image', true);
+                $company_image_url = '';
+                if ($company_image_id) {
+                    $company_image_url = wp_get_attachment_image_url($company_image_id, 'thumbnail');
+                }
+                $job_link = get_permalink($job_id);
+                $excerpt = wp_trim_words(get_the_excerpt(), 20);
+                if (empty($excerpt)) {
+                    $excerpt = wp_trim_words(get_the_content(), 20);
+                }
+                ?>
+                <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
+                    <?php if ($company_image_url): ?>
+                        <div class="jpm-job-card-image">
+                            <img src="<?php echo esc_url($company_image_url); ?>"
+                                alt="<?php echo esc_attr($company_name ?: get_the_title()); ?>">
+                        </div>
+                    <?php endif; ?>
+                    <div class="jpm-job-card-content">
+                        <h3 class="jpm-job-card-title">
+                            <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
+                        </h3>
+                        <?php if (!empty($company_name)): ?>
+                            <div class="jpm-job-card-meta">
+                                <span class="jpm-job-company">
+                                    <i class="dashicons dashicons-building"></i>
+                                    <?php echo esc_html($company_name); ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
+                        <div class="jpm-job-card-info">
+                            <?php if (!empty($location)): ?>
+                                <span class="jpm-job-info-item">
+                                    <i class="dashicons dashicons-location"></i>
+                                    <?php echo esc_html($location); ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if (!empty($salary)): ?>
+                                <span class="jpm-job-info-item">
+                                    <i class="dashicons dashicons-money-alt"></i>
+                                    <?php echo esc_html($salary); ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if (!empty($duration)): ?>
+                                <span class="jpm-job-info-item">
+                                    <i class="dashicons dashicons-clock"></i>
+                                    <?php echo esc_html($duration); ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!empty($excerpt)): ?>
+                            <p class="jpm-job-card-excerpt"><?php echo esc_html($excerpt); ?></p>
+                        <?php endif; ?>
+                        <div class="jpm-job-card-footer">
+                            <span class="jpm-job-posted-date">
+                                <i class="dashicons dashicons-calendar-alt"></i>
+                                <?php echo esc_html(get_the_date()); ?>
+                            </span>
+                        </div>
+                        <div class="jpm-job-card-actions">
+                            <button type="button" class="jpm-btn jpm-btn-quick-view" data-job-id="<?php echo esc_attr($job_id); ?>">
+                                <?php _e('Quick View', 'job-posting-manager'); ?>
+                            </button>
+                            <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply">
+                                <?php _e('Apply Now', 'job-posting-manager'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php
+            endwhile;
+        endif;
+        wp_reset_postdata();
+        $html = ob_get_clean();
+
+        wp_send_json_success([
+            'html' => $html,
+            'total' => $jobs_query->found_posts,
+            'pages' => $jobs_query->max_num_pages
+        ]);
     }
 }
