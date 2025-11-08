@@ -73,6 +73,7 @@ class JPM_Emails
         $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px;">' . __('Application Details', 'job-posting-manager') . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">#' . esc_html($app_id) . '</td></tr>';
+        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>Pending</strong></td></tr>';
         if (!empty($application_number)) {
             $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application Number:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($application_number) . '</td></tr>';
         }
@@ -116,9 +117,223 @@ class JPM_Emails
         return $result;
     }
 
+    /**
+     * Send status update notification to customer
+     * 
+     * @param int $app_id Application ID
+     */
     public static function send_status_update($app_id)
     {
-        // Similar to above, fetch details and send
+        global $wpdb;
+
+        // Get application details
+        $table = $wpdb->prefix . 'job_applications';
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
+
+        if (!$application) {
+            error_log('JPM: Application not found for ID: ' . $app_id);
+            return false;
+        }
+
+        // Get job details
+        $job_id = $application->job_id;
+        $job_title = get_the_title($job_id);
+        $job_link = get_permalink($job_id);
+
+        // Get status information
+        $status_slug = $application->status;
+        // Get status info from JPM_Admin class (which is in class-jpm-db.php)
+        if (class_exists('JPM_Admin')) {
+            $status_info = JPM_Admin::get_status_by_slug($status_slug);
+        } else {
+            $status_info = null;
+        }
+
+        if ($status_info) {
+            $status_name = $status_info['name'];
+            $status_color = $status_info['color'];
+            $status_text_color = $status_info['text_color'];
+        } else {
+            $status_name = ucfirst($status_slug);
+            $status_color = '#ffc107';
+            $status_text_color = '#000000';
+        }
+
+        // Get customer information
+        $form_data = json_decode($application->notes, true);
+        $first_name = '';
+        $last_name = '';
+        $customer_email = '';
+
+        // Extract customer information from form data
+        $first_name_fields = ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name'];
+        $last_name_fields = ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name'];
+        $email_fields = ['email', 'email_address', 'e-mail', 'email-address'];
+
+        // Try exact field name matches first
+        foreach ($first_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $first_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        foreach ($last_name_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $last_name = sanitize_text_field($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // If still not found, try case-insensitive and partial matches
+        if (empty($first_name)) {
+            foreach ($form_data as $field_name => $field_value) {
+                $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
+                if (in_array($field_name_lower, ['firstname', 'fname', 'givenname', 'given']) && !empty($field_value)) {
+                    $first_name = sanitize_text_field($field_value);
+                    break;
+                }
+            }
+        }
+
+        if (empty($last_name)) {
+            foreach ($form_data as $field_name => $field_value) {
+                $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
+                if (in_array($field_name_lower, ['lastname', 'lname', 'surname', 'familyname', 'family']) && !empty($field_value)) {
+                    $last_name = sanitize_text_field($field_value);
+                    break;
+                }
+            }
+        }
+
+        foreach ($email_fields as $field_name) {
+            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                $customer_email = sanitize_email($form_data[$field_name]);
+                break;
+            }
+        }
+
+        // Fallback to user account if email not found
+        if (empty($customer_email) && $application->user_id > 0) {
+            $user = get_userdata($application->user_id);
+            if ($user) {
+                $customer_email = $user->user_email;
+                if (empty($first_name)) {
+                    $first_name = $user->first_name;
+                }
+                if (empty($last_name)) {
+                    $last_name = $user->last_name;
+                }
+            }
+        }
+
+        // If still no email, can't send notification
+        if (empty($customer_email)) {
+            error_log('JPM: No email found for application ID: ' . $app_id);
+            return false;
+        }
+
+        $full_name = trim($first_name . ' ' . $last_name);
+        if (empty($full_name)) {
+            $full_name = __('Valued Applicant', 'job-posting-manager');
+        }
+
+        // Get application number from form data
+        $application_number = '';
+        if (isset($form_data['application_number'])) {
+            $application_number = $form_data['application_number'];
+        }
+
+        // Build email subject
+        $subject = sprintf(__('Application Status Update: %s - %s', 'job-posting-manager'), $status_name, $job_title);
+
+        // Build enhanced HTML email body
+        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">';
+        $body .= '<div style="background-color: ' . esc_attr($status_color) . '; padding: 20px; border-radius: 5px 5px 0 0; color: ' . esc_attr($status_text_color) . ';">';
+        $body .= '<h1 style="color: ' . esc_attr($status_text_color) . '; margin: 0; font-size: 24px;">' . __('Application Status Update', 'job-posting-manager') . '</h1>';
+        $body .= '</div>';
+
+        $body .= '<div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . sprintf(__('Dear %s,', 'job-posting-manager'), esc_html($full_name)) . '</p>';
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('We would like to inform you that the status of your job application has been updated.', 'job-posting-manager') . '</p>';
+
+        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center;">';
+        $body .= '<p style="margin: 0 0 10px 0; font-size: 14px; color: #666; font-weight: bold;">' . __('New Status:', 'job-posting-manager') . '</p>';
+        $body .= '<span style="display: inline-block; background-color: ' . esc_attr($status_color) . '; color: ' . esc_attr($status_text_color) . '; padding: 10px 20px; border-radius: 5px; font-size: 18px; font-weight: bold; text-transform: uppercase;">' . esc_html($status_name) . '</span>';
+        $body .= '</div>';
+
+        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">';
+        $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px;">' . __('Application Details', 'job-posting-manager') . '</h2>';
+        $body .= '<table style="width: 100%; border-collapse: collapse;">';
+        if (!empty($application_number)) {
+            $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application Number:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($application_number) . '</td></tr>';
+        }
+        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">#' . esc_html($app_id) . '</td></tr>';
+        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Job Position:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($job_title) . '</td></tr>';
+        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>' . esc_html($status_name) . '</strong></td></tr>';
+        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Date Updated:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), current_time('timestamp'))) . '</td></tr>';
+        $body .= '</table>';
+        $body .= '</div>';
+
+        // Add status-specific message
+        $status_message = '';
+        switch (strtolower($status_slug)) {
+            case 'pending':
+                $status_message = __('Your application is currently under review. We will contact you soon with further updates.', 'job-posting-manager');
+                break;
+            case 'reviewed':
+                $status_message = __('Your application has been reviewed. We will be in touch with you shortly regarding the next steps.', 'job-posting-manager');
+                break;
+            case 'accepted':
+                $status_message = __('Congratulations! Your application has been accepted. We will contact you soon to discuss the next steps.', 'job-posting-manager');
+                break;
+            case 'rejected':
+                $status_message = __('Thank you for your interest. Unfortunately, we are unable to proceed with your application at this time. We appreciate your time and consideration.', 'job-posting-manager');
+                break;
+            default:
+                $status_message = __('We will keep you updated on any further changes to your application status.', 'job-posting-manager');
+        }
+
+        if (!empty($status_message)) {
+            $body .= '<div style="background-color: #e7f3ff; padding: 15px; border-left: 4px solid #0073aa; border-radius: 3px; margin: 20px 0;">';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . $status_message . '</p>';
+            $body .= '</div>';
+        }
+
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('If you have any questions about your application, please feel free to contact us.', 'job-posting-manager') . '</p>';
+
+        if (!empty($job_link)) {
+            $body .= '<div style="margin: 20px 0; text-align: center;">';
+            $body .= '<a href="' . esc_url($job_link) . '" style="background-color: #0073aa; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">' . __('View Job Posting', 'job-posting-manager') . '</a>';
+            $body .= '</div>';
+        }
+
+        $body .= '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">';
+        $body .= '<p style="margin: 0; font-size: 14px; color: #666;">' . __('Best regards,', 'job-posting-manager') . '<br>';
+        $body .= '<strong>' . esc_html(get_bloginfo('name')) . '</strong></p>';
+        $body .= '</div>';
+
+        $body .= '</div>';
+        $body .= '<div style="background-color: #f8f9fa; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
+        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . __('This is an automated notification. Please do not reply to this message.', 'job-posting-manager') . '</p>';
+        $body .= '</div>';
+        $body .= '</body></html>';
+
+        // Email headers
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
+        ];
+
+        // Send email
+        $result = wp_mail($customer_email, $subject, $body, $headers);
+
+        // Log email sending attempt
+        if (!$result) {
+            error_log('JPM: Failed to send status update email to ' . $customer_email);
+        }
+
+        return $result;
     }
 
     /**
