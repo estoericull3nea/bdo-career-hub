@@ -848,7 +848,6 @@
   line-height: 1;
   font-weight: 400;
   font-style: normal;
-  speak: never;
   text-decoration: inherit;
   text-transform: none;
   text-rendering: auto;
@@ -1010,6 +1009,36 @@
 .jpm-jobs-pagination .page-numbers .dots {
   border: none;
   padding: 10px 5px;
+}
+
+.jpm-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.jpm-loading .spinner {
+  float: none;
+  margin: 0 auto 15px;
+}
+
+.jpm-loading p {
+  margin: 10px 0 0 0;
+  color: #666;
+  font-size: 0.95em;
+}
+
+.jpm-search-indicator {
+  display: block;
+  font-size: 0.85em;
+  color: #666;
+  margin-top: 5px;
+  font-style: italic;
+  transition: opacity 0.3s ease;
+}
+
+.jpm-search-input:focus + .jpm-search-indicator {
+  color: #0073aa;
 }
 
 /* Responsive Styles */

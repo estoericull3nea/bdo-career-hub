@@ -377,9 +377,14 @@ class JPM_Frontend
                     <div class="jpm-filter-row">
                         <div class="jpm-filter-group">
                             <label for="jpm_search"><?php _e('Search', 'job-posting-manager'); ?></label>
-                            <input type="text" id="jpm_search" name="jpm_search" class="jpm-filter-input"
+                            <input type="text" id="jpm_search" name="jpm_search" class="jpm-filter-input jpm-search-input"
                                 value="<?php echo esc_attr($search); ?>"
-                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>">
+                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>"
+                                autocomplete="off">
+                            <span class="jpm-search-indicator"
+                                style="display: none; font-size: 0.85em; color: #666; margin-top: 5px;">
+                                <?php _e('Type to search...', 'job-posting-manager'); ?>
+                            </span>
                         </div>
                         <div class="jpm-filter-group">
                             <label for="jpm_location"><?php _e('Location', 'job-posting-manager'); ?></label>
@@ -585,7 +590,7 @@ class JPM_Frontend
         }
 
         $per_page = intval($_POST['per_page'] ?? 12);
-        $paged = intval($_POST['paged'] ?? 1);
+        $paged = max(1, intval($_POST['paged'] ?? 1));
         $search = sanitize_text_field($_POST['search'] ?? '');
         $location_filter = sanitize_text_field($_POST['location'] ?? '');
         $company_filter = sanitize_text_field($_POST['company'] ?? '');
