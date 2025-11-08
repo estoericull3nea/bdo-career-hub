@@ -15,6 +15,7 @@ class JPM_Admin
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
+        add_action('wp_ajax_jpm_get_chart_data', [$this, 'get_chart_data_ajax']);
     }
 
     public function add_menu()
@@ -80,21 +81,13 @@ class JPM_Admin
             ARRAY_A
         );
 
-        // Applications over last 7 days (for chart)
-        $applications_by_day = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = date('Y-m-d', strtotime("-$i days"));
-            $count = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM $table WHERE DATE(application_date) = %s",
-                    $date
-                )
-            );
-            $applications_by_day[] = [
-                'date' => date('M j', strtotime("-$i days")),
-                'count' => intval($count)
-            ];
-        }
+        // Get chart period filter
+        $chart_period = isset($_GET['chart_period']) ? sanitize_text_field($_GET['chart_period']) : '7days';
+        $chart_start_date = isset($_GET['chart_start_date']) ? sanitize_text_field($_GET['chart_start_date']) : '';
+        $chart_end_date = isset($_GET['chart_end_date']) ? sanitize_text_field($_GET['chart_end_date']) : '';
+
+        // Get chart data based on selected period
+        $applications_by_day = $this->get_chart_data($chart_period, $chart_start_date, $chart_end_date);
 
         // Query jobs for table
         $args = [
@@ -228,11 +221,51 @@ class JPM_Admin
                     </div>
                 <?php endif; ?>
 
-                <!-- Applications Chart (Last 7 Days) -->
+                <!-- Applications Chart -->
                 <div
                     style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <h3 style="margin-top: 0;"><?php _e('Applications Trend (Last 7 Days)', 'job-posting-manager'); ?></h3>
-                    <div class="jpm-chart-container" style="margin-top: 20px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                        <h3 style="margin: 0;"><?php _e('Applications Trend', 'job-posting-manager'); ?></h3>
+                        <div class="jpm-chart-filters" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <span style="font-weight: 600;"><?php _e('Period:', 'job-posting-manager'); ?></span>
+                                <select id="jpm-chart-period" name="chart_period" style="padding: 5px 10px;">
+                                    <option value="7days" <?php selected($chart_period, '7days'); ?>>
+                                        <?php _e('Last 7 Days', 'job-posting-manager'); ?></option>
+                                    <option value="30days" <?php selected($chart_period, '30days'); ?>>
+                                        <?php _e('Last Month', 'job-posting-manager'); ?></option>
+                                    <option value="90days" <?php selected($chart_period, '90days'); ?>>
+                                        <?php _e('Last 3 Months', 'job-posting-manager'); ?></option>
+                                    <option value="365days" <?php selected($chart_period, '365days'); ?>>
+                                        <?php _e('Last Year', 'job-posting-manager'); ?></option>
+                                    <option value="custom" <?php selected($chart_period, 'custom'); ?>>
+                                        <?php _e('Custom Range', 'job-posting-manager'); ?></option>
+                                </select>
+                            </label>
+                            <div id="jpm-chart-custom-dates"
+                                style="display: <?php echo $chart_period === 'custom' ? 'flex' : 'none'; ?>; gap: 10px; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    <span><?php _e('From:', 'job-posting-manager'); ?></span>
+                                    <input type="date" id="jpm-chart-start-date" name="chart_start_date"
+                                        value="<?php echo esc_attr($chart_start_date); ?>" style="padding: 5px;">
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    <span><?php _e('To:', 'job-posting-manager'); ?></span>
+                                    <input type="date" id="jpm-chart-end-date" name="chart_end_date"
+                                        value="<?php echo esc_attr($chart_end_date); ?>" style="padding: 5px;">
+                                </label>
+                            </div>
+                            <button type="button" id="jpm-chart-apply" class="button button-primary" style="margin: 0;">
+                                <?php _e('Apply', 'job-posting-manager'); ?>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="jpm-chart-loading" style="display: none; text-align: center; padding: 20px;">
+                        <span class="spinner is-active" style="float: none; margin: 0 auto;"></span>
+                        <p><?php _e('Loading chart data...', 'job-posting-manager'); ?></p>
+                    </div>
+                    <div class="jpm-chart-container" id="jpm-chart-container" style="margin-top: 20px;">
                         <div
                             style="display: flex; align-items: flex-end; justify-content: space-around; height: 200px; border-bottom: 2px solid #ddd; padding-bottom: 10px; position: relative;">
                             <?php
@@ -260,186 +293,186 @@ class JPM_Admin
                         </div>
                     </div>
                 </div>
-
-                <!-- Top Jobs by Applications -->
-                <?php if (!empty($top_jobs)): ?>
-                    <div
-                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <h3 style="margin-top: 0;"><?php _e('Top Jobs by Applications', 'job-posting-manager'); ?></h3>
-                        <table class="widefat fixed striped" style="margin-top: 15px;">
-                            <thead>
-                                <tr>
-                                    <th style="width: 5%;"><?php _e('Rank', 'job-posting-manager'); ?></th>
-                                    <th style="width: 60%;"><?php _e('Job Title', 'job-posting-manager'); ?></th>
-                                    <th style="width: 20%;"><?php _e('Applications', 'job-posting-manager'); ?></th>
-                                    <th style="width: 15%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php
-                                $rank = 1;
-                                foreach ($top_jobs as $top_job):
-                                    $job_post = get_post($top_job['job_id']);
-                                    if (!$job_post)
-                                        continue;
-                                    ?>
-                                    <tr>
-                                        <td>
-                                            <strong style="font-size: 18px; color: #0073aa;">#<?php echo esc_html($rank); ?></strong>
-                                        </td>
-                                        <td>
-                                            <a href="<?php echo admin_url('post.php?post=' . $top_job['job_id'] . '&action=edit'); ?>">
-                                                <?php echo esc_html(get_the_title($top_job['job_id'])); ?>
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <strong style="font-size: 16px; color: #28a745;">
-                                                <?php echo esc_html($top_job['app_count']); ?>
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&job_id=' . $top_job['job_id']); ?>"
-                                                class="button button-small">
-                                                <?php _e('View', 'job-posting-manager'); ?>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    <?php
-                                    $rank++;
-                                endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
             </div>
 
-            <hr style="margin: 30px 0;">
-
-            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
-                <form method="get" action="">
-                    <input type="hidden" name="page" value="jpm-dashboard">
-
-                    <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
-                                <?php _e('Search Jobs:', 'job-posting-manager'); ?>
-                            </label>
-                            <input type="text" name="search" class="regular-text" value="<?php echo esc_attr($search); ?>"
-                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>"
-                                style="width: 300px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
-                                <?php _e('Filter by Status:', 'job-posting-manager'); ?>
-                            </label>
-                            <select name="status">
-                                <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
-                                <option value="publish" <?php selected($status_filter, 'publish'); ?>>
-                                    <?php _e('Published', 'job-posting-manager'); ?>
-                                </option>
-                                <option value="draft" <?php selected($status_filter, 'draft'); ?>>
-                                    <?php _e('Draft', 'job-posting-manager'); ?>
-                                </option>
-                                <option value="pending" <?php selected($status_filter, 'pending'); ?>>
-                                    <?php _e('Pending', 'job-posting-manager'); ?>
-                                </option>
-                            </select>
-                        </div>
-                        <div>
-                            <input type="submit" class="button button-primary"
-                                value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
-                            <?php if (!empty($search) || !empty($status_filter)): ?>
-                                <a href="<?php echo admin_url('admin.php?page=jpm-dashboard'); ?>" class="button">
-                                    <?php _e('Clear', 'job-posting-manager'); ?>
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <div style="margin: 20px 0;">
-                <a href="<?php echo admin_url('post-new.php?post_type=job_posting'); ?>" class="button button-primary">
-                    <?php _e('Add New Job', 'job-posting-manager'); ?>
-                </a>
-                <a href="<?php echo admin_url('edit.php?post_type=job_posting'); ?>" class="button">
-                    <?php _e('View All in WordPress', 'job-posting-manager'); ?>
-                </a>
-            </div>
-
-            <?php if (empty($jobs)): ?>
-                <p><?php _e('No jobs found.', 'job-posting-manager'); ?></p>
-            <?php else: ?>
-                <table class="widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th style="width: 5%;"><?php _e('ID', 'job-posting-manager'); ?></th>
-                            <th style="width: 25%;"><?php _e('Job Title', 'job-posting-manager'); ?></th>
-                            <th style="width: 15%;"><?php _e('Company', 'job-posting-manager'); ?></th>
-                            <th style="width: 12%;"><?php _e('Location', 'job-posting-manager'); ?></th>
-                            <th style="width: 10%;"><?php _e('Status', 'job-posting-manager'); ?></th>
-                            <th style="width: 10%;"><?php _e('Applications', 'job-posting-manager'); ?></th>
-                            <th style="width: 10%;"><?php _e('Posted Date', 'job-posting-manager'); ?></th>
-                            <th style="width: 13%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($jobs as $job):
-                            $company_name = get_post_meta($job->ID, 'company_name', true);
-                            $location = get_post_meta($job->ID, 'location', true);
-
-                            // Get application count
-                            $application_count = $wpdb->get_var($wpdb->prepare(
-                                "SELECT COUNT(*) FROM $table WHERE job_id = %d",
-                                $job->ID
-                            ));
-
-                            $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
-                            $view_url = get_permalink($job->ID);
-                            $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
-                            $post_status = get_post_status($job->ID);
-                            ?>
+            <!-- Top Jobs by Applications -->
+            <?php if (!empty($top_jobs)): ?>
+                <div
+                    style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h3 style="margin-top: 0;"><?php _e('Top Jobs by Applications', 'job-posting-manager'); ?></h3>
+                    <table class="widefat fixed striped" style="margin-top: 15px;">
+                        <thead>
                             <tr>
-                                <td><?php echo esc_html($job->ID); ?></td>
-                                <td>
-                                    <strong>
-                                        <a href="<?php echo esc_url($edit_url); ?>">
-                                            <?php echo esc_html(get_the_title($job->ID)); ?>
-                                        </a>
-                                    </strong>
-                                </td>
-                                <td><?php echo !empty($company_name) ? esc_html($company_name) : '—'; ?></td>
-                                <td><?php echo !empty($location) ? esc_html($location) : '—'; ?></td>
-                                <td>
-                                    <?php if ($post_status === 'publish'): ?>
-                                        <span
-                                            class="jpm-status-badge jpm-status-active"><?php _e('Published', 'job-posting-manager'); ?></span>
-                                    <?php elseif ($post_status === 'draft'): ?>
-                                        <span class="jpm-status-badge jpm-status-draft"><?php _e('Draft', 'job-posting-manager'); ?></span>
-                                    <?php else: ?>
-                                        <span class="jpm-status-badge"
-                                            style="background-color: #ffc107; color: #000;"><?php echo esc_html(ucfirst($post_status)); ?></span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <a href="<?php echo esc_url($applications_url); ?>" style="font-weight: bold; color: #0073aa;">
-                                        <?php echo esc_html($application_count); ?>
-                                    </a>
-                                </td>
-                                <td><?php echo esc_html(get_the_date('', $job->ID)); ?></td>
-                                <td>
-                                    <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">
-                                        <?php _e('Edit', 'job-posting-manager'); ?>
-                                    </a>
-                                    <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
-                                        <?php _e('View', 'job-posting-manager'); ?>
-                                    </a>
-                                </td>
+                                <th style="width: 5%;"><?php _e('Rank', 'job-posting-manager'); ?></th>
+                                <th style="width: 60%;"><?php _e('Job Title', 'job-posting-manager'); ?></th>
+                                <th style="width: 20%;"><?php _e('Applications', 'job-posting-manager'); ?></th>
+                                <th style="width: 15%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $rank = 1;
+                            foreach ($top_jobs as $top_job):
+                                $job_post = get_post($top_job['job_id']);
+                                if (!$job_post)
+                                    continue;
+                                ?>
+                                <tr>
+                                    <td>
+                                        <strong style="font-size: 18px; color: #0073aa;">#<?php echo esc_html($rank); ?></strong>
+                                    </td>
+                                    <td>
+                                        <a href="<?php echo admin_url('post.php?post=' . $top_job['job_id'] . '&action=edit'); ?>">
+                                            <?php echo esc_html(get_the_title($top_job['job_id'])); ?>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <strong style="font-size: 16px; color: #28a745;">
+                                            <?php echo esc_html($top_job['app_count']); ?>
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&job_id=' . $top_job['job_id']); ?>"
+                                            class="button button-small">
+                                            <?php _e('View', 'job-posting-manager'); ?>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <?php
+                                $rank++;
+                            endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             <?php endif; ?>
+        </div>
+
+        <hr style="margin: 30px 0;">
+
+        <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+            <form method="get" action="">
+                <input type="hidden" name="page" value="jpm-dashboard">
+
+                <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            <?php _e('Search Jobs:', 'job-posting-manager'); ?>
+                        </label>
+                        <input type="text" name="search" class="regular-text" value="<?php echo esc_attr($search); ?>"
+                            placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>"
+                            style="width: 300px;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            <?php _e('Filter by Status:', 'job-posting-manager'); ?>
+                        </label>
+                        <select name="status">
+                            <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
+                            <option value="publish" <?php selected($status_filter, 'publish'); ?>>
+                                <?php _e('Published', 'job-posting-manager'); ?>
+                            </option>
+                            <option value="draft" <?php selected($status_filter, 'draft'); ?>>
+                                <?php _e('Draft', 'job-posting-manager'); ?>
+                            </option>
+                            <option value="pending" <?php selected($status_filter, 'pending'); ?>>
+                                <?php _e('Pending', 'job-posting-manager'); ?>
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <input type="submit" class="button button-primary"
+                            value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
+                        <?php if (!empty($search) || !empty($status_filter)): ?>
+                            <a href="<?php echo admin_url('admin.php?page=jpm-dashboard'); ?>" class="button">
+                                <?php _e('Clear', 'job-posting-manager'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <a href="<?php echo admin_url('post-new.php?post_type=job_posting'); ?>" class="button button-primary">
+                <?php _e('Add New Job', 'job-posting-manager'); ?>
+            </a>
+            <a href="<?php echo admin_url('edit.php?post_type=job_posting'); ?>" class="button">
+                <?php _e('View All in WordPress', 'job-posting-manager'); ?>
+            </a>
+        </div>
+
+        <?php if (empty($jobs)): ?>
+            <p><?php _e('No jobs found.', 'job-posting-manager'); ?></p>
+        <?php else: ?>
+            <table class="widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;"><?php _e('ID', 'job-posting-manager'); ?></th>
+                        <th style="width: 25%;"><?php _e('Job Title', 'job-posting-manager'); ?></th>
+                        <th style="width: 15%;"><?php _e('Company', 'job-posting-manager'); ?></th>
+                        <th style="width: 12%;"><?php _e('Location', 'job-posting-manager'); ?></th>
+                        <th style="width: 10%;"><?php _e('Status', 'job-posting-manager'); ?></th>
+                        <th style="width: 10%;"><?php _e('Applications', 'job-posting-manager'); ?></th>
+                        <th style="width: 10%;"><?php _e('Posted Date', 'job-posting-manager'); ?></th>
+                        <th style="width: 13%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($jobs as $job):
+                        $company_name = get_post_meta($job->ID, 'company_name', true);
+                        $location = get_post_meta($job->ID, 'location', true);
+
+                        // Get application count
+                        $application_count = $wpdb->get_var($wpdb->prepare(
+                            "SELECT COUNT(*) FROM $table WHERE job_id = %d",
+                            $job->ID
+                        ));
+
+                        $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
+                        $view_url = get_permalink($job->ID);
+                        $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
+                        $post_status = get_post_status($job->ID);
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html($job->ID); ?></td>
+                            <td>
+                                <strong>
+                                    <a href="<?php echo esc_url($edit_url); ?>">
+                                        <?php echo esc_html(get_the_title($job->ID)); ?>
+                                    </a>
+                                </strong>
+                            </td>
+                            <td><?php echo !empty($company_name) ? esc_html($company_name) : '—'; ?></td>
+                            <td><?php echo !empty($location) ? esc_html($location) : '—'; ?></td>
+                            <td>
+                                <?php if ($post_status === 'publish'): ?>
+                                    <span class="jpm-status-badge jpm-status-active"><?php _e('Published', 'job-posting-manager'); ?></span>
+                                <?php elseif ($post_status === 'draft'): ?>
+                                    <span class="jpm-status-badge jpm-status-draft"><?php _e('Draft', 'job-posting-manager'); ?></span>
+                                <?php else: ?>
+                                    <span class="jpm-status-badge"
+                                        style="background-color: #ffc107; color: #000;"><?php echo esc_html(ucfirst($post_status)); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <a href="<?php echo esc_url($applications_url); ?>" style="font-weight: bold; color: #0073aa;">
+                                    <?php echo esc_html($application_count); ?>
+                                </a>
+                            </td>
+                            <td><?php echo esc_html(get_the_date('', $job->ID)); ?></td>
+                            <td>
+                                <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">
+                                    <?php _e('Edit', 'job-posting-manager'); ?>
+                                </a>
+                                <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
+                                    <?php _e('View', 'job-posting-manager'); ?>
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
         </div>
         <?php
     }
@@ -1108,73 +1141,300 @@ class JPM_Admin
      */
     public function enqueue_media_uploader($hook)
     {
-        // Only load on job posting edit screens
-        if ($hook !== 'post.php' && $hook !== 'post-new.php') {
-            return;
-        }
+        // Load on job posting edit screens
+        if ($hook === 'post.php' || $hook === 'post-new.php') {
+            global $post_type;
+            if ($post_type === 'job_posting') {
+                wp_enqueue_media();
+                // Add inline script for media uploader
+                wp_add_inline_script('jquery', '
+                    jQuery(document).ready(function($) {
+                        var companyImageFrame;
+                        var $companyImageInput = $("#company_image");
+                        var $companyImagePreview = $("#company_image_preview");
+                        var $uploadBtn = $("#upload_company_image_btn");
+                        var $removeBtn = $("#remove_company_image_btn");
 
-        global $post_type;
-        if ($post_type !== 'job_posting') {
-            return;
-        }
-
-        // Enqueue WordPress media uploader
-        wp_enqueue_media();
-
-        // Add inline script for media uploader
-        wp_add_inline_script('jquery', '
-            jQuery(document).ready(function($) {
-                var companyImageFrame;
-                var $companyImageInput = $("#company_image");
-                var $companyImagePreview = $("#company_image_preview");
-                var $uploadBtn = $("#upload_company_image_btn");
-                var $removeBtn = $("#remove_company_image_btn");
-
-                // Upload button click
-                $uploadBtn.on("click", function(e) {
-                    e.preventDefault();
-
-                    if (companyImageFrame) {
-                        companyImageFrame.open();
-                        return;
-                    }
-
-                    companyImageFrame = wp.media({
-                        title: "' . esc_js(__('Select Company Image', 'job-posting-manager')) . '",
-                        button: {
-                            text: "' . esc_js(__('Use this image', 'job-posting-manager')) . '"
-                        },
-                        multiple: false
-                    });
-
-                    companyImageFrame.on("select", function() {
-                        var attachment = companyImageFrame.state().get("selection").first().toJSON();
-                        $companyImageInput.val(attachment.id);
-                        $companyImagePreview.html("<img src=\"" + attachment.url + "\" style=\"max-width: 100%; height: auto; display: block;\" />");
-                        $uploadBtn.text("' . esc_js(__('Change Image', 'job-posting-manager')) . '");
-                        if (!$removeBtn.length) {
-                            $uploadBtn.after("<button type=\"button\" class=\"button\" id=\"remove_company_image_btn\" style=\"margin-left: 5px;\">' . esc_js(__('Remove Image', 'job-posting-manager')) . '</button>");
-                            $("#remove_company_image_btn").on("click", function() {
-                                $companyImageInput.val("");
-                                $companyImagePreview.html("");
-                                $uploadBtn.text("' . esc_js(__('Upload Image', 'job-posting-manager')) . '");
-                                $(this).remove();
+                        $uploadBtn.on("click", function(e) {
+                            e.preventDefault();
+                            if (companyImageFrame) {
+                                companyImageFrame.open();
+                                return;
+                            }
+                            companyImageFrame = wp.media({
+                                title: "' . esc_js(__('Select Company Image', 'job-posting-manager')) . '",
+                                button: {
+                                    text: "' . esc_js(__('Use this image', 'job-posting-manager')) . '"
+                                },
+                                multiple: false
                             });
+                            companyImageFrame.on("select", function() {
+                                var attachment = companyImageFrame.state().get("selection").first().toJSON();
+                                $companyImageInput.val(attachment.id);
+                                $companyImagePreview.html("<img src=\"" + attachment.url + "\" style=\"max-width: 100%; height: auto; display: block;\" />");
+                                $uploadBtn.text("' . esc_js(__('Change Image', 'job-posting-manager')) . '");
+                                $removeBtn.show();
+                            });
+                            companyImageFrame.open();
+                        });
+
+                        $removeBtn.on("click", function(e) {
+                            e.preventDefault();
+                            $companyImageInput.val("");
+                            $companyImagePreview.html("");
+                            $uploadBtn.text("' . esc_js(__('Upload Image', 'job-posting-manager')) . '");
+                            $removeBtn.hide();
+                        });
+                    });
+                ');
+            }
+        }
+
+        // Load on dashboard page for chart functionality
+        if ($hook === 'toplevel_page_jpm-dashboard') {
+            wp_enqueue_script('jquery');
+            wp_localize_script('jquery', 'jpm_chart_ajax', [
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('jpm_chart_nonce')
+            ]);
+            wp_add_inline_script('jquery', '
+                jQuery(document).ready(function($) {
+                    // Show/hide custom date range inputs
+                    $("#jpm-chart-period").on("change", function() {
+                        if ($(this).val() === "custom") {
+                            $("#jpm-chart-custom-dates").show();
+                        } else {
+                            $("#jpm-chart-custom-dates").hide();
                         }
                     });
 
-                    companyImageFrame.open();
-                });
+                    // Handle chart filter apply
+                    $("#jpm-chart-apply").on("click", function() {
+                        var period = $("#jpm-chart-period").val();
+                        var startDate = $("#jpm-chart-start-date").val();
+                        var endDate = $("#jpm-chart-end-date").val();
+                        
+                        // Validate custom date range
+                        if (period === "custom") {
+                            if (!startDate || !endDate) {
+                                alert("' . esc_js(__('Please select both start and end dates for custom range.', 'job-posting-manager')) . '");
+                                return;
+                            }
+                            if (startDate > endDate) {
+                                alert("' . esc_js(__('Start date must be before end date.', 'job-posting-manager')) . '");
+                                return;
+                            }
+                        }
 
-                // Remove button click
-                $(document).on("click", "#remove_company_image_btn", function() {
-                    $companyImageInput.val("");
-                    $companyImagePreview.html("");
-                    $uploadBtn.text("' . esc_js(__('Upload Image', 'job-posting-manager')) . '");
-                    $(this).remove();
+                        // Show loading
+                        $("#jpm-chart-loading").show();
+                        $("#jpm-chart-container").hide();
+
+                        // AJAX request
+                        $.ajax({
+                            url: jpm_chart_ajax.ajax_url,
+                            type: "POST",
+                            data: {
+                                action: "jpm_get_chart_data",
+                                period: period,
+                                start_date: startDate,
+                                end_date: endDate,
+                                nonce: jpm_chart_ajax.nonce
+                            },
+                            success: function(response) {
+                                $("#jpm-chart-loading").hide();
+                                if (response.success && response.data.html) {
+                                    $("#jpm-chart-container").html(response.data.html).show();
+                                } else {
+                                    alert(response.data?.message || "' . esc_js(__('Error loading chart data.', 'job-posting-manager')) . '");
+                                    $("#jpm-chart-container").show();
+                                }
+                            },
+                            error: function() {
+                                $("#jpm-chart-loading").hide();
+                                alert("' . esc_js(__('An error occurred while loading chart data.', 'job-posting-manager')) . '");
+                                $("#jpm-chart-container").show();
+                            }
+                        });
+                    });
                 });
-            });
-        ');
+            ');
+        }
+    }
+
+    /**
+     * Get chart data based on period
+     * @param string $period Period type (7days, 30days, 90days, 365days, custom)
+     * @param string $start_date Start date for custom range
+     * @param string $end_date End date for custom range
+     * @return array Chart data array
+     */
+    private function get_chart_data($period = '7days', $start_date = '', $end_date = '')
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $data = [];
+
+        // Determine date range
+        $end = date('Y-m-d');
+        switch ($period) {
+            case '7days':
+                $start = date('Y-m-d', strtotime('-7 days'));
+                $interval = 'day';
+                $format = 'M j';
+                break;
+            case '30days':
+                $start = date('Y-m-d', strtotime('-30 days'));
+                $interval = 'day';
+                $format = 'M j';
+                break;
+            case '90days':
+                $start = date('Y-m-d', strtotime('-90 days'));
+                $interval = 'week';
+                $format = 'M j';
+                break;
+            case '365days':
+                $start = date('Y-m-d', strtotime('-365 days'));
+                $interval = 'month';
+                $format = 'M Y';
+                break;
+            case 'custom':
+                if (!empty($start_date) && !empty($end_date)) {
+                    $start = $start_date;
+                    $end = $end_date;
+                    // Determine interval based on range
+                    $days = (strtotime($end) - strtotime($start)) / (60 * 60 * 24);
+                    if ($days <= 30) {
+                        $interval = 'day';
+                        $format = 'M j';
+                    } elseif ($days <= 90) {
+                        $interval = 'week';
+                        $format = 'M j';
+                    } else {
+                        $interval = 'month';
+                        $format = 'M Y';
+                    }
+                } else {
+                    // Default to 7 days if custom dates not provided
+                    $start = date('Y-m-d', strtotime('-7 days'));
+                    $interval = 'day';
+                    $format = 'M j';
+                }
+                break;
+            default:
+                $start = date('Y-m-d', strtotime('-7 days'));
+                $interval = 'day';
+                $format = 'M j';
+        }
+
+        // Generate date points based on interval
+        $current = strtotime($start);
+        $end_timestamp = strtotime($end);
+
+        while ($current <= $end_timestamp) {
+            $date_str = date('Y-m-d', $current);
+
+            // Query count for this date/period
+            if ($interval === 'day') {
+                $count = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT COUNT(*) FROM $table WHERE DATE(application_date) = %s",
+                        $date_str
+                    )
+                );
+            } elseif ($interval === 'week') {
+                $week_start = date('Y-m-d', strtotime('monday this week', $current));
+                $week_end = date('Y-m-d', strtotime('sunday this week', $current));
+                $count = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT COUNT(*) FROM $table WHERE DATE(application_date) >= %s AND DATE(application_date) <= %s",
+                        $week_start,
+                        $week_end
+                    )
+                );
+                // Move to next week
+                $current = strtotime('+1 week', $current);
+                $date_str = $week_start . ' - ' . $week_end;
+            } else { // month
+                $month_start = date('Y-m-01', $current);
+                $month_end = date('Y-m-t', $current);
+                $count = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT COUNT(*) FROM $table WHERE DATE(application_date) >= %s AND DATE(application_date) <= %s",
+                        $month_start,
+                        $month_end
+                    )
+                );
+                // Move to next month
+                $current = strtotime('+1 month', $current);
+                $date_str = $month_start;
+            }
+
+            $data[] = [
+                'date' => $interval === 'week' ? $date_str : date($format, strtotime($date_str)),
+                'count' => intval($count)
+            ];
+
+            // Move to next interval (already handled for week/month above)
+            if ($interval === 'day') {
+                $current = strtotime('+1 day', $current);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * AJAX handler for getting chart data
+     */
+    public function get_chart_data_ajax()
+    {
+        check_ajax_referer('jpm_chart_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Unauthorized access.', 'job-posting-manager')]);
+            return;
+        }
+
+        $period = isset($_POST['period']) ? sanitize_text_field($_POST['period']) : '7days';
+        $start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '';
+        $end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '';
+
+        $data = $this->get_chart_data($period, $start_date, $end_date);
+
+        // Generate chart HTML
+        ob_start();
+        if (!empty($data)) {
+            $max_count = max(array_column($data, 'count'));
+            $max_count = $max_count > 0 ? $max_count : 1;
+            ?>
+            <div
+                style="display: flex; align-items: flex-end; justify-content: space-around; height: 200px; border-bottom: 2px solid #ddd; padding-bottom: 10px; position: relative;">
+                <?php foreach ($data as $day):
+                    $height_px = ($day['count'] / $max_count) * 180; // 180px max height
+                    ?>
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; margin: 0 5px; height: 100%;">
+                        <div class="jpm-chart-bar"
+                            style="width: 100%; max-width: 40px; background: #0073aa; border-radius: 4px 4px 0 0; margin-bottom: 10px; transition: all 0.3s ease; height: <?php echo esc_attr($height_px); ?>px; min-height: <?php echo $day['count'] > 0 ? '5px' : '0'; ?>;"
+                            title="<?php echo esc_attr($day['date'] . ': ' . $day['count'] . ' applications'); ?>">
+                        </div>
+                        <div
+                            style="font-size: 11px; color: #666; text-align: center; transform: rotate(-45deg); transform-origin: center; white-space: nowrap; margin-top: 5px;">
+                            <?php echo esc_html($day['date']); ?>
+                        </div>
+                        <div style="font-size: 12px; font-weight: bold; color: #333; margin-top: 5px;">
+                            <?php echo esc_html($day['count']); ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php
+        } else {
+            echo '<p style="text-align: center; padding: 40px; color: #666;">' . __('No data available for the selected period.', 'job-posting-manager') . '</p>';
+        }
+        $html = ob_get_clean();
+
+        wp_send_json_success(['html' => $html]);
     }
 
     /**
