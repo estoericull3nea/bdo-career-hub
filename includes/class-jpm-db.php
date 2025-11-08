@@ -30,7 +30,73 @@ class JPM_Admin
         $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
         $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
 
-        // Query jobs
+        // Get analytics data
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+
+        // Total jobs by status
+        $total_published = wp_count_posts('job_posting')->publish ?? 0;
+        $total_draft = wp_count_posts('job_posting')->draft ?? 0;
+        $total_pending = wp_count_posts('job_posting')->pending ?? 0;
+        $total_jobs = $total_published + $total_draft + $total_pending;
+
+        // Total applications
+        $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+
+        // Applications by status
+        $applications_by_status = $wpdb->get_results(
+            "SELECT status, COUNT(*) as count FROM $table GROUP BY status",
+            ARRAY_A
+        );
+        $status_counts = [];
+        foreach ($applications_by_status as $row) {
+            $status_counts[$row['status']] = intval($row['count']);
+        }
+
+        // Recent applications (last 7 days)
+        $recent_applications = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM $table WHERE application_date >= %s",
+                date('Y-m-d H:i:s', strtotime('-7 days'))
+            )
+        );
+
+        // Applications this month
+        $month_applications = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM $table WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
+                date('n'),
+                date('Y')
+            )
+        );
+
+        // Jobs with most applications (top 5)
+        $top_jobs = $wpdb->get_results(
+            "SELECT job_id, COUNT(*) as app_count 
+             FROM $table 
+             GROUP BY job_id 
+             ORDER BY app_count DESC 
+             LIMIT 5",
+            ARRAY_A
+        );
+
+        // Applications over last 7 days (for chart)
+        $applications_by_day = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $count = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM $table WHERE DATE(application_date) = %s",
+                    $date
+                )
+            );
+            $applications_by_day[] = [
+                'date' => date('M j', strtotime("-$i days")),
+                'count' => intval($count)
+            ];
+        }
+
+        // Query jobs for table
         $args = [
             'post_type' => 'job_posting',
             'posts_per_page' => -1,
@@ -45,13 +111,209 @@ class JPM_Admin
 
         $jobs = get_posts($args);
 
-        // Get application counts for each job
-        global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
-
         ?>
         <div class="wrap">
             <h1><?php _e('Job Postings', 'job-posting-manager'); ?></h1>
+
+            <!-- Analytics Section -->
+            <div class="jpm-analytics-section" style="margin: 20px 0;">
+                <h2><?php _e('Analytics Overview', 'job-posting-manager'); ?></h2>
+
+                <div class="jpm-analytics-cards"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <!-- Total Jobs Card -->
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php _e('Total Jobs', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-businessman" style="font-size: 24px; color: #0073aa;"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #0073aa; margin-bottom: 10px;">
+                            <?php echo esc_html($total_jobs); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <span><?php echo esc_html($total_published); ?>
+                                <?php _e('Published', 'job-posting-manager'); ?></span> |
+                            <span><?php echo esc_html($total_draft); ?>         <?php _e('Draft', 'job-posting-manager'); ?></span>
+                            <?php if ($total_pending > 0): ?>
+                                | <span><?php echo esc_html($total_pending); ?>
+                                    <?php _e('Pending', 'job-posting-manager'); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Total Applications Card -->
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php _e('Total Applications', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-clipboard" style="font-size: 24px; color: #28a745;"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #28a745; margin-bottom: 10px;">
+                            <?php echo esc_html($total_applications); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <a href="<?php echo admin_url('admin.php?page=jpm-applications'); ?>"
+                                style="color: #0073aa; text-decoration: none;">
+                                <?php _e('View All Applications', 'job-posting-manager'); ?> →
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Recent Applications Card -->
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php _e('Last 7 Days', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-calendar-alt" style="font-size: 24px; color: #ffc107;"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #ffc107; margin-bottom: 10px;">
+                            <?php echo esc_html($recent_applications); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <?php _e('New applications', 'job-posting-manager'); ?>
+                        </div>
+                    </div>
+
+                    <!-- This Month Card -->
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php _e('This Month', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-chart-line" style="font-size: 24px; color: #dc3545;"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #dc3545; margin-bottom: 10px;">
+                            <?php echo esc_html($month_applications); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <?php _e('Applications', 'job-posting-manager'); ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applications by Status -->
+                <?php if (!empty($status_counts)): ?>
+                    <div
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0;"><?php _e('Applications by Status', 'job-posting-manager'); ?></h3>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <?php
+                            $status_options = self::get_status_options();
+                            foreach ($status_options as $slug => $name):
+                                $count = isset($status_counts[$slug]) ? $status_counts[$slug] : 0;
+                                $status_info = self::get_status_by_slug($slug);
+                                $bg_color = $status_info ? $status_info['color'] : '#ffc107';
+                                $text_color = $status_info ? $status_info['text_color'] : '#000';
+                                ?>
+                                <div
+                                    style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; border-left: 4px solid <?php echo esc_attr($bg_color); ?>;">
+                                    <div
+                                        style="font-size: 24px; font-weight: bold; color: <?php echo esc_attr($bg_color); ?>; margin-bottom: 5px;">
+                                        <?php echo esc_html($count); ?>
+                                    </div>
+                                    <div style="font-size: 14px; color: #666;">
+                                        <?php echo esc_html($name); ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Applications Chart (Last 7 Days) -->
+                <div
+                    style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h3 style="margin-top: 0;"><?php _e('Applications Trend (Last 7 Days)', 'job-posting-manager'); ?></h3>
+                    <div class="jpm-chart-container" style="margin-top: 20px;">
+                        <div
+                            style="display: flex; align-items: flex-end; justify-content: space-around; height: 200px; border-bottom: 2px solid #ddd; padding-bottom: 10px; position: relative;">
+                            <?php
+                            $max_count = max(array_column($applications_by_day, 'count'));
+                            $max_count = $max_count > 0 ? $max_count : 1;
+                            foreach ($applications_by_day as $day):
+                                $height_percent = ($day['count'] / $max_count) * 100;
+                                $height_px = ($day['count'] / $max_count) * 180; // 180px max height (200px - 20px padding)
+                                ?>
+                                <div
+                                    style="flex: 1; display: flex; flex-direction: column; align-items: center; margin: 0 5px; height: 100%;">
+                                    <div class="jpm-chart-bar"
+                                        style="width: 100%; max-width: 40px; background: #0073aa; border-radius: 4px 4px 0 0; margin-bottom: 10px; transition: all 0.3s ease; height: <?php echo esc_attr($height_px); ?>px; min-height: <?php echo $day['count'] > 0 ? '5px' : '0'; ?>;"
+                                        title="<?php echo esc_attr($day['date'] . ': ' . $day['count'] . ' applications'); ?>">
+                                    </div>
+                                    <div
+                                        style="font-size: 11px; color: #666; text-align: center; transform: rotate(-45deg); transform-origin: center; white-space: nowrap; margin-top: 5px;">
+                                        <?php echo esc_html($day['date']); ?>
+                                    </div>
+                                    <div style="font-size: 12px; font-weight: bold; color: #333; margin-top: 5px;">
+                                        <?php echo esc_html($day['count']); ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Jobs by Applications -->
+                <?php if (!empty($top_jobs)): ?>
+                    <div
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0;"><?php _e('Top Jobs by Applications', 'job-posting-manager'); ?></h3>
+                        <table class="widefat fixed striped" style="margin-top: 15px;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;"><?php _e('Rank', 'job-posting-manager'); ?></th>
+                                    <th style="width: 60%;"><?php _e('Job Title', 'job-posting-manager'); ?></th>
+                                    <th style="width: 20%;"><?php _e('Applications', 'job-posting-manager'); ?></th>
+                                    <th style="width: 15%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $rank = 1;
+                                foreach ($top_jobs as $top_job):
+                                    $job_post = get_post($top_job['job_id']);
+                                    if (!$job_post)
+                                        continue;
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <strong style="font-size: 18px; color: #0073aa;">#<?php echo esc_html($rank); ?></strong>
+                                        </td>
+                                        <td>
+                                            <a href="<?php echo admin_url('post.php?post=' . $top_job['job_id'] . '&action=edit'); ?>">
+                                                <?php echo esc_html(get_the_title($top_job['job_id'])); ?>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <strong style="font-size: 16px; color: #28a745;">
+                                                <?php echo esc_html($top_job['app_count']); ?>
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&job_id=' . $top_job['job_id']); ?>"
+                                                class="button button-small">
+                                                <?php _e('View', 'job-posting-manager'); ?>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php
+                                    $rank++;
+                                endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <hr style="margin: 30px 0;">
 
             <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
@@ -73,11 +335,14 @@ class JPM_Admin
                             <select name="status">
                                 <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
                                 <option value="publish" <?php selected($status_filter, 'publish'); ?>>
-                                    <?php _e('Published', 'job-posting-manager'); ?></option>
+                                    <?php _e('Published', 'job-posting-manager'); ?>
+                                </option>
                                 <option value="draft" <?php selected($status_filter, 'draft'); ?>>
-                                    <?php _e('Draft', 'job-posting-manager'); ?></option>
+                                    <?php _e('Draft', 'job-posting-manager'); ?>
+                                </option>
                                 <option value="pending" <?php selected($status_filter, 'pending'); ?>>
-                                    <?php _e('Pending', 'job-posting-manager'); ?></option>
+                                    <?php _e('Pending', 'job-posting-manager'); ?>
+                                </option>
                             </select>
                         </div>
                         <div>
