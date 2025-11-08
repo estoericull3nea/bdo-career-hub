@@ -67,7 +67,7 @@ class JPM_Emails
 
         $body .= '<div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
         $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . sprintf(__('Dear %s,', 'job-posting-manager'), esc_html($full_name)) . '</p>';
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('Thank you for submitting your job application. We have successfully received your application and it is now under review.', 'job-posting-manager') . '</p>';
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('Thank you for submitting your job application. We have successfully received your application and it is now <strong>pending</strong>.', 'job-posting-manager') . '</p>';
 
         $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">';
         $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px;">' . __('Application Details', 'job-posting-manager') . '</h2>';
