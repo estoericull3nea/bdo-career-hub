@@ -33,6 +33,7 @@ class JPM_Admin
         $filters = [
             'status' => $_GET['status'] ?? '',
             'job_id' => $_GET['job_id'] ?? '',
+            'search' => $_GET['search'] ?? '',
         ];
 
         $applications = JPM_DB::get_applications($filters);
@@ -51,32 +52,54 @@ class JPM_Admin
             <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
                     <input type="hidden" name="page" value="jpm-applications">
-                    <label>
-                        <?php _e('Filter by Job:', 'job-posting-manager'); ?>
-                        <select name="job_id">
-                            <option value=""><?php _e('All Jobs', 'job-posting-manager'); ?></option>
-                            <?php foreach ($jobs as $job): ?>
-                                <option value="<?php echo esc_attr($job->ID); ?>" <?php selected($filters['job_id'], $job->ID); ?>>
-                                    <?php echo esc_html($job->post_title); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                    <label style="margin-left: 20px;">
-                        <?php _e('Filter by Status:', 'job-posting-manager'); ?>
-                        <select name="status">
-                            <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
-                            <?php
-                            $status_options = self::get_status_options();
-                            foreach ($status_options as $slug => $name):
-                                ?>
-                                <option value="<?php echo esc_attr($slug); ?>" <?php selected($filters['status'], $slug); ?>>
-                                    <?php echo esc_html($name); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                    <input type="submit" class="button" value="<?php _e('Filter', 'job-posting-manager'); ?>">
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            <?php _e('Search Applications:', 'job-posting-manager'); ?>
+                        </label>
+                        <input type="text" name="search" class="regular-text"
+                            value="<?php echo esc_attr($filters['search']); ?>"
+                            placeholder="<?php esc_attr_e('Search by name, email, or application number...', 'job-posting-manager'); ?>"
+                            style="width: 100%; max-width: 500px;">
+                        <p class="description" style="margin-top: 5px;">
+                            <?php _e('Search by given name, middle name, surname, email, or application number', 'job-posting-manager'); ?>
+                        </p>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                        <label>
+                            <?php _e('Filter by Job:', 'job-posting-manager'); ?>
+                            <select name="job_id">
+                                <option value=""><?php _e('All Jobs', 'job-posting-manager'); ?></option>
+                                <?php foreach ($jobs as $job): ?>
+                                    <option value="<?php echo esc_attr($job->ID); ?>" <?php selected($filters['job_id'], $job->ID); ?>>
+                                        <?php echo esc_html($job->post_title); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>
+                            <?php _e('Filter by Status:', 'job-posting-manager'); ?>
+                            <select name="status">
+                                <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
+                                <?php
+                                $status_options = self::get_status_options();
+                                foreach ($status_options as $slug => $name):
+                                    ?>
+                                    <option value="<?php echo esc_attr($slug); ?>" <?php selected($filters['status'], $slug); ?>>
+                                        <?php echo esc_html($name); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <input type="submit" class="button button-primary"
+                            value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
+                        <?php if (!empty($filters['search']) || !empty($filters['job_id']) || !empty($filters['status'])): ?>
+                            <a href="<?php echo admin_url('admin.php?page=jpm-applications'); ?>" class="button">
+                                <?php _e('Clear', 'job-posting-manager'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </form>
             </div>
 
