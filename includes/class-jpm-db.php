@@ -1763,19 +1763,64 @@ class JPM_Admin
         }
 
         // Check if file was uploaded
-        if (!isset($_FILES['jpm_import_file']) || $_FILES['jpm_import_file']['error'] !== UPLOAD_ERR_OK) {
+        if (!isset($_FILES['jpm_import_file'])) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p>' . __('Error: No file uploaded or upload failed.', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('No file was uploaded. Please select a file to import.', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
 
         $file = $_FILES['jpm_import_file'];
+
+        // Check upload errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $error_messages = [
+                UPLOAD_ERR_INI_SIZE => __('The uploaded file exceeds the upload_max_filesize directive in php.ini.', 'job-posting-manager'),
+                UPLOAD_ERR_FORM_SIZE => __('The uploaded file exceeds the MAX_FILE_SIZE directive that was specified in the HTML form.', 'job-posting-manager'),
+                UPLOAD_ERR_PARTIAL => __('The uploaded file was only partially uploaded.', 'job-posting-manager'),
+                UPLOAD_ERR_NO_FILE => __('No file was uploaded.', 'job-posting-manager'),
+                UPLOAD_ERR_NO_TMP_DIR => __('Missing a temporary folder.', 'job-posting-manager'),
+                UPLOAD_ERR_CANT_WRITE => __('Failed to write file to disk.', 'job-posting-manager'),
+                UPLOAD_ERR_EXTENSION => __('A PHP extension stopped the file upload.', 'job-posting-manager'),
+            ];
+
+            $error_message = $error_messages[$file['error']] ?? __('Unknown upload error occurred.', 'job-posting-manager');
+
+            add_action('admin_notices', function () use ($error_message) {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html($error_message) . '</p></div>';
+            });
+            return;
+        }
+
+        // Check file size (max 10MB)
+        $max_size = 10 * 1024 * 1024; // 10MB in bytes
+        if ($file['size'] > $max_size) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('The uploaded file is too large. Maximum file size is 10MB.', 'job-posting-manager') . '</p></div>';
+            });
+            return;
+        }
+
+        // Check if file is empty
+        if ($file['size'] === 0) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('The uploaded file is empty.', 'job-posting-manager') . '</p></div>';
+            });
+            return;
+        }
+
         $format = sanitize_text_field($_POST['jpm_import_format'] ?? '');
+
+        if (empty($format)) {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('Please select an import format (CSV or JSON).', 'job-posting-manager') . '</p></div>';
+            });
+            return;
+        }
 
         if (!in_array($format, ['csv', 'json'])) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p>' . __('Error: Invalid import format.', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('Invalid import format selected. Please choose either CSV or JSON.', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
@@ -1783,18 +1828,29 @@ class JPM_Admin
         // Check file extension matches format
         $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (($format === 'csv' && $file_ext !== 'csv') || ($format === 'json' && $file_ext !== 'json')) {
-            add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p>' . __('Error: File extension does not match selected format.', 'job-posting-manager') . '</p></div>';
+            add_action('admin_notices', function () use ($format, $file_ext) {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                    sprintf(__('File extension (.%s) does not match selected format (%s). Please select the correct format or upload a file with the matching extension.', 'job-posting-manager'), $file_ext, strtoupper($format)) .
+                    '</p></div>';
             });
             return;
         }
 
         // Process import
         $result = null;
-        if ($format === 'csv') {
-            $result = $this->import_from_csv($file);
-        } elseif ($format === 'json') {
-            $result = $this->import_from_json($file);
+        try {
+            if ($format === 'csv') {
+                $result = $this->import_from_csv($file);
+            } elseif ($format === 'json') {
+                $result = $this->import_from_json($file);
+            }
+        } catch (Exception $e) {
+            add_action('admin_notices', function () use ($e) {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                    sprintf(__('An unexpected error occurred during import: %s', 'job-posting-manager'), esc_html($e->getMessage())) .
+                    '</p></div>';
+            });
+            return;
         }
 
         // Show results
@@ -1802,31 +1858,53 @@ class JPM_Admin
             $success_count = $result['success'] ?? 0;
             $error_count = $result['errors'] ?? 0;
             $errors = $result['error_messages'] ?? [];
+            $total_processed = $success_count + $error_count;
+
+            if ($total_processed === 0) {
+                add_action('admin_notices', function () {
+                    echo '<div class="notice notice-warning"><p><strong>' . __('Import Warning:', 'job-posting-manager') . '</strong> ' .
+                        __('No applications were found in the file to import.', 'job-posting-manager') .
+                        '</p></div>';
+                });
+                return;
+            }
 
             if ($success_count > 0) {
-                add_action('admin_notices', function () use ($success_count) {
-                    echo '<div class="notice notice-success is-dismissible"><p>' .
-                        sprintf(__('Successfully imported %d application(s).', 'job-posting-manager'), $success_count) .
-                        '</p></div>';
+                add_action('admin_notices', function () use ($success_count, $total_processed) {
+                    $message = sprintf(__('Successfully imported %d out of %d application(s).', 'job-posting-manager'), $success_count, $total_processed);
+                    if ($success_count === $total_processed) {
+                        $message = sprintf(__('Successfully imported all %d application(s).', 'job-posting-manager'), $success_count);
+                    }
+                    echo '<div class="notice notice-success is-dismissible"><p><strong>' . __('Import Success:', 'job-posting-manager') . '</strong> ' . $message . '</p></div>';
                 });
             }
 
             if ($error_count > 0) {
-                $error_message = sprintf(__('Failed to import %d application(s).', 'job-posting-manager'), $error_count);
+                $error_message = '<strong>' . __('Import Errors:', 'job-posting-manager') . '</strong> ' .
+                    sprintf(__('Failed to import %d out of %d application(s).', 'job-posting-manager'), $error_count, $total_processed);
+
                 if (!empty($errors)) {
-                    $error_message .= '<ul style="margin-left: 20px;">';
-                    foreach (array_slice($errors, 0, 10) as $error) { // Show first 10 errors
+                    $error_message .= '<br><br><strong>' . __('Error Details:', 'job-posting-manager') . '</strong>';
+                    $error_message .= '<ul style="margin-left: 20px; margin-top: 10px;">';
+                    foreach (array_slice($errors, 0, 20) as $error) { // Show first 20 errors
                         $error_message .= '<li>' . esc_html($error) . '</li>';
                     }
-                    if (count($errors) > 10) {
-                        $error_message .= '<li>' . sprintf(__('... and %d more errors.', 'job-posting-manager'), count($errors) - 10) . '</li>';
+                    if (count($errors) > 20) {
+                        $error_message .= '<li><em>' . sprintf(__('... and %d more errors. Please check your file and try again.', 'job-posting-manager'), count($errors) - 20) . '</em></li>';
                     }
                     $error_message .= '</ul>';
                 }
+
                 add_action('admin_notices', function () use ($error_message) {
                     echo '<div class="notice notice-error is-dismissible"><p>' . $error_message . '</p></div>';
                 });
             }
+        } else {
+            add_action('admin_notices', function () {
+                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                    __('Failed to process the import file. Please check the file format and try again.', 'job-posting-manager') .
+                    '</p></div>';
+            });
         }
     }
 
@@ -1842,7 +1920,7 @@ class JPM_Admin
         // Read CSV file
         $handle = fopen($file['tmp_name'], 'r');
         if ($handle === false) {
-            $error_messages[] = __('Failed to open CSV file.', 'job-posting-manager');
+            $error_messages[] = __('Failed to open CSV file. The file may be corrupted or inaccessible.', 'job-posting-manager');
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
 
@@ -1855,9 +1933,26 @@ class JPM_Admin
 
         // Read headers
         $headers = fgetcsv($handle);
-        if ($headers === false) {
+        if ($headers === false || empty($headers)) {
             fclose($handle);
-            $error_messages[] = __('Failed to read CSV headers.', 'job-posting-manager');
+            $error_messages[] = __('Failed to read CSV headers. The file may be empty or not in the correct CSV format.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        // Check for required headers
+        $headers_lower = array_map('strtolower', array_map('trim', $headers));
+        $required_headers = ['job id', 'job_id'];
+        $has_job_id = false;
+        foreach ($required_headers as $req_header) {
+            if (in_array($req_header, $headers_lower)) {
+                $has_job_id = true;
+                break;
+            }
+        }
+
+        if (!$has_job_id) {
+            fclose($handle);
+            $error_messages[] = __('CSV file is missing required column: "Job ID" or "Job Id". Please ensure your CSV file matches the export format.', 'job-posting-manager');
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
 
@@ -1871,8 +1966,13 @@ class JPM_Admin
             $row_num++;
 
             if (count($row) < count($headers)) {
-                $error_messages[] = sprintf(__('Row %d: Insufficient columns.', 'job-posting-manager'), $row_num);
+                $error_messages[] = sprintf(__('Row %d: Insufficient columns. Expected %d columns but found %d. Please check the CSV format.', 'job-posting-manager'), $row_num, count($headers), count($row));
                 $error_count++;
+                continue;
+            }
+
+            // Skip empty rows
+            if (empty(array_filter($row))) {
                 continue;
             }
 
@@ -1913,20 +2013,43 @@ class JPM_Admin
         // Read JSON file
         $json_content = file_get_contents($file['tmp_name']);
         if ($json_content === false) {
-            $error_messages[] = __('Failed to read JSON file.', 'job-posting-manager');
+            $error_messages[] = __('Failed to read JSON file. The file may be corrupted or inaccessible.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        if (empty(trim($json_content))) {
+            $error_messages[] = __('JSON file is empty. Please ensure the file contains valid JSON data.', 'job-posting-manager');
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
 
         // Decode JSON
         $data = json_decode($json_content, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $error_messages[] = __('Invalid JSON format: ', 'job-posting-manager') . json_last_error_msg();
+            $json_errors = [
+                JSON_ERROR_DEPTH => __('Maximum stack depth exceeded.', 'job-posting-manager'),
+                JSON_ERROR_STATE_MISMATCH => __('Underflow or the modes mismatch.', 'job-posting-manager'),
+                JSON_ERROR_CTRL_CHAR => __('Unexpected control character found.', 'job-posting-manager'),
+                JSON_ERROR_SYNTAX => __('Syntax error, malformed JSON.', 'job-posting-manager'),
+                JSON_ERROR_UTF8 => __('Malformed UTF-8 characters, possibly incorrectly encoded.', 'job-posting-manager'),
+            ];
+            $error_detail = $json_errors[json_last_error()] ?? json_last_error_msg();
+            $error_messages[] = sprintf(__('Invalid JSON format: %s. Please ensure the file is valid JSON and matches the export format.', 'job-posting-manager'), $error_detail);
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
 
         // Check if it's the export format
-        if (!isset($data['applications']) || !is_array($data['applications'])) {
-            $error_messages[] = __('Invalid JSON format: Missing applications array.', 'job-posting-manager');
+        if (!isset($data['applications'])) {
+            $error_messages[] = __('Invalid JSON format: Missing "applications" key. Please ensure the file matches the export format.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        if (!is_array($data['applications'])) {
+            $error_messages[] = __('Invalid JSON format: "applications" must be an array. Please ensure the file matches the export format.', 'job-posting-manager');
+            return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
+        }
+
+        if (empty($data['applications'])) {
+            $error_messages[] = __('JSON file contains no applications to import. The "applications" array is empty.', 'job-posting-manager');
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
 
@@ -1965,10 +2088,19 @@ class JPM_Admin
             $job_id = absint($data['job_id']);
         }
 
-        if ($job_id <= 0 || !get_post($job_id)) {
+        if ($job_id <= 0) {
+            $job_id_value = isset($data['job id']) ? $data['job id'] : (isset($data['job_id']) ? $data['job_id'] : '');
             return [
                 'success' => false,
-                'error' => sprintf(__('Row %d: Invalid or missing job ID.', 'job-posting-manager'), $row_num)
+                'error' => sprintf(__('Row %d: Missing or invalid Job ID. Found value: "%s". Job ID must be a positive number and the job must exist.', 'job-posting-manager'), $row_num, esc_html($job_id_value))
+            ];
+        }
+
+        $job = get_post($job_id);
+        if (!$job) {
+            return [
+                'success' => false,
+                'error' => sprintf(__('Row %d: Job ID %d does not exist. Please ensure the job exists before importing applications.', 'job-posting-manager'), $row_num, $job_id)
             ];
         }
 
@@ -2036,6 +2168,8 @@ class JPM_Admin
                             'last_name' => $last_name
                         ]);
                     } else {
+                        // Log user creation error but continue as guest
+                        error_log('JPM Import: Failed to create user for email ' . $email . ' - ' . $user_id->get_error_message());
                         $user_id = 0; // Continue as guest if user creation fails
                     }
                 }
@@ -2105,9 +2239,14 @@ class JPM_Admin
         ]);
 
         if ($result === false) {
+            $db_error = $wpdb->last_error;
+            $error_msg = sprintf(__('Row %d: Failed to insert application into database.', 'job-posting-manager'), $row_num);
+            if (!empty($db_error)) {
+                $error_msg .= ' ' . sprintf(__('Database error: %s', 'job-posting-manager'), $db_error);
+            }
             return [
                 'success' => false,
-                'error' => sprintf(__('Row %d: Failed to insert application into database.', 'job-posting-manager'), $row_num)
+                'error' => $error_msg
             ];
         }
 
@@ -2129,10 +2268,19 @@ class JPM_Admin
             $job_id = absint($app_data['job_id']);
         }
 
-        if ($job_id <= 0 || !get_post($job_id)) {
+        if ($job_id <= 0) {
+            $job_id_value = isset($app_data['job']['id']) ? $app_data['job']['id'] : (isset($app_data['job_id']) ? $app_data['job_id'] : '');
             return [
                 'success' => false,
-                'error' => sprintf(__('Application %d: Invalid or missing job ID.', 'job-posting-manager'), $index)
+                'error' => sprintf(__('Application %d: Missing or invalid Job ID. Found value: "%s". Job ID must be a positive number and the job must exist.', 'job-posting-manager'), $index, esc_html($job_id_value))
+            ];
+        }
+
+        $job = get_post($job_id);
+        if (!$job) {
+            return [
+                'success' => false,
+                'error' => sprintf(__('Application %d: Job ID %d does not exist. Please ensure the job exists before importing applications.', 'job-posting-manager'), $index, $job_id)
             ];
         }
 
@@ -2186,6 +2334,8 @@ class JPM_Admin
                             'last_name' => $last_name
                         ]);
                     } else {
+                        // Log user creation error but continue as guest
+                        error_log('JPM Import: Failed to create user for email ' . $email . ' - ' . $user_id->get_error_message());
                         $user_id = 0; // Continue as guest if user creation fails
                     }
                 }
@@ -2258,9 +2408,14 @@ class JPM_Admin
         ]);
 
         if ($result === false) {
+            $db_error = $wpdb->last_error;
+            $error_msg = sprintf(__('Application %d: Failed to insert application into database.', 'job-posting-manager'), $index);
+            if (!empty($db_error)) {
+                $error_msg .= ' ' . sprintf(__('Database error: %s', 'job-posting-manager'), $db_error);
+            }
             return [
                 'success' => false,
-                'error' => sprintf(__('Application %d: Failed to insert application into database.', 'job-posting-manager'), $index)
+                'error' => $error_msg
             ];
         }
 
