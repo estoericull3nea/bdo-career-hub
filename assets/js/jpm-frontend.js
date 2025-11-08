@@ -214,4 +214,83 @@ jQuery(document).ready(function ($) {
       }
     );
   }, 30000);
+
+  // Latest Jobs Modal Functionality
+  // Open modal on Quick View button click
+  $(document).on("click", ".jpm-btn-quick-view", function (e) {
+    e.preventDefault();
+    const jobId = $(this).data("job-id");
+
+    if (!jobId) {
+      return;
+    }
+
+    const $modal = $("#jpm-job-modal");
+    const $modalBody = $modal.find(".jpm-modal-body");
+    const $loading = $modalBody.find(".jpm-modal-loading");
+    const $content = $modalBody.find(".jpm-modal-job-content");
+
+    // Show modal
+    $modal.addClass("active");
+    $("body").css("overflow", "hidden");
+
+    // Show loading, hide content
+    $loading.show();
+    $content.hide().empty();
+
+    // Fetch job details via AJAX
+    $.ajax({
+      url: jpm_ajax.ajax_url,
+      type: "POST",
+      data: {
+        action: "jpm_get_job_details",
+        job_id: jobId,
+        nonce: jpm_ajax.nonce,
+      },
+      success: function (response) {
+        $loading.hide();
+
+        if (response.success && response.data.html) {
+          $content.html(response.data.html).fadeIn();
+        } else {
+          $content
+            .html(
+              '<p class="jpm-error">' +
+                (response.data?.message || "Failed to load job details.") +
+                "</p>"
+            )
+            .fadeIn();
+        }
+      },
+      error: function () {
+        $loading.hide();
+        $content
+          .html(
+            '<p class="jpm-error">An error occurred while loading job details. Please try again.</p>'
+          )
+          .fadeIn();
+      },
+    });
+  });
+
+  // Close modal
+  function closeModal() {
+    const $modal = $("#jpm-job-modal");
+    $modal.removeClass("active");
+    $("body").css("overflow", "");
+    $modal.find(".jpm-modal-job-content").empty();
+  }
+
+  // Close on close button click
+  $(document).on("click", ".jpm-modal-close", closeModal);
+
+  // Close on overlay click
+  $(document).on("click", ".jpm-modal-overlay", closeModal);
+
+  // Close on ESC key
+  $(document).on("keydown", function (e) {
+    if (e.key === "Escape" && $("#jpm-job-modal").hasClass("active")) {
+      closeModal();
+    }
+  });
 });

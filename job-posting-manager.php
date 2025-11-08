@@ -59,6 +59,8 @@ function jpm_enqueue_frontend_scripts()
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('jpm_nonce')
     ]);
+    // Enqueue dashicons for icons
+    wp_enqueue_style('dashicons');
 }
 
 add_action('admin_enqueue_scripts', 'jpm_enqueue_admin_scripts');
