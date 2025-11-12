@@ -5,6 +5,8 @@
  */
 class JPM_Form_Builder
 {
+    private $current_job_id = 0;
+    private $current_job_title = '';
 
     public function __construct()
     {
@@ -467,6 +469,10 @@ class JPM_Form_Builder
             return $content;
         }
 
+        // Store current job ID and title for auto-filling 1st choice
+        $this->current_job_id = $post->ID;
+        $this->current_job_title = $post->post_title;
+
         ob_start();
         ?>
         <div class="jpm-application-form-wrapper">
@@ -616,7 +622,12 @@ class JPM_Form_Builder
                         'order' => 'ASC'
                     ]);
                     foreach ($jobs as $job) {
-                        $options_html .= sprintf('<option value="%s">%s</option>', esc_attr($job->post_title), esc_html($job->post_title));
+                        $selected = '';
+                        // Auto-select current job for 1st choice only
+                        if ($field['name'] === 'position_1st_choice' && !empty($this->current_job_title) && $job->post_title === $this->current_job_title) {
+                            $selected = ' selected="selected"';
+                        }
+                        $options_html .= sprintf('<option value="%s"%s>%s</option>', esc_attr($job->post_title), $selected, esc_html($job->post_title));
                     }
                 } elseif (!empty($field['options'])) {
                     $options = explode("\n", $field['options']);
