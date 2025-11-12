@@ -232,15 +232,20 @@ class JPM_Admin
                                 <span style="font-weight: 600;"><?php _e('Period:', 'job-posting-manager'); ?></span>
                                 <select id="jpm-chart-period" name="chart_period" style="padding: 5px 10px;">
                                     <option value="7days" <?php selected($chart_period, '7days'); ?>>
-                                        <?php _e('Last 7 Days', 'job-posting-manager'); ?></option>
+                                        <?php _e('Last 7 Days', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="30days" <?php selected($chart_period, '30days'); ?>>
-                                        <?php _e('Last Month', 'job-posting-manager'); ?></option>
+                                        <?php _e('Last Month', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="90days" <?php selected($chart_period, '90days'); ?>>
-                                        <?php _e('Last 3 Months', 'job-posting-manager'); ?></option>
+                                        <?php _e('Last 3 Months', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="365days" <?php selected($chart_period, '365days'); ?>>
-                                        <?php _e('Last Year', 'job-posting-manager'); ?></option>
+                                        <?php _e('Last Year', 'job-posting-manager'); ?>
+                                    </option>
                                     <option value="custom" <?php selected($chart_period, 'custom'); ?>>
-                                        <?php _e('Custom Range', 'job-posting-manager'); ?></option>
+                                        <?php _e('Custom Range', 'job-posting-manager'); ?>
+                                    </option>
                                 </select>
                             </label>
                             <div id="jpm-chart-custom-dates"
@@ -1059,8 +1064,7 @@ class JPM_Admin
         </div>
 
         <div id="jpm-application-details-modal" style="display: none;">
-            <div class="jpm-modal-content">
-                <span class="jpm-modal-close">&times;</span>
+            <div class="jpm-modal-content"><span class="jpm-modal-close">&times;</span>
                 <div id="jpm-application-details-content"></div>
             </div>
         </div>

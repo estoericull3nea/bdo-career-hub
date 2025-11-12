@@ -200,9 +200,9 @@ class JPM_Frontend
         <div id="jpm-job-modal" class="jpm-modal">
             <div class="jpm-modal-overlay"></div>
             <div class="jpm-modal-content">
-                <button type="button" class="jpm-modal-close" aria-label="<?php esc_attr_e('Close', 'job-posting-manager'); ?>">
-                    <span class="dashicons dashicons-no-alt"></span>
-                </button>
+                <button type="button" class="jpm-modal-close"
+                    aria-label="<?php esc_attr_e('Close', 'job-posting-manager'); ?>"><span
+                        class="dashicons dashicons-no-alt"></span></button>
                 <div class="jpm-modal-body">
                     <div class="jpm-modal-loading">
                         <span class="spinner is-active"></span>
@@ -584,9 +584,9 @@ class JPM_Frontend
         <div id="jpm-job-modal" class="jpm-modal">
             <div class="jpm-modal-overlay"></div>
             <div class="jpm-modal-content">
-                <button type="button" class="jpm-modal-close" aria-label="<?php esc_attr_e('Close', 'job-posting-manager'); ?>">
-                    <span class="dashicons dashicons-no-alt"></span>
-                </button>
+                <button type="button" class="jpm-modal-close"
+                    aria-label="<?php esc_attr_e('Close', 'job-posting-manager'); ?>"><span
+                        class="dashicons dashicons-no-alt"></span></button>
                 <div class="jpm-modal-body">
                     <div class="jpm-modal-loading">
                         <span class="spinner is-active"></span>
