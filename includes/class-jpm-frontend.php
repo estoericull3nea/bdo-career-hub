@@ -7,6 +7,7 @@ class JPM_Frontend
         add_shortcode('user_applications', [$this, 'user_applications_shortcode']);
         add_shortcode('latest_jobs', [$this, 'latest_jobs_shortcode']);
         add_shortcode('all_jobs', [$this, 'all_jobs_shortcode']);
+        add_shortcode('application_tracker', [$this, 'application_tracker_shortcode']);
         add_action('wp_ajax_jpm_apply', [$this, 'handle_application']);
         add_action('wp_ajax_nopriv_jpm_apply', [$this, 'handle_application']); // But redirect if not logged in
         add_action('wp_ajax_jpm_get_status', [$this, 'get_status']);
@@ -757,5 +758,279 @@ class JPM_Frontend
             'total' => $jobs_query->found_posts,
             'pages' => $jobs_query->max_num_pages
         ]);
+    }
+
+    /**
+     * Shortcode to display application tracker
+     * Usage: [application_tracker]
+     */
+    public function application_tracker_shortcode($atts)
+    {
+        $atts = shortcode_atts([
+            'title' => __('Track Your Application', 'job-posting-manager'),
+        ], $atts);
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $application = null;
+        $error = '';
+        $application_number_input = '';
+
+        // Handle form submission
+        if (isset($_POST['jpm_track_application']) && isset($_POST['application_number'])) {
+            $application_number_input = sanitize_text_field($_POST['application_number']);
+
+            if (!empty($application_number_input)) {
+                // Search for application by application number in notes field
+                // Use LIKE query to search in JSON notes field for better performance
+                $search_term = '%' . $wpdb->esc_like($application_number_input) . '%';
+
+                // First try exact match with common field names
+                $applications = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM $table WHERE notes LIKE %s",
+                    '%"application_number":"' . $wpdb->esc_like($application_number_input) . '"%'
+                ));
+
+                // If not found, try other field name variations
+                if (empty($applications)) {
+                    $applications = $wpdb->get_results($wpdb->prepare(
+                        "SELECT * FROM $table WHERE notes LIKE %s",
+                        $search_term
+                    ));
+                }
+
+                // Check each application to find exact match
+                foreach ($applications as $app) {
+                    $form_data = json_decode($app->notes, true);
+                    if (!is_array($form_data)) {
+                        continue;
+                    }
+
+                    // Check various field name variations for application number
+                    $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
+
+                    foreach ($app_number_fields as $field_name) {
+                        if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                            $stored_app_number = sanitize_text_field($form_data[$field_name]);
+                            // Case-insensitive comparison
+                            if (strcasecmp(trim($stored_app_number), trim($application_number_input)) === 0) {
+                                $application = $app;
+                                break 2; // Break out of both loops
+                            }
+                        }
+                    }
+                }
+
+                if (!$application) {
+                    $error = __('Application not found. Please check your application number and try again.', 'job-posting-manager');
+                }
+            } else {
+                $error = __('Please enter a valid application number.', 'job-posting-manager');
+            }
+        }
+
+        ob_start();
+        ?>
+        <div class="jpm-application-tracker">
+            <div class="jpm-tracker-header">
+                <h2><?php echo esc_html($atts['title']); ?></h2>
+                <p class="jpm-tracker-description">
+                    <?php _e('Enter your application number to view the status and details of your job application.', 'job-posting-manager'); ?>
+                </p>
+            </div>
+
+            <form method="post" class="jpm-tracker-form" id="jpm-tracker-form">
+                <div class="jpm-form-group">
+                    <label for="application_number">
+                        <?php _e('Application Number', 'job-posting-manager'); ?>
+                    </label>
+                    <input type="text" id="application_number" name="application_number" class="jpm-input"
+                        placeholder="<?php esc_attr_e('Enter your application number (e.g., 25-BDO-79226701)', 'job-posting-manager'); ?>"
+                        value="<?php echo esc_attr($application_number_input); ?>" required>
+                </div>
+                <button type="submit" name="jpm_track_application" class="jpm-btn jpm-btn-primary">
+                    <?php _e('Track Application', 'job-posting-manager'); ?>
+                </button>
+            </form>
+
+            <?php if (!empty($error)): ?>
+                <div class="jpm-tracker-error">
+                    <p><?php echo esc_html($error); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($application):
+                $job = get_post($application->job_id);
+                $status_info = JPM_Admin::get_status_by_slug($application->status);
+
+                if ($status_info) {
+                    $status_name = $status_info['name'];
+                    $status_color = $status_info['color'];
+                    $status_text_color = $status_info['text_color'];
+                } else {
+                    $status_name = ucfirst($application->status);
+                    $status_color = '#ffc107';
+                    $status_text_color = '#000000';
+                }
+
+                // Parse form data from notes
+                $form_data = json_decode($application->notes, true);
+                if (!is_array($form_data)) {
+                    $form_data = [];
+                }
+
+                // Extract applicant information
+                $first_name = '';
+                $middle_name = '';
+                $last_name = '';
+                $email = '';
+                $application_number = '';
+                $date_of_registration = '';
+
+                // First name variations
+                $first_name_fields = ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name'];
+                foreach ($first_name_fields as $field_name) {
+                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                        $first_name = sanitize_text_field($form_data[$field_name]);
+                        break;
+                    }
+                }
+
+                // Middle name variations
+                $middle_name_fields = ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name'];
+                foreach ($middle_name_fields as $field_name) {
+                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                        $middle_name = sanitize_text_field($form_data[$field_name]);
+                        break;
+                    }
+                }
+
+                // Last name variations
+                $last_name_fields = ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name'];
+                foreach ($last_name_fields as $field_name) {
+                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                        $last_name = sanitize_text_field($form_data[$field_name]);
+                        break;
+                    }
+                }
+
+                // Email variations
+                $email_fields = ['email', 'email_address', 'e-mail', 'email-address'];
+                foreach ($email_fields as $field_name) {
+                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                        $email = sanitize_email($form_data[$field_name]);
+                        break;
+                    }
+                }
+
+                // Application number variations
+                $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
+                foreach ($app_number_fields as $field_name) {
+                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                        $application_number = sanitize_text_field($form_data[$field_name]);
+                        break;
+                    }
+                }
+
+                // Date of registration
+                $date_fields = ['date_of_registration', 'dateofregistration', 'date-of-registration', 'date of registration', 'registration_date', 'registrationdate', 'registration-date', 'registration date'];
+                foreach ($date_fields as $field_name) {
+                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                        $date_of_registration = sanitize_text_field($form_data[$field_name]);
+                        break;
+                    }
+                }
+
+                $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
+                ?>
+                <div class="jpm-tracker-results">
+                    <div class="jpm-tracker-section">
+                        <h3><?php _e('Application Information', 'job-posting-manager'); ?></h3>
+                        <div class="jpm-tracker-info-grid">
+                            <div class="jpm-tracker-info-row">
+                                <span class="jpm-tracker-label"><?php _e('Application ID', 'job-posting-manager'); ?>:</span>
+                                <span class="jpm-tracker-value">#<?php echo esc_html($application->id); ?></span>
+                            </div>
+
+                            <?php if (!empty($application_number)): ?>
+                                <div class="jpm-tracker-info-row">
+                                    <span class="jpm-tracker-label"><?php _e('Application Number', 'job-posting-manager'); ?>:</span>
+                                    <span class="jpm-tracker-value"><?php echo esc_html($application_number); ?></span>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="jpm-tracker-info-row">
+                                <span class="jpm-tracker-label"><?php _e('Application Date', 'job-posting-manager'); ?>:</span>
+                                <span class="jpm-tracker-value">
+                                    <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
+                                </span>
+                            </div>
+
+                            <div class="jpm-tracker-info-row">
+                                <span class="jpm-tracker-label"><?php _e('Status', 'job-posting-manager'); ?>:</span>
+                                <span class="jpm-tracker-value">
+                                    <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>"
+                                        style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
+                                        <?php echo esc_html($status_name); ?>
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="jpm-tracker-section">
+                        <h3><?php _e('Job Information', 'job-posting-manager'); ?></h3>
+                        <div class="jpm-tracker-info-grid">
+                            <div class="jpm-tracker-info-row">
+                                <span class="jpm-tracker-label"><?php _e('Job Title', 'job-posting-manager'); ?>:</span>
+                                <span class="jpm-tracker-value">
+                                    <?php if ($job): ?>
+                                        <a href="<?php echo esc_url(get_permalink($job->ID)); ?>" target="_blank">
+                                            <?php echo esc_html($job->post_title); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <?php _e('Job Deleted', 'job-posting-manager'); ?>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                            <div class="jpm-tracker-info-row">
+                                <span class="jpm-tracker-label"><?php _e('Job ID', 'job-posting-manager'); ?>:</span>
+                                <span class="jpm-tracker-value">#<?php echo esc_html($application->job_id); ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($full_name) || !empty($email)): ?>
+                        <div class="jpm-tracker-section">
+                            <h3><?php _e('Applicant Information', 'job-posting-manager'); ?></h3>
+                            <div class="jpm-tracker-info-grid">
+                                <?php if (!empty($full_name)): ?>
+                                    <div class="jpm-tracker-info-row">
+                                        <span class="jpm-tracker-label"><?php _e('Full Name', 'job-posting-manager'); ?>:</span>
+                                        <span class="jpm-tracker-value"><?php echo esc_html($full_name); ?></span>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($email)): ?>
+                                    <div class="jpm-tracker-info-row">
+                                        <span class="jpm-tracker-label"><?php _e('Email', 'job-posting-manager'); ?>:</span>
+                                        <span class="jpm-tracker-value"><?php echo esc_html($email); ?></span>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($date_of_registration)): ?>
+                                    <div class="jpm-tracker-info-row">
+                                        <span class="jpm-tracker-label"><?php _e('Date of Registration', 'job-posting-manager'); ?>:</span>
+                                        <span class="jpm-tracker-value"><?php echo esc_html($date_of_registration); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 }
