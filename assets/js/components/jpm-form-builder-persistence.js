@@ -105,6 +105,12 @@
      * Update form fields JSON
      */
     updateFormFields: function () {
+      // Check if we're on a form builder page
+      if ($("#jpm-form-fields-container").length === 0) {
+        // Not on a form builder page, skip silently
+        return;
+      }
+
       var fields = [];
       $(".jpm-form-row").each(function () {
         var $row = $(this);

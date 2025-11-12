@@ -96,12 +96,15 @@ class JPM_Email_Templates
                 'header_text_color' => sanitize_hex_color($_POST['admin_notification_header_text_color'] ?? '#ffffff'),
                 'body_bg_color' => sanitize_hex_color($_POST['admin_notification_body_bg_color'] ?? '#ffffff'),
                 'body_text_color' => sanitize_hex_color($_POST['admin_notification_body_text_color'] ?? '#333'),
+                'greeting' => wp_kses_post($_POST['admin_notification_greeting'] ?? ''),
+                'intro_message' => wp_kses_post($_POST['admin_notification_intro_message'] ?? ''),
                 'job_section_title' => sanitize_text_field($_POST['admin_notification_job_section_title'] ?? ''),
                 'job_section_bg_color' => sanitize_hex_color($_POST['admin_notification_job_section_bg_color'] ?? '#f8f9fa'),
                 'applicant_section_title' => sanitize_text_field($_POST['admin_notification_applicant_section_title'] ?? ''),
                 'applicant_section_bg_color' => sanitize_hex_color($_POST['admin_notification_applicant_section_bg_color'] ?? '#f8f9fa'),
                 'details_section_title' => sanitize_text_field($_POST['admin_notification_details_section_title'] ?? ''),
                 'details_section_bg_color' => sanitize_hex_color($_POST['admin_notification_details_section_bg_color'] ?? '#f8f9fa'),
+                'closing_message' => wp_kses_post($_POST['admin_notification_closing_message'] ?? ''),
                 'action_required_message' => wp_kses_post($_POST['admin_notification_action_required_message'] ?? ''),
                 'footer_message' => wp_kses_post($_POST['admin_notification_footer_message'] ?? ''),
                 'footer_bg_color' => sanitize_hex_color($_POST['admin_notification_footer_bg_color'] ?? '#f8f9fa'),
@@ -157,17 +160,43 @@ class JPM_Email_Templates
                 'header_text_color' => '#ffffff',
                 'body_bg_color' => '#ffffff',
                 'body_text_color' => '#333',
+                'greeting' => __('Hello Admin,', 'job-posting-manager'),
+                'intro_message' => __('A new job application has been submitted and requires your attention.', 'job-posting-manager'),
                 'job_section_title' => __('Job Information', 'job-posting-manager'),
                 'job_section_bg_color' => '#f8f9fa',
                 'applicant_section_title' => __('Applicant Information', 'job-posting-manager'),
                 'applicant_section_bg_color' => '#f8f9fa',
                 'details_section_title' => __('Application Details', 'job-posting-manager'),
                 'details_section_bg_color' => '#f8f9fa',
+                'closing_message' => __('Please review the application details above and take appropriate action.', 'job-posting-manager'),
                 'action_required_message' => __('<strong>Action Required:</strong> Please review this application and update its status in the admin panel.', 'job-posting-manager'),
                 'footer_message' => __('This is an automated notification from Job Posting Manager.', 'job-posting-manager'),
                 'footer_bg_color' => '#f8f9fa',
             ],
         ];
+    }
+
+    /**
+     * Merge template with defaults, preserving defaults when saved values are empty
+     */
+    private static function merge_template_with_defaults($defaults, $saved)
+    {
+        $merged = $defaults;
+
+        foreach ($saved as $key => $value) {
+            // For color values, always use saved value (they're never truly "empty" as they have hex codes)
+            if (strpos($key, '_color') !== false) {
+                $merged[$key] = $value;
+            }
+            // For other fields, only use saved value if it's not empty
+            // This preserves defaults when saved values are empty strings
+            elseif (!empty($value) || $value === '0' || $value === 0) {
+                $merged[$key] = $value;
+            }
+            // If saved value is empty string, keep the default (already set in $merged)
+        }
+
+        return $merged;
     }
 
     /**
@@ -179,7 +208,7 @@ class JPM_Email_Templates
         $defaults = self::get_default_templates();
 
         if (isset($templates[$type])) {
-            return array_merge($defaults[$type] ?? [], $templates[$type]);
+            return self::merge_template_with_defaults($defaults[$type] ?? [], $templates[$type]);
         }
 
         return $defaults[$type] ?? [];
@@ -194,9 +223,10 @@ class JPM_Email_Templates
         $templates = get_option('jpm_email_templates', []);
         $defaults = self::get_default_templates();
 
-        $confirmation = array_merge($defaults['confirmation'], $templates['confirmation'] ?? []);
-        $status_update = array_merge($defaults['status_update'], $templates['status_update'] ?? []);
-        $admin_notification = array_merge($defaults['admin_notification'], $templates['admin_notification'] ?? []);
+        // Merge defaults with saved templates, but only use saved values if they're not empty
+        $confirmation = self::merge_template_with_defaults($defaults['confirmation'], $templates['confirmation'] ?? []);
+        $status_update = self::merge_template_with_defaults($defaults['status_update'], $templates['status_update'] ?? []);
+        $admin_notification = self::merge_template_with_defaults($defaults['admin_notification'], $templates['admin_notification'] ?? []);
 
         // Get active tab
         $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'confirmation';
@@ -479,6 +509,22 @@ class JPM_Email_Templates
                             </tr>
                             <tr>
                                 <th scope="row"><label
+                                        for="admin_notification_greeting"><?php _e('Greeting', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td><textarea id="admin_notification_greeting" name="admin_notification_greeting" rows="2"
+                                        class="large-text"><?php echo esc_textarea($admin_notification['greeting']); ?></textarea>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><label
+                                        for="admin_notification_intro_message"><?php _e('Introduction Message', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td><textarea id="admin_notification_intro_message" name="admin_notification_intro_message" rows="3"
+                                        class="large-text"><?php echo esc_textarea($admin_notification['intro_message']); ?></textarea>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><label
                                         for="admin_notification_job_section_title"><?php _e('Job Section Title', 'job-posting-manager'); ?></label>
                                 </th>
                                 <td><input type="text" id="admin_notification_job_section_title"
@@ -523,6 +569,15 @@ class JPM_Email_Templates
                                 </th>
                                 <td><input type="color" name="admin_notification_details_section_bg_color"
                                         value="<?php echo esc_attr($admin_notification['details_section_bg_color']); ?>" /></td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><label
+                                        for="admin_notification_closing_message"><?php _e('Closing Message', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td><textarea id="admin_notification_closing_message" name="admin_notification_closing_message"
+                                        rows="3"
+                                        class="large-text"><?php echo esc_textarea($admin_notification['closing_message']); ?></textarea>
+                                </td>
                             </tr>
                             <tr>
                                 <th scope="row"><label

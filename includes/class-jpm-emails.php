@@ -568,6 +568,23 @@ class JPM_Emails
         // Body
         $body .= '<div style="background-color: ' . esc_attr($template['body_bg_color']) . '; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
 
+        // Greeting
+        if (!empty($template['greeting'])) {
+            $greeting = self::replace_placeholders($template['greeting'], [
+                '[Full Name]' => esc_html($full_name),
+            ]);
+            $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($greeting) . '</p>';
+        }
+
+        // Intro message
+        if (!empty($template['intro_message'])) {
+            $intro_message = self::replace_placeholders($template['intro_message'], [
+                '[Job Title]' => esc_html($job_title),
+                '[Full Name]' => esc_html($full_name),
+            ]);
+            $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($intro_message) . '</p>';
+        }
+
         // Job Information Section
         $body .= '<div style="background-color: ' . esc_attr($template['job_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
         $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['job_section_title']) . '</h2>';
@@ -628,6 +645,15 @@ class JPM_Emails
 
         $body .= '</table>';
         $body .= '</div>';
+
+        // Closing message
+        if (!empty($template['closing_message'])) {
+            $closing_message = self::replace_placeholders($template['closing_message'], [
+                '[Job Title]' => esc_html($job_title),
+                '[Full Name]' => esc_html($full_name),
+            ]);
+            $body .= '<p style="font-size: 16px; margin: 20px 0;">' . wp_kses_post($closing_message) . '</p>';
+        }
 
         // Action required message
         $action_required_message = self::replace_placeholders($template['action_required_message'], [
