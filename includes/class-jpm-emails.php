@@ -23,6 +23,21 @@ class JPM_Emails
     }
 
     /**
+     * Replace placeholders in template strings
+     * 
+     * @param string $text Text with placeholders
+     * @param array $replacements Array of placeholder => replacement pairs
+     * @return string Text with placeholders replaced
+     */
+    private static function replace_placeholders($text, $replacements)
+    {
+        foreach ($replacements as $placeholder => $replacement) {
+            $text = str_replace($placeholder, $replacement, $text);
+        }
+        return $text;
+    }
+
+    /**
      * Send confirmation email to applicant
      * 
      * @param int $app_id Application ID
@@ -80,23 +95,46 @@ class JPM_Emails
             $application_number = $form_data['application_number'];
         }
 
-        // Build email subject
-        $subject = !empty($settings['confirmation_subject'])
-            ? str_replace(['[Application ID]', '[Job Title]'], [$app_id, $job_title], $settings['confirmation_subject'])
-            : sprintf(__('Application Confirmation #%s - %s', 'job-posting-manager'), $app_id, $job_title);
+        // Get email template
+        $template = JPM_Email_Templates::get_template('confirmation');
 
-        // Build enhanced HTML email body
-        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">';
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px 5px 0 0;">';
-        $body .= '<h1 style="color: #2c3e50; margin: 0;">' . __('Application Confirmation', 'job-posting-manager') . '</h1>';
+        // Replace placeholders in subject
+        $subject = self::replace_placeholders($template['subject'], [
+            '[Application ID]' => $app_id,
+            '[Job Title]' => $job_title,
+            '[Full Name]' => $full_name,
+            '[Application Number]' => $application_number,
+            '[Email]' => $customer_email,
+        ]);
+
+        // Build HTML email body from template
+        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: ' . esc_attr($template['body_text_color']) . '; max-width: 600px; margin: 0 auto;">';
+
+        // Header
+        $body .= '<div style="background-color: ' . esc_attr($template['header_color']) . '; padding: 20px; border-radius: 5px 5px 0 0;">';
+        $body .= '<h1 style="color: ' . esc_attr($template['header_text_color']) . '; margin: 0;">' . __('Application Confirmation', 'job-posting-manager') . '</h1>';
         $body .= '</div>';
 
-        $body .= '<div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . sprintf(__('Dear %s,', 'job-posting-manager'), esc_html($full_name)) . '</p>';
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('Thank you for submitting your job application. We have successfully received your application and it is now <strong>pending</strong>.', 'job-posting-manager') . '</p>';
+        // Body
+        $body .= '<div style="background-color: ' . esc_attr($template['body_bg_color']) . '; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
 
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">';
-        $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px;">' . __('Application Details', 'job-posting-manager') . '</h2>';
+        // Greeting
+        $greeting = self::replace_placeholders($template['greeting'], [
+            '[Full Name]' => esc_html($full_name),
+        ]);
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($greeting) . '</p>';
+
+        // Intro message
+        $intro_message = self::replace_placeholders($template['intro_message'], [
+            '[Application ID]' => $app_id,
+            '[Job Title]' => esc_html($job_title),
+            '[Full Name]' => esc_html($full_name),
+        ]);
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($intro_message) . '</p>';
+
+        // Details section
+        $body .= '<div style="background-color: ' . esc_attr($template['details_bg_color']) . '; padding: 20px; border-radius: 5px; margin: 20px 0;">';
+        $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px;">' . esc_html($template['details_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">#' . esc_html($app_id) . '</td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>Pending</strong></td></tr>';
@@ -111,18 +149,29 @@ class JPM_Emails
         $body .= '</table>';
         $body .= '</div>';
 
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('Our team will carefully review your application and qualifications. We will contact you via email if we need any additional information or to schedule an interview.', 'job-posting-manager') . '</p>';
+        // Closing message
+        $closing_message = self::replace_placeholders($template['closing_message'], [
+            '[Application ID]' => $app_id,
+            '[Job Title]' => esc_html($job_title),
+            '[Full Name]' => esc_html($full_name),
+        ]);
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($closing_message) . '</p>';
 
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('Please keep this confirmation email for your records. If you have any questions, please feel free to contact us.', 'job-posting-manager') . '</p>';
-
+        // Signature
         $body .= '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">';
         $body .= '<p style="margin: 0; font-size: 14px; color: #666;">' . __('Best regards,', 'job-posting-manager') . '<br>';
         $body .= '<strong>' . esc_html(get_bloginfo('name')) . '</strong></p>';
         $body .= '</div>';
 
         $body .= '</div>';
-        $body .= '<div style="background-color: #f8f9fa; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
-        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . __('This is an automated confirmation email. Please do not reply to this message.', 'job-posting-manager') . '</p>';
+
+        // Footer
+        $footer_message = self::replace_placeholders($template['footer_message'], [
+            '[Application ID]' => $app_id,
+            '[Job Title]' => esc_html($job_title),
+        ]);
+        $body .= '<div style="background-color: ' . esc_attr($template['footer_bg_color']) . '; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
+        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . wp_kses_post($footer_message) . '</p>';
         $body .= '</div>';
         $body .= '</body></html>';
 
@@ -275,26 +324,53 @@ class JPM_Emails
             $application_number = $form_data['application_number'];
         }
 
-        // Build email subject
-        $subject = sprintf(__('Application Status Update: %s - %s', 'job-posting-manager'), $status_name, $job_title);
+        // Get email template
+        $template = JPM_Email_Templates::get_template('status_update');
 
-        // Build enhanced HTML email body
-        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">';
-        $body .= '<div style="background-color: ' . esc_attr($status_color) . '; padding: 20px; border-radius: 5px 5px 0 0; color: ' . esc_attr($status_text_color) . ';">';
-        $body .= '<h1 style="color: ' . esc_attr($status_text_color) . '; margin: 0; font-size: 24px;">' . __('Application Status Update', 'job-posting-manager') . '</h1>';
+        // Replace placeholders in subject
+        $subject = self::replace_placeholders($template['subject'], [
+            '[Status Name]' => $status_name,
+            '[Job Title]' => $job_title,
+            '[Application ID]' => $app_id,
+            '[Full Name]' => $full_name,
+        ]);
+
+        // Build HTML email body from template
+        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: ' . esc_attr($template['body_text_color']) . '; max-width: 600px; margin: 0 auto;">';
+
+        // Header (use status color if template header color is default, otherwise use template)
+        $header_color = ($template['header_color'] === '#ffc107') ? $status_color : $template['header_color'];
+        $header_text_color = ($template['header_text_color'] === '#000000') ? $status_text_color : $template['header_text_color'];
+
+        $body .= '<div style="background-color: ' . esc_attr($header_color) . '; padding: 20px; border-radius: 5px 5px 0 0; color: ' . esc_attr($header_text_color) . ';">';
+        $body .= '<h1 style="color: ' . esc_attr($header_text_color) . '; margin: 0; font-size: 24px;">' . __('Application Status Update', 'job-posting-manager') . '</h1>';
         $body .= '</div>';
 
-        $body .= '<div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . sprintf(__('Dear %s,', 'job-posting-manager'), esc_html($full_name)) . '</p>';
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('We would like to inform you that the status of your job application has been updated.', 'job-posting-manager') . '</p>';
+        // Body
+        $body .= '<div style="background-color: ' . esc_attr($template['body_bg_color']) . '; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
 
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center;">';
-        $body .= '<p style="margin: 0 0 10px 0; font-size: 14px; color: #666; font-weight: bold;">' . __('New Status:', 'job-posting-manager') . '</p>';
+        // Greeting
+        $greeting = self::replace_placeholders($template['greeting'], [
+            '[Full Name]' => esc_html($full_name),
+        ]);
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($greeting) . '</p>';
+
+        // Intro message
+        $intro_message = self::replace_placeholders($template['intro_message'], [
+            '[Status Name]' => esc_html($status_name),
+            '[Job Title]' => esc_html($job_title),
+        ]);
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($intro_message) . '</p>';
+
+        // Status section
+        $body .= '<div style="background-color: ' . esc_attr($template['status_bg_color']) . '; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center;">';
+        $body .= '<p style="margin: 0 0 10px 0; font-size: 14px; color: #666; font-weight: bold;">' . esc_html($template['status_section_title']) . '</p>';
         $body .= '<span style="display: inline-block; background-color: ' . esc_attr($status_color) . '; color: ' . esc_attr($status_text_color) . '; padding: 10px 20px; border-radius: 5px; font-size: 18px; font-weight: bold; text-transform: uppercase;">' . esc_html($status_name) . '</span>';
         $body .= '</div>';
 
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">';
-        $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px;">' . __('Application Details', 'job-posting-manager') . '</h2>';
+        // Details section
+        $body .= '<div style="background-color: ' . esc_attr($template['details_bg_color']) . '; padding: 20px; border-radius: 5px; margin: 20px 0;">';
+        $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px;">' . esc_html($template['details_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         if (!empty($application_number)) {
             $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application Number:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($application_number) . '</td></tr>';
@@ -306,32 +382,23 @@ class JPM_Emails
         $body .= '</table>';
         $body .= '</div>';
 
-        // Add status-specific message
-        $status_message = '';
-        switch (strtolower($status_slug)) {
-            case 'pending':
-                $status_message = __('Your application is currently under review. We will contact you soon with further updates.', 'job-posting-manager');
-                break;
-            case 'reviewed':
-                $status_message = __('Your application has been reviewed. We will be in touch with you shortly regarding the next steps.', 'job-posting-manager');
-                break;
-            case 'accepted':
-                $status_message = __('Congratulations! Your application has been accepted. We will contact you soon to discuss the next steps.', 'job-posting-manager');
-                break;
-            case 'rejected':
-                $status_message = __('Thank you for your interest. Unfortunately, we are unable to proceed with your application at this time. We appreciate your time and consideration.', 'job-posting-manager');
-                break;
-            default:
-                $status_message = __('We will keep you updated on any further changes to your application status.', 'job-posting-manager');
-        }
-
-        if (!empty($status_message)) {
+        // Status-specific message
+        $status_specific_message = self::replace_placeholders($template['status_specific_message'], [
+            '[Status Name]' => esc_html($status_name),
+            '[Job Title]' => esc_html($job_title),
+        ]);
+        if (!empty($status_specific_message)) {
             $body .= '<div style="background-color: #e7f3ff; padding: 15px; border-left: 4px solid #0073aa; border-radius: 3px; margin: 20px 0;">';
-            $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . $status_message . '</p>';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . wp_kses_post($status_specific_message) . '</p>';
             $body .= '</div>';
         }
 
-        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . __('If you have any questions about your application, please feel free to contact us.', 'job-posting-manager') . '</p>';
+        // Closing message
+        $closing_message = self::replace_placeholders($template['closing_message'], [
+            '[Status Name]' => esc_html($status_name),
+            '[Job Title]' => esc_html($job_title),
+        ]);
+        $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($closing_message) . '</p>';
 
         if (!empty($job_link)) {
             $body .= '<div style="margin: 20px 0; text-align: center;">';
@@ -339,14 +406,21 @@ class JPM_Emails
             $body .= '</div>';
         }
 
+        // Signature
         $body .= '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">';
         $body .= '<p style="margin: 0; font-size: 14px; color: #666;">' . __('Best regards,', 'job-posting-manager') . '<br>';
         $body .= '<strong>' . esc_html(get_bloginfo('name')) . '</strong></p>';
         $body .= '</div>';
 
         $body .= '</div>';
-        $body .= '<div style="background-color: #f8f9fa; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
-        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . __('This is an automated notification. Please do not reply to this message.', 'job-posting-manager') . '</p>';
+
+        // Footer
+        $footer_message = self::replace_placeholders($template['footer_message'], [
+            '[Status Name]' => esc_html($status_name),
+            '[Job Title]' => esc_html($job_title),
+        ]);
+        $body .= '<div style="background-color: ' . esc_attr($template['footer_bg_color']) . '; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
+        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . wp_kses_post($footer_message) . '</p>';
         $body .= '</div>';
         $body .= '</body></html>';
 
@@ -473,20 +547,30 @@ class JPM_Emails
             $date_of_registration = $form_data['date_of_registration'];
         }
 
-        // Build email subject
-        $subject = sprintf(__('New Job Application: %s - %s', 'job-posting-manager'), $job_title, $full_name);
+        // Get email template
+        $template = JPM_Email_Templates::get_template('admin_notification');
 
-        // Build enhanced HTML email body
-        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto;">';
-        $body .= '<div style="background-color: #dc3545; padding: 20px; border-radius: 5px 5px 0 0; color: #ffffff;">';
-        $body .= '<h1 style="color: #ffffff; margin: 0; font-size: 24px;">' . __('New Job Application Received', 'job-posting-manager') . '</h1>';
+        // Replace placeholders in subject
+        $subject = self::replace_placeholders($template['subject'], [
+            '[Job Title]' => $job_title,
+            '[Full Name]' => $full_name,
+            '[Application ID]' => $application_id,
+        ]);
+
+        // Build HTML email body from template
+        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: ' . esc_attr($template['body_text_color']) . '; max-width: 700px; margin: 0 auto;">';
+
+        // Header
+        $body .= '<div style="background-color: ' . esc_attr($template['header_color']) . '; padding: 20px; border-radius: 5px 5px 0 0; color: ' . esc_attr($template['header_text_color']) . ';">';
+        $body .= '<h1 style="color: ' . esc_attr($template['header_text_color']) . '; margin: 0; font-size: 24px;">' . __('New Job Application Received', 'job-posting-manager') . '</h1>';
         $body .= '</div>';
 
-        $body .= '<div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
+        // Body
+        $body .= '<div style="background-color: ' . esc_attr($template['body_bg_color']) . '; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
 
         // Job Information Section
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
-        $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">' . __('Job Information', 'job-posting-manager') . '</h2>';
+        $body .= '<div style="background-color: ' . esc_attr($template['job_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
+        $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['job_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 35%;">' . __('Job Title:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><a href="' . esc_url($job_link) . '" style="color: #0073aa; text-decoration: none;">' . esc_html($job_title) . '</a></td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>#' . esc_html($application_id) . '</strong></td></tr>';
@@ -501,8 +585,8 @@ class JPM_Emails
         $body .= '</div>';
 
         // Applicant Information Section
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
-        $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">' . __('Applicant Information', 'job-posting-manager') . '</h2>';
+        $body .= '<div style="background-color: ' . esc_attr($template['applicant_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
+        $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['applicant_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('First Name:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($first_name) . '</td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Last Name:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($last_name) . '</td></tr>';
@@ -511,8 +595,8 @@ class JPM_Emails
         $body .= '</div>';
 
         // Application Details Section
-        $body .= '<div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
-        $body .= '<h2 style="color: #2c3e50; margin-top: 0; font-size: 18px; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">' . __('Application Details', 'job-posting-manager') . '</h2>';
+        $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
+        $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['details_section_title']) . '</h2>';
         $body .= '<table border="1" cellpadding="12" cellspacing="0" style="border-collapse: collapse; width: 100%; background-color: #ffffff;">';
         $body .= '<tr style="background-color: #2c3e50; color: #ffffff;"><th style="text-align: left; padding: 10px; font-weight: bold;">' . __('Field', 'job-posting-manager') . '</th><th style="text-align: left; padding: 10px; font-weight: bold;">' . __('Value', 'job-posting-manager') . '</th></tr>';
 
@@ -545,13 +629,24 @@ class JPM_Emails
         $body .= '</table>';
         $body .= '</div>';
 
+        // Action required message
+        $action_required_message = self::replace_placeholders($template['action_required_message'], [
+            '[Job Title]' => esc_html($job_title),
+            '[Full Name]' => esc_html($full_name),
+        ]);
         $body .= '<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px;">';
-        $body .= '<p style="margin: 0; font-size: 14px; color: #856404;"><strong>' . __('Action Required:', 'job-posting-manager') . '</strong> ' . __('Please review this application and update its status in the admin panel.', 'job-posting-manager') . '</p>';
+        $body .= '<p style="margin: 0; font-size: 14px; color: #856404;">' . wp_kses_post($action_required_message) . '</p>';
         $body .= '</div>';
 
         $body .= '</div>';
-        $body .= '<div style="background-color: #f8f9fa; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
-        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . __('This is an automated notification from Job Posting Manager.', 'job-posting-manager') . '</p>';
+
+        // Footer
+        $footer_message = self::replace_placeholders($template['footer_message'], [
+            '[Job Title]' => esc_html($job_title),
+            '[Full Name]' => esc_html($full_name),
+        ]);
+        $body .= '<div style="background-color: ' . esc_attr($template['footer_bg_color']) . '; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
+        $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . wp_kses_post($footer_message) . '</p>';
         $body .= '</div>';
         $body .= '</body></html>';
 

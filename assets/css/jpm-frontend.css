@@ -457,7 +457,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 30px;
-  margin: 30px 0;
+  margin: 30px auto;
+  justify-content: center;
 }
 
 .jpm-job-card {
@@ -1197,12 +1198,16 @@
 
   .jpm-title-with-image {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
   }
 
-  .jpm-title-with-image .jpm-company-image-title {
+  /* .jpm-title-with-image .jpm-company-image-title {
     max-width: 60px;
+  } */
+
+  .jpm-status-badge {
+    align-self: center;
   }
 
   .jpm-title-wrapper {

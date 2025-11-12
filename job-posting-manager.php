@@ -28,6 +28,7 @@ require_once JPM_PLUGIN_DIR . 'includes/class-jpm-settings.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-smtp.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-templates.php';
 require_once JPM_PLUGIN_DIR . 'includes/class-jpm-form-builder.php';
+require_once JPM_PLUGIN_DIR . 'includes/class-jpm-email-templates.php';
 
 // Activation hook
 register_activation_hook(__FILE__, 'jpm_activate_plugin');
@@ -165,3 +166,4 @@ if (!JPM_SMTP::has_existing_smtp_plugin()) {
 }
 new JPM_Templates();
 new JPM_Form_Builder();
+new JPM_Email_Templates();
