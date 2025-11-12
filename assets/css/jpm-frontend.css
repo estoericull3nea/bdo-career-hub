@@ -454,11 +454,12 @@
 
 /* Latest Jobs Shortcode Styles */
 .jpm-latest-jobs {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 30px;
   margin: 30px auto;
-  justify-content: center;
+  max-width: 1200px;
 }
 
 .jpm-job-card {
@@ -470,6 +471,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 350px;
 }
 
 .jpm-job-card:hover {
@@ -1045,8 +1048,11 @@
 /* Responsive Styles */
 @media (max-width: 768px) {
   .jpm-latest-jobs {
-    grid-template-columns: 1fr;
     gap: 20px;
+  }
+
+  .jpm-job-card {
+    max-width: 100%;
   }
 
   .jpm-filter-row {
