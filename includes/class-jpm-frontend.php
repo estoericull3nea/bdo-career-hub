@@ -178,9 +178,7 @@ class JPM_Frontend
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
-                                data-job-id="<?php echo esc_attr($job->ID); ?>">
-                                <?php _e('Quick View', 'job-posting-manager'); ?>
-                            </button>
+                                data-job-id="<?php echo esc_attr($job->ID); ?>"><?php _e('Quick View', 'job-posting-manager'); ?></button>
                             <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply">
                                 <?php _e('Apply Now', 'job-posting-manager'); ?>
                             </a>
@@ -304,9 +302,8 @@ class JPM_Frontend
         </div>
 
         <div class="jpm-modal-job-actions">
-            <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply jpm-btn-block">
-                <?php _e('Apply Now', 'job-posting-manager'); ?>
-            </a>
+            <a href="<?php echo esc_url($job_link); ?>"
+                class="jpm-btn jpm-btn-apply jpm-btn-block"><?php _e('Apply Now', 'job-posting-manager'); ?></a>
         </div>
         <?php
         $html = ob_get_clean();
@@ -437,9 +434,8 @@ class JPM_Frontend
                             </select>
                         </div>
                         <div class="jpm-filter-group jpm-filter-actions">
-                            <button type="submit" class="jpm-btn jpm-btn-filter">
-                                <?php _e('Filter', 'job-posting-manager'); ?>
-                            </button>
+                            <button type="submit"
+                                class="jpm-btn jpm-btn-filter"><?php _e('Filter', 'job-posting-manager'); ?></button>
                             <?php if (!empty($search) || !empty($location_filter) || !empty($company_filter)): ?>
                                 <a href="<?php echo esc_url(remove_query_arg(['jpm_search', 'jpm_location', 'jpm_company', 'jpm_page'])); ?>"
                                     class="jpm-btn jpm-btn-reset">
@@ -543,12 +539,9 @@ class JPM_Frontend
                                 </div>
                                 <div class="jpm-job-card-actions">
                                     <button type="button" class="jpm-btn jpm-btn-quick-view"
-                                        data-job-id="<?php echo esc_attr($job_id); ?>">
-                                        <?php _e('Quick View', 'job-posting-manager'); ?>
-                                    </button>
-                                    <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply">
-                                        <?php _e('Apply Now', 'job-posting-manager'); ?>
-                                    </a>
+                                        data-job-id="<?php echo esc_attr($job_id); ?>"><?php _e('Quick View', 'job-posting-manager'); ?></button>
+                                    <a href="<?php echo esc_url($job_link); ?>"
+                                        class="jpm-btn jpm-btn-apply"><?php _e('Apply Now', 'job-posting-manager'); ?></a>
                                 </div>
                             </div>
                         </div>
@@ -726,12 +719,10 @@ class JPM_Frontend
                             </span>
                         </div>
                         <div class="jpm-job-card-actions">
-                            <button type="button" class="jpm-btn jpm-btn-quick-view" data-job-id="<?php echo esc_attr($job_id); ?>">
-                                <?php _e('Quick View', 'job-posting-manager'); ?>
-                            </button>
-                            <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply">
-                                <?php _e('Apply Now', 'job-posting-manager'); ?>
-                            </a>
+                            <button type="button" class="jpm-btn jpm-btn-quick-view"
+                                data-job-id="<?php echo esc_attr($job_id); ?>"><?php _e('Quick View', 'job-posting-manager'); ?></button>
+                            <a href="<?php echo esc_url($job_link); ?>"
+                                class="jpm-btn jpm-btn-apply"><?php _e('Apply Now', 'job-posting-manager'); ?></a>
                         </div>
                     </div>
                 </div>

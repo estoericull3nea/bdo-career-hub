@@ -540,10 +540,11 @@
 .jpm-job-card-info {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 1px;
   margin-bottom: 15px;
   padding-bottom: 15px;
   border-bottom: 1px solid #e5e5e5;
+  flex-direction: column;
 }
 
 .jpm-job-info-item {
