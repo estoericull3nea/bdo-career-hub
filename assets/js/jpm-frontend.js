@@ -216,6 +216,9 @@ jQuery(document).ready(function ($) {
   }, 30000);
 
   // Latest Jobs Modal Functionality
+  // Cache for job details
+  const jobDetailsCache = {};
+
   // Open modal on Quick View button click
   $(document).on("click", ".jpm-btn-quick-view", function (e) {
     e.preventDefault();
@@ -234,6 +237,14 @@ jQuery(document).ready(function ($) {
     $modal.addClass("active");
     $("body").css("overflow", "hidden");
 
+    // Check if job details are cached
+    if (jobDetailsCache[jobId]) {
+      // Use cached data
+      $loading.hide();
+      $content.html(jobDetailsCache[jobId]).fadeIn();
+      return;
+    }
+
     // Show loading, hide content
     $loading.show();
     $content.hide().empty();
@@ -251,24 +262,22 @@ jQuery(document).ready(function ($) {
         $loading.hide();
 
         if (response.success && response.data.html) {
+          // Cache the job details
+          jobDetailsCache[jobId] = response.data.html;
           $content.html(response.data.html).fadeIn();
         } else {
-          $content
-            .html(
-              '<p class="jpm-error">' +
-                (response.data?.message || "Failed to load job details.") +
-                "</p>"
-            )
-            .fadeIn();
+          const errorHtml =
+            '<p class="jpm-error">' +
+            (response.data?.message || "Failed to load job details.") +
+            "</p>";
+          $content.html(errorHtml).fadeIn();
         }
       },
       error: function () {
         $loading.hide();
-        $content
-          .html(
-            '<p class="jpm-error">An error occurred while loading job details. Please try again.</p>'
-          )
-          .fadeIn();
+        const errorHtml =
+          '<p class="jpm-error">An error occurred while loading job details. Please try again.</p>';
+        $content.html(errorHtml).fadeIn();
       },
     });
   });
