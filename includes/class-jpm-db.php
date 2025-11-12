@@ -3808,7 +3808,7 @@ class JPM_Admin
                         </div>
                         <?php
                         // Exclude internal fields from display
-                        $excluded_fields = ['application_number', 'date_of_registration'];
+                        $excluded_fields = ['application_number', 'date_of_registration', 'applicant_number'];
 
                         foreach ($form_data as $field_name => $field_value):
                             if (in_array($field_name, $excluded_fields)) {

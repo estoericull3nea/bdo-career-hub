@@ -618,7 +618,7 @@ class JPM_Emails
         $body .= '<tr style="background-color: #2c3e50; color: #ffffff;"><th style="text-align: left; padding: 10px; font-weight: bold;">' . __('Field', 'job-posting-manager') . '</th><th style="text-align: left; padding: 10px; font-weight: bold;">' . __('Value', 'job-posting-manager') . '</th></tr>';
 
         // Display form data (exclude internal fields)
-        $exclude_fields = ['application_number', 'date_of_registration'];
+        $exclude_fields = ['application_number', 'date_of_registration', 'applicant_number'];
         foreach ($form_data as $field_name => $field_value) {
             // Skip excluded fields and empty values
             if (in_array($field_name, $exclude_fields) || empty($field_value)) {
