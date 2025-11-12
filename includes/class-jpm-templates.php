@@ -228,6 +228,29 @@ class JPM_Templates {
         if (empty($templates)) {
             $this->create_default_template();
             $templates = get_option('jpm_form_templates', []);
+        } else {
+            // Update default template if it exists and has old fields
+            foreach ($templates as $index => $template) {
+                if (!empty($template['is_default'])) {
+                    // Check if template has the old fields that should be removed
+                    $has_old_fields = false;
+                    if (is_array($template['fields'])) {
+                        foreach ($template['fields'] as $field) {
+                            if (isset($field['name']) && ($field['name'] === 'date_of_registration' || $field['name'] === 'applicant_number')) {
+                                $has_old_fields = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If old fields exist, update the template with new default fields
+                    if ($has_old_fields) {
+                        $templates[$index]['fields'] = $this->get_default_template_fields();
+                        update_option('jpm_form_templates', $templates);
+                    }
+                    break;
+                }
+            }
         }
         
         return $templates;
@@ -271,28 +294,6 @@ class JPM_Templates {
         // So we don't need to set options here - they'll be loaded when the form is rendered
         
         return [
-            // FOR EMPLOYMENT section
-            [
-                'type' => 'date',
-                'label' => 'Date of Registration',
-                'name' => 'date_of_registration',
-                'required' => true,
-                'placeholder' => '',
-                'options' => '',
-                'description' => '',
-                'column_width' => '6'
-            ],
-            [
-                'type' => 'text',
-                'label' => 'APPLICANT number',
-                'name' => 'applicant_number',
-                'required' => true,
-                'placeholder' => '',
-                'options' => '',
-                'description' => '',
-                'column_width' => '6'
-            ],
-            
             // POSITION APPLIED section
             [
                 'type' => 'select',
