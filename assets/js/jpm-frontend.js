@@ -70,6 +70,21 @@ jQuery(document).ready(function ($) {
     });
   });
 
+  // Clear field errors when user starts typing (bind once on page load)
+  $(document).on(
+    "input change",
+    "#jpm-application-form .jpm-form-field",
+    function () {
+      var $field = $(this);
+      $field.removeClass("error");
+      $field
+        .closest(".jpm-form-field-group")
+        .find(".jpm-field-error")
+        .hide()
+        .empty();
+    }
+  );
+
   // AJAX for new application form submission
   $("#jpm-application-form").on("submit", function (e) {
     e.preventDefault();
@@ -142,13 +157,81 @@ jQuery(document).ready(function ($) {
             500
           );
         } else {
-          // Show error toast
-          showToast(
-            response.data.message || "An error occurred. Please try again.",
-            "error"
-          );
+          // Clear previous field errors
+          $(".jpm-field-error").hide().empty();
+          $(".jpm-form-field").removeClass("error");
 
-          // Also update inline message
+          // Handle field-specific errors
+          if (response.data && response.data.field_errors) {
+            var fieldErrors = response.data.field_errors;
+            for (var fieldName in fieldErrors) {
+              var $errorSpan = $(
+                '.jpm-field-error[data-field-name="' + fieldName + '"]'
+              );
+              if ($errorSpan.length === 0) {
+                // If error span doesn't exist, find the field and add error after it
+                var $field = $(
+                  'input[name="jpm_fields[' +
+                    fieldName +
+                    '"], textarea[name="jpm_fields[' +
+                    fieldName +
+                    '"], select[name="jpm_fields[' +
+                    fieldName +
+                    '"]'
+                );
+                if ($field.length > 0) {
+                  $field.addClass("error");
+                  $field
+                    .closest(".jpm-form-field-group")
+                    .append(
+                      '<span class="jpm-field-error" data-field-name="' +
+                        fieldName +
+                        '">' +
+                        fieldErrors[fieldName] +
+                        "</span>"
+                    );
+                }
+              } else {
+                $errorSpan.html(fieldErrors[fieldName]).show();
+                $errorSpan
+                  .closest(".jpm-form-field-group")
+                  .find(".jpm-form-field")
+                  .addClass("error");
+              }
+            }
+
+            // Scroll to first error
+            var $firstError = $(".jpm-field-error:visible").first();
+            if ($firstError.length > 0) {
+              $("html, body").animate(
+                {
+                  scrollTop: $firstError.offset().top - 100,
+                },
+                500
+              );
+            }
+          }
+
+          // Show toast only for general errors (not field-specific)
+          if (
+            response.data &&
+            response.data.general_errors &&
+            response.data.general_errors.length > 0
+          ) {
+            showToast(response.data.general_errors.join("<br>"), "error");
+          } else if (
+            !response.data ||
+            !response.data.field_errors ||
+            Object.keys(response.data.field_errors).length === 0
+          ) {
+            // Only show toast if there are no field errors (general error)
+            showToast(
+              response.data.message || "An error occurred. Please try again.",
+              "error"
+            );
+          }
+
+          // Update inline message
           $message
             .addClass("error")
             .html(
@@ -161,11 +244,21 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         var errorMessage = "An error occurred. Please try again.";
+        var fieldErrors = null;
+        var generalErrors = null;
 
         // Try to get error message from response
         if (xhr.responseJSON) {
-          if (xhr.responseJSON.data && xhr.responseJSON.data.message) {
-            errorMessage = xhr.responseJSON.data.message;
+          if (xhr.responseJSON.data) {
+            if (xhr.responseJSON.data.message) {
+              errorMessage = xhr.responseJSON.data.message;
+            }
+            if (xhr.responseJSON.data.field_errors) {
+              fieldErrors = xhr.responseJSON.data.field_errors;
+            }
+            if (xhr.responseJSON.data.general_errors) {
+              generalErrors = xhr.responseJSON.data.general_errors;
+            }
           } else if (xhr.responseJSON.message) {
             errorMessage = xhr.responseJSON.message;
           }
@@ -183,6 +276,66 @@ jQuery(document).ready(function ($) {
           }
         }
 
+        // Clear previous field errors
+        $(".jpm-field-error").hide().empty();
+        $(".jpm-form-field").removeClass("error");
+
+        // Handle field-specific errors
+        if (fieldErrors) {
+          for (var fieldName in fieldErrors) {
+            var $errorSpan = $(
+              '.jpm-field-error[data-field-name="' + fieldName + '"]'
+            );
+            if ($errorSpan.length === 0) {
+              var $field = $(
+                'input[name="jpm_fields[' +
+                  fieldName +
+                  '"], textarea[name="jpm_fields[' +
+                  fieldName +
+                  '"], select[name="jpm_fields[' +
+                  fieldName +
+                  '"]'
+              );
+              if ($field.length > 0) {
+                $field.addClass("error");
+                $field
+                  .closest(".jpm-form-field-group")
+                  .append(
+                    '<span class="jpm-field-error" data-field-name="' +
+                      fieldName +
+                      '">' +
+                      fieldErrors[fieldName] +
+                      "</span>"
+                  );
+              }
+            } else {
+              $errorSpan.html(fieldErrors[fieldName]).show();
+              $errorSpan
+                .closest(".jpm-form-field-group")
+                .find(".jpm-form-field")
+                .addClass("error");
+            }
+          }
+
+          // Scroll to first error
+          var $firstError = $(".jpm-field-error:visible").first();
+          if ($firstError.length > 0) {
+            $("html, body").animate(
+              {
+                scrollTop: $firstError.offset().top - 100,
+              },
+              500
+            );
+          }
+        }
+
+        // Show toast only for general errors (not field-specific)
+        if (generalErrors && generalErrors.length > 0) {
+          showToast(generalErrors.join("<br>"), "error");
+        } else if (!fieldErrors || Object.keys(fieldErrors).length === 0) {
+          showToast(errorMessage, "error");
+        }
+
         // Log error for debugging
         console.error("AJAX Error:", {
           status: xhr.status,
@@ -190,9 +343,6 @@ jQuery(document).ready(function ($) {
           response: xhr.responseJSON || xhr.responseText,
           error: error,
         });
-
-        // Show error toast
-        showToast(errorMessage, "error");
 
         // Also update inline message
         $message.addClass("error").html("<p>" + errorMessage + "</p>");

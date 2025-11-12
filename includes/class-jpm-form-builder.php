@@ -575,6 +575,7 @@ class JPM_Form_Builder
                 echo '<p class="description">' . esc_html($row_field['field']['description']) . '</p>';
             }
             echo $this->render_form_field($row_field['field'], $row_field['index']);
+            echo '<span class="jpm-field-error" data-field-name="' . esc_attr($row_field['field']['name']) . '" style="display: none;"></span>';
             echo '</div>';
             echo '</div>';
         }
@@ -748,7 +749,9 @@ class JPM_Form_Builder
         }
 
         // Validate required fields
-        $errors = [];
+        $field_errors = [];
+        $general_errors = [];
+
         foreach ($form_fields as $field) {
             if (!empty($field['required'])) {
                 $field_name = $field['name'];
@@ -761,13 +764,17 @@ class JPM_Form_Builder
                 }
 
                 if (empty($value)) {
-                    $errors[] = sprintf(__('%s is required.', 'job-posting-manager'), $field['label']);
+                    $field_errors[$field_name] = sprintf(__('%s is required.', 'job-posting-manager'), $field['label']);
                 }
             }
         }
 
-        if (!empty($errors)) {
-            wp_send_json_error(['message' => implode('<br>', $errors)]);
+        if (!empty($field_errors) || !empty($general_errors)) {
+            wp_send_json_error([
+                'message' => __('Please correct the errors below.', 'job-posting-manager'),
+                'field_errors' => $field_errors,
+                'general_errors' => $general_errors
+            ]);
         }
 
         // Get application number from form

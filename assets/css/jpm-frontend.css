@@ -109,6 +109,19 @@
   box-shadow: 0 0 0 1px #0073aa;
 }
 
+.jpm-form-field.error {
+  border-color: #dc3232;
+  box-shadow: 0 0 0 1px #dc3232;
+}
+
+.jpm-field-error {
+  display: block;
+  color: #dc3232;
+  font-size: 13px;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
 .jpm-form-field-group textarea.jpm-form-field {
   min-height: 100px;
 }
