@@ -69,11 +69,31 @@ class JPM_Frontend
     {
         $atts = shortcode_atts([
             'count' => 3,
+            'view_all_url' => '',
         ], $atts);
 
         $count = intval($atts['count']);
         if ($count < 1) {
             $count = 3;
+        }
+
+        // Get the "View All Jobs" URL
+        $view_all_url = !empty($atts['view_all_url']) ? esc_url($atts['view_all_url']) : '';
+
+        // If no URL provided, try to find a page with [all_jobs] shortcode
+        if (empty($view_all_url)) {
+            $pages = get_pages();
+            foreach ($pages as $page) {
+                if (has_shortcode($page->post_content, 'all_jobs')) {
+                    $view_all_url = get_permalink($page->ID);
+                    break;
+                }
+            }
+        }
+
+        // If still no URL, use current page with a query parameter or home URL
+        if (empty($view_all_url)) {
+            $view_all_url = home_url('/jobs/');
         }
 
         // Query latest published jobs
@@ -169,6 +189,14 @@ class JPM_Frontend
                 </div>
             <?php endforeach; ?>
         </div>
+
+        <?php if (!empty($view_all_url)): ?>
+            <div class="jpm-view-all-jobs">
+                <a href="<?php echo esc_url($view_all_url); ?>" class="jpm-btn jpm-btn-view-all">
+                    <?php _e('View All Jobs', 'job-posting-manager'); ?>
+                </a>
+            </div>
+        <?php endif; ?>
 
         <!-- Modal for Quick View -->
         <div id="jpm-job-modal" class="jpm-modal">

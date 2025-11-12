@@ -631,6 +631,26 @@
   color: #fff;
 }
 
+.jpm-view-all-jobs {
+  text-align: center;
+  margin: 40px 0 20px 0;
+}
+
+.jpm-btn-view-all {
+  background: #0073aa;
+  color: #fff;
+  padding: 12px 30px;
+  font-size: 1em;
+  display: inline-block;
+}
+
+.jpm-btn-view-all:hover {
+  background: #005a87;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 115, 170, 0.3);
+}
+
 .jpm-btn-block {
   display: block;
   width: 100%;
