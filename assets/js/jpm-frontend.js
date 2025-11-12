@@ -625,4 +625,74 @@ jQuery(document).ready(function ($) {
       });
     }
   });
+
+  // Application Tracker AJAX
+  $("#jpm-tracker-form").on("submit", function (e) {
+    e.preventDefault();
+
+    const $form = $(this);
+    const $errorDiv = $("#jpm-tracker-error");
+    const $resultsDiv = $("#jpm-tracker-results");
+    const $submitBtn = $form.find("button[type='submit']");
+    const $btnText = $submitBtn.find(".jpm-btn-text");
+    const applicationNumber = $("#application_number").val().trim();
+
+    // Hide previous results and errors
+    $errorDiv.hide().empty();
+    $resultsDiv.hide().empty();
+
+    // Validate input
+    if (!applicationNumber) {
+      $errorDiv
+        .html("<p>" + "Please enter an application number." + "</p>")
+        .show();
+      return;
+    }
+
+    // Store original text
+    const originalText = $btnText.text();
+
+    // Show loading state
+    $submitBtn.prop("disabled", true);
+    $btnText.text("Tracking...");
+
+    // Make AJAX request
+    $.ajax({
+      url: jpm_ajax.ajax_url,
+      type: "POST",
+      data: {
+        action: "jpm_track_application",
+        application_number: applicationNumber,
+        nonce: jpm_ajax.nonce,
+      },
+      success: function (response) {
+        $submitBtn.prop("disabled", false);
+        $btnText.text(originalText);
+
+        if (response.success && response.data.html) {
+          $resultsDiv.html(response.data.html).fadeIn();
+          // Scroll to results
+          $("html, body").animate(
+            {
+              scrollTop: $resultsDiv.offset().top - 100,
+            },
+            500
+          );
+        } else {
+          const errorMsg =
+            response.data?.message || "Failed to load application details.";
+          $errorDiv.html("<p>" + errorMsg + "</p>").show();
+        }
+      },
+      error: function () {
+        $submitBtn.prop("disabled", false);
+        $btnText.text(originalText);
+        $errorDiv
+          .html(
+            "<p>An error occurred while loading application details. Please try again.</p>"
+          )
+          .show();
+      },
+    });
+  });
 });

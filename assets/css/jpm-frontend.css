@@ -1336,6 +1336,21 @@
   background: #005a87;
 }
 
+.jpm-tracker-form .jpm-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.jpm-btn-spinner {
+  display: inline-block;
+}
+
+.jpm-btn-spinner .spinner {
+  float: none;
+  margin: 0;
+  vertical-align: middle;
+}
+
 .jpm-tracker-error {
   padding: 15px;
   background: #fee;
