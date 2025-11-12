@@ -127,6 +127,11 @@ class JPM_Frontend
                 if (empty($excerpt)) {
                     $excerpt = wp_trim_words($job->post_content, 20);
                 }
+                $post_status = get_post_status($job->ID);
+                $status_badge = '';
+                if ($post_status === 'publish') {
+                    $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
+                }
                 ?>
                 <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job->ID); ?>">
                     <?php if ($company_image_url): ?>
@@ -136,9 +141,14 @@ class JPM_Frontend
                         </div>
                     <?php endif; ?>
                     <div class="jpm-job-card-content">
-                        <h3 class="jpm-job-card-title">
-                            <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a>
-                        </h3>
+                        <div class="jpm-job-card-title-wrapper">
+                            <h3 class="jpm-job-card-title">
+                                <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a>
+                            </h3>
+                            <?php if (!empty($status_badge)): ?>
+                                <?php echo $status_badge; ?>
+                            <?php endif; ?>
+                        </div>
                         <?php if (!empty($company_name)): ?>
                             <div class="jpm-job-card-meta">
                                 <span class="jpm-job-company">
@@ -488,6 +498,11 @@ class JPM_Frontend
                         if (empty($excerpt)) {
                             $excerpt = wp_trim_words(get_the_content(), 20);
                         }
+                        $post_status = get_post_status($job_id);
+                        $status_badge = '';
+                        if ($post_status === 'publish') {
+                            $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
+                        }
                         ?>
                         <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
                             <?php if ($company_image_url): ?>
@@ -497,9 +512,14 @@ class JPM_Frontend
                                 </div>
                             <?php endif; ?>
                             <div class="jpm-job-card-content">
-                                <h3 class="jpm-job-card-title">
-                                    <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
-                                </h3>
+                                <div class="jpm-job-card-title-wrapper">
+                                    <h3 class="jpm-job-card-title">
+                                        <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
+                                    </h3>
+                                    <?php if (!empty($status_badge)): ?>
+                                        <?php echo $status_badge; ?>
+                                    <?php endif; ?>
+                                </div>
                                 <?php if (!empty($company_name)): ?>
                                     <div class="jpm-job-card-meta">
                                         <span class="jpm-job-company">
