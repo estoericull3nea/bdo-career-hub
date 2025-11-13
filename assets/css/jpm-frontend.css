@@ -226,6 +226,168 @@
   font-size: 14px;
 }
 
+/* Thank You Message Styles */
+.jpm-thank-you-message {
+  text-align: center;
+  padding: 60px 30px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  margin: 30px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.jpm-thank-you-icon {
+  margin: 0 auto 30px;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: scaleIn 0.5s ease;
+}
+
+.jpm-checkmark-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+  position: relative;
+}
+
+.jpm-checkmark-circle::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  animation: pulse 2s infinite;
+}
+
+.jpm-checkmark {
+  font-size: 50px;
+  color: #fff;
+  font-weight: bold;
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.jpm-thank-you-title {
+  margin: 0 0 20px 0;
+  font-size: 2.2em;
+  font-weight: 700;
+  color: #28a745;
+  animation: fadeInUp 0.6s ease 0.2s both;
+}
+
+.jpm-thank-you-text {
+  margin: 0 0 15px 0;
+  font-size: 1.3em;
+  color: #333;
+  font-weight: 600;
+  animation: fadeInUp 0.6s ease 0.3s both;
+}
+
+.jpm-thank-you-email {
+  margin: 0 0 40px 0;
+  font-size: 1.1em;
+  color: #666;
+  line-height: 1.8;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  animation: fadeInUp 0.6s ease 0.4s both;
+}
+
+.jpm-thank-you-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeInUp 0.6s ease 0.5s both;
+}
+
+.jpm-thank-you-actions .jpm-btn {
+  padding: 14px 30px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.jpm-thank-you-actions .jpm-btn-primary {
+  background: #0073aa;
+  color: #fff;
+  border: 2px solid #0073aa;
+}
+
+.jpm-thank-you-actions .jpm-btn-primary:hover {
+  background: #005a87;
+  border-color: #005a87;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 115, 170, 0.3);
+}
+
+.jpm-thank-you-actions .jpm-btn-secondary {
+  background: #fff;
+  color: #0073aa;
+  border: 2px solid #0073aa;
+}
+
+.jpm-thank-you-actions .jpm-btn-secondary:hover {
+  background: #f0f2ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 115, 170, 0.2);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.jpm-application-form-container {
+  transition: opacity 0.3s ease;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -1775,6 +1937,31 @@
   .jpm-summary-value img {
     max-width: 100px;
     max-height: 100px;
+  }
+
+  /* Thank You Message Responsive */
+  .jpm-thank-you-message {
+    padding: 40px 20px;
+  }
+
+  .jpm-thank-you-title {
+    font-size: 1.8em;
+  }
+
+  .jpm-thank-you-text {
+    font-size: 1.1em;
+  }
+
+  .jpm-thank-you-email {
+    font-size: 1em;
+  }
+
+  .jpm-thank-you-actions {
+    flex-direction: column;
+  }
+
+  .jpm-thank-you-actions .jpm-btn {
+    width: 100%;
   }
 }
 

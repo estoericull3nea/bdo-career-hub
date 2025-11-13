@@ -742,26 +742,30 @@ jQuery(document).ready(function ($) {
             "success"
           );
 
-          // Also update inline message
-          $message
-            .addClass("success")
-            .html(
-              "<p>" +
-                (response.data.message ||
-                  "Application submitted successfully!") +
-                "</p>"
-            );
-
-          // Reset form
-          $form[0].reset();
-
-          // Scroll to message
-          $("html, body").animate(
-            {
-              scrollTop: $message.offset().top - 100,
-            },
-            500
+          // Hide form and show thank you message
+          const $formWrapper = $form.closest(".jpm-application-form-wrapper");
+          const $formContainer = $formWrapper.find(
+            ".jpm-application-form-container"
           );
+          const $thankYouMessage = $formWrapper.find(".jpm-thank-you-message");
+          const $guideSection = $formWrapper.find(".jpm-application-guide");
+          const $stepperNav = $formWrapper.find(".jpm-stepper-navigation");
+
+          // Hide form elements
+          $guideSection.fadeOut(300);
+          $stepperNav.fadeOut(300);
+          $formContainer.fadeOut(300, function () {
+            // Show thank you message
+            $thankYouMessage.fadeIn(500);
+
+            // Scroll to top
+            $("html, body").animate(
+              {
+                scrollTop: $formWrapper.offset().top - 50,
+              },
+              500
+            );
+          });
         } else {
           // Clear previous field errors
           $(".jpm-field-error").hide().empty();
@@ -955,7 +959,10 @@ jQuery(document).ready(function ($) {
       },
       complete: function () {
         var $submitBtn = $form.find('button[type="submit"]');
-        $submitBtn.prop("disabled", false).html("Submit Application");
+        // Only re-enable if form is still visible (not hidden by thank you message)
+        if ($form.is(":visible")) {
+          $submitBtn.prop("disabled", false).html("Submit Application");
+        }
       },
     });
   });
