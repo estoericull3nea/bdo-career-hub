@@ -78,106 +78,106 @@ class JPM_Form_Builder
             'number' => __('Number', 'job-posting-manager'),
         ];
         ?>
-                <div id="jpm-form-builder">
-                    <div class="jpm-form-builder-header">
-                        <h3><?php _e('Form Fields', 'job-posting-manager'); ?></h3>
-                        <button type="button" class="button button-primary" id="jpm-add-field-btn">
-                            <?php _e('+ Add Field', 'job-posting-manager'); ?>
+        <div id="jpm-form-builder">
+            <div class="jpm-form-builder-header">
+                <h3><?php _e('Form Fields', 'job-posting-manager'); ?></h3>
+                <button type="button" class="button button-primary" id="jpm-add-field-btn">
+                    <?php _e('+ Add Field', 'job-posting-manager'); ?>
+                </button>
+            </div>
+
+            <div id="jpm-field-types" style="display:none;">
+                <h4><?php _e('Select Field Type', 'job-posting-manager'); ?></h4>
+                <div class="jpm-field-types-grid">
+                    <?php foreach ($field_types as $type => $label): ?>
+                        <button type="button" class="button jpm-field-type-btn" data-type="<?php echo esc_attr($type); ?>">
+                            <?php echo esc_html($label); ?>
                         </button>
-                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
 
-                    <div id="jpm-field-types" style="display:none;">
-                        <h4><?php _e('Select Field Type', 'job-posting-manager'); ?></h4>
-                        <div class="jpm-field-types-grid">
-                            <?php foreach ($field_types as $type => $label): ?>
-                                    <button type="button" class="button jpm-field-type-btn" data-type="<?php echo esc_attr($type); ?>">
-                                        <?php echo esc_html($label); ?>
-                                    </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
+            <div id="jpm-form-fields-container" class="jpm-form-fields-container">
+                <div class="jpm-form-rows">
+                    <?php if (!empty($form_fields)): ?>
+                        <?php
+                        // Group fields into rows based on column width
+                        $current_row = [];
+                        $current_row_width = 0;
+                        $row_index = 0;
 
-                    <div id="jpm-form-fields-container" class="jpm-form-fields-container">
-                        <div class="jpm-form-rows">
-                            <?php if (!empty($form_fields)): ?>
-                                    <?php
-                                    // Group fields into rows based on column width
-                                    $current_row = [];
-                                    $current_row_width = 0;
-                                    $row_index = 0;
+                        foreach ($form_fields as $index => $field):
+                            $column_width = intval($field['column_width'] ?? 12);
 
-                                    foreach ($form_fields as $index => $field):
-                                        $column_width = intval($field['column_width'] ?? 12);
-
-                                        // If adding this field would exceed 12 columns, start a new row
-                                        if ($current_row_width + $column_width > 12 && !empty($current_row)) {
-                                            // Render current row
-                                            echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
-                                            foreach ($current_row as $row_field) {
-                                                if ($row_field['column_width'] < 12) {
-                                                    echo '<div class="jpm-form-column">';
-                                                }
-                                                $this->render_field_editor($row_field['field'], $row_field['index']);
-                                                if ($row_field['column_width'] < 12) {
-                                                    echo '</div>';
-                                                }
-                                            }
-                                            echo '</div>';
-                                            $current_row = [];
-                                            $current_row_width = 0;
-                                            $row_index++;
-                                        }
-
-                                        // Add field to current row
-                                        $current_row[] = [
-                                            'field' => $field,
-                                            'index' => $index,
-                                            'column_width' => $column_width
-                                        ];
-                                        $current_row_width += $column_width;
-
-                                        // If row is full (12 columns), render it
-                                        if ($current_row_width >= 12) {
-                                            echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
-                                            foreach ($current_row as $row_field) {
-                                                if ($row_field['column_width'] < 12) {
-                                                    echo '<div class="jpm-form-column">';
-                                                }
-                                                $this->render_field_editor($row_field['field'], $row_field['index']);
-                                                if ($row_field['column_width'] < 12) {
-                                                    echo '</div>';
-                                                }
-                                            }
-                                            echo '</div>';
-                                            $current_row = [];
-                                            $current_row_width = 0;
-                                            $row_index++;
-                                        }
-                                    endforeach;
-
-                                    // Render any remaining fields
-                                    if (!empty($current_row)) {
-                                        echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
-                                        foreach ($current_row as $row_field) {
-                                            if ($row_field['column_width'] < 12) {
-                                                echo '<div class="jpm-form-column">';
-                                            }
-                                            $this->render_field_editor($row_field['field'], $row_field['index']);
-                                            if ($row_field['column_width'] < 12) {
-                                                echo '</div>';
-                                            }
-                                        }
+                            // If adding this field would exceed 12 columns, start a new row
+                            if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                                // Render current row
+                                echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
+                                foreach ($current_row as $row_field) {
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '<div class="jpm-form-column">';
+                                    }
+                                    $this->render_field_editor($row_field['field'], $row_field['index']);
+                                    if ($row_field['column_width'] < 12) {
                                         echo '</div>';
                                     }
-                                    ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+                                }
+                                echo '</div>';
+                                $current_row = [];
+                                $current_row_width = 0;
+                                $row_index++;
+                            }
 
-                    <input type="hidden" name="jpm_form_fields_json" id="jpm-form-fields-json"
-                        value="<?php echo esc_attr(json_encode($form_fields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>">
+                            // Add field to current row
+                            $current_row[] = [
+                                'field' => $field,
+                                'index' => $index,
+                                'column_width' => $column_width
+                            ];
+                            $current_row_width += $column_width;
+
+                            // If row is full (12 columns), render it
+                            if ($current_row_width >= 12) {
+                                echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
+                                foreach ($current_row as $row_field) {
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '<div class="jpm-form-column">';
+                                    }
+                                    $this->render_field_editor($row_field['field'], $row_field['index']);
+                                    if ($row_field['column_width'] < 12) {
+                                        echo '</div>';
+                                    }
+                                }
+                                echo '</div>';
+                                $current_row = [];
+                                $current_row_width = 0;
+                                $row_index++;
+                            }
+                        endforeach;
+
+                        // Render any remaining fields
+                        if (!empty($current_row)) {
+                            echo '<div class="jpm-form-row' . (count($current_row) > 1 ? ' jpm-row-has-columns' : '') . '" data-row-index="' . esc_attr($row_index) . '">';
+                            foreach ($current_row as $row_field) {
+                                if ($row_field['column_width'] < 12) {
+                                    echo '<div class="jpm-form-column">';
+                                }
+                                $this->render_field_editor($row_field['field'], $row_field['index']);
+                                if ($row_field['column_width'] < 12) {
+                                    echo '</div>';
+                                }
+                            }
+                            echo '</div>';
+                        }
+                        ?>
+                    <?php endif; ?>
                 </div>
-                <?php
+            </div>
+
+            <input type="hidden" name="jpm_form_fields_json" id="jpm-form-fields-json"
+                value="<?php echo esc_attr(json_encode($form_fields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); ?>">
+        </div>
+        <?php
     }
 
 
@@ -197,128 +197,128 @@ class JPM_Form_Builder
             'column_width' => '12', // Default full width (12 columns)
         ]);
         ?>
-                <div class="jpm-field-editor" data-index="<?php echo esc_attr($index); ?>">
-                    <div class="jpm-field-header">
-                        <span class="jpm-field-handle dashicons dashicons-menu"></span>
-                        <strong
-                            class="jpm-field-title"><?php echo esc_html($field['label'] ?: __('Untitled Field', 'job-posting-manager')); ?></strong>
-                        <span class="jpm-field-type-badge"><?php echo esc_html($field['type']); ?></span>
-                        <span class="jpm-field-column-badge" title="<?php _e('Column Width', 'job-posting-manager'); ?>">
-                            <?php
-                            $col_width = intval($field['column_width'] ?? 12);
-                            $col_text = $col_width == 12 ? __('Full', 'job-posting-manager') : sprintf(__('%d cols', 'job-posting-manager'), $col_width);
-                            echo esc_html($col_text);
-                            ?>
-                        </span>
-                        <button type="button" class="button-link jpm-field-toggle">
-                            <span class="dashicons dashicons-arrow-down"></span>
-                        </button>
-                        <button type="button" class="button-link jpm-field-remove" style="color: #a00;">
-                            <span class="dashicons dashicons-trash"></span>
-                        </button>
-                    </div>
-                    <div class="jpm-field-content" style="display:none;">
-                        <table class="form-table">
-                            <tr>
-                                <th><label><?php _e('Field Label', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <input type="text" class="jpm-field-label" value="<?php echo esc_attr($field['label']); ?>"
-                                        placeholder="<?php _e('Field Label', 'job-posting-manager'); ?>">
-                                </td>
-                            </tr>
-                            <tr>
-                                <th><label><?php _e('Field Name', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <input type="text" class="jpm-field-name" value="<?php echo esc_attr($field['name']); ?>"
-                                        placeholder="<?php _e('field_name', 'job-posting-manager'); ?>">
-                                    <p class="description">
-                                        <?php _e('Lowercase letters, numbers, and underscores only', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th><label><?php _e('Field Type', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <select class="jpm-field-type">
-                                        <option value="text" <?php selected($field['type'], 'text'); ?>>
-                                            <?php _e('Text', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="textarea" <?php selected($field['type'], 'textarea'); ?>>
-                                            <?php _e('Textarea', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="email" <?php selected($field['type'], 'email'); ?>>
-                                            <?php _e('Email', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="tel" <?php selected($field['type'], 'tel'); ?>>
-                                            <?php _e('Phone', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="select" <?php selected($field['type'], 'select'); ?>>
-                                            <?php _e('Select', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="checkbox" <?php selected($field['type'], 'checkbox'); ?>>
-                                            <?php _e('Checkbox', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="radio" <?php selected($field['type'], 'radio'); ?>>
-                                            <?php _e('Radio', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="file" <?php selected($field['type'], 'file'); ?>>
-                                            <?php _e('File Upload', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="date" <?php selected($field['type'], 'date'); ?>>
-                                            <?php _e('Date', 'job-posting-manager'); ?>
-                                        </option>
-                                        <option value="number" <?php selected($field['type'], 'number'); ?>>
-                                            <?php _e('Number', 'job-posting-manager'); ?>
-                                        </option>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th><label><?php _e('Placeholder', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <input type="text" class="jpm-field-placeholder"
-                                        value="<?php echo esc_attr($field['placeholder']); ?>">
-                                </td>
-                            </tr>
-                            <tr class="jpm-field-options-row"
-                                style="<?php echo in_array($field['type'], ['select', 'radio', 'checkbox']) ? '' : 'display:none;'; ?>">
-                                <th><label><?php _e('Options', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <textarea class="jpm-field-options" rows="4"
-                                        placeholder="<?php _e('One option per line', 'job-posting-manager'); ?>"><?php echo esc_textarea($field['options']); ?></textarea>
-                                    <p class="description"><?php _e('One option per line', 'job-posting-manager'); ?></p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th><label><?php _e('Description', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <textarea class="jpm-field-description"
-                                        rows="2"><?php echo esc_textarea($field['description']); ?></textarea>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th><label><?php _e('Required', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <label>
-                                        <input type="checkbox" class="jpm-field-required" <?php checked($field['required'], true); ?>>
-                                        <?php _e('This field is required', 'job-posting-manager'); ?>
-                                    </label>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th><label><?php _e('Column Width', 'job-posting-manager'); ?></label></th>
-                                <td>
-                                    <input type="text" class="jpm-field-column-width"
-                                        value="<?php echo esc_attr($field['column_width'] ?? '12'); ?>" readonly>
-                                    <p class="description">
-                                        <?php _e('Column width is automatically calculated based on drag-and-drop position. Drag fields left/right to create columns (max 3 per row).', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-                <?php
+        <div class="jpm-field-editor" data-index="<?php echo esc_attr($index); ?>">
+            <div class="jpm-field-header">
+                <span class="jpm-field-handle dashicons dashicons-menu"></span>
+                <strong
+                    class="jpm-field-title"><?php echo esc_html($field['label'] ?: __('Untitled Field', 'job-posting-manager')); ?></strong>
+                <span class="jpm-field-type-badge"><?php echo esc_html($field['type']); ?></span>
+                <span class="jpm-field-column-badge" title="<?php _e('Column Width', 'job-posting-manager'); ?>">
+                    <?php
+                    $col_width = intval($field['column_width'] ?? 12);
+                    $col_text = $col_width == 12 ? __('Full', 'job-posting-manager') : sprintf(__('%d cols', 'job-posting-manager'), $col_width);
+                    echo esc_html($col_text);
+                    ?>
+                </span>
+                <button type="button" class="button-link jpm-field-toggle">
+                    <span class="dashicons dashicons-arrow-down"></span>
+                </button>
+                <button type="button" class="button-link jpm-field-remove" style="color: #a00;">
+                    <span class="dashicons dashicons-trash"></span>
+                </button>
+            </div>
+            <div class="jpm-field-content" style="display:none;">
+                <table class="form-table">
+                    <tr>
+                        <th><label><?php _e('Field Label', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <input type="text" class="jpm-field-label" value="<?php echo esc_attr($field['label']); ?>"
+                                placeholder="<?php _e('Field Label', 'job-posting-manager'); ?>">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php _e('Field Name', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <input type="text" class="jpm-field-name" value="<?php echo esc_attr($field['name']); ?>"
+                                placeholder="<?php _e('field_name', 'job-posting-manager'); ?>">
+                            <p class="description">
+                                <?php _e('Lowercase letters, numbers, and underscores only', 'job-posting-manager'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php _e('Field Type', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <select class="jpm-field-type">
+                                <option value="text" <?php selected($field['type'], 'text'); ?>>
+                                    <?php _e('Text', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="textarea" <?php selected($field['type'], 'textarea'); ?>>
+                                    <?php _e('Textarea', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="email" <?php selected($field['type'], 'email'); ?>>
+                                    <?php _e('Email', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="tel" <?php selected($field['type'], 'tel'); ?>>
+                                    <?php _e('Phone', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="select" <?php selected($field['type'], 'select'); ?>>
+                                    <?php _e('Select', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="checkbox" <?php selected($field['type'], 'checkbox'); ?>>
+                                    <?php _e('Checkbox', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="radio" <?php selected($field['type'], 'radio'); ?>>
+                                    <?php _e('Radio', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="file" <?php selected($field['type'], 'file'); ?>>
+                                    <?php _e('File Upload', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="date" <?php selected($field['type'], 'date'); ?>>
+                                    <?php _e('Date', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="number" <?php selected($field['type'], 'number'); ?>>
+                                    <?php _e('Number', 'job-posting-manager'); ?>
+                                </option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php _e('Placeholder', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <input type="text" class="jpm-field-placeholder"
+                                value="<?php echo esc_attr($field['placeholder']); ?>">
+                        </td>
+                    </tr>
+                    <tr class="jpm-field-options-row"
+                        style="<?php echo in_array($field['type'], ['select', 'radio', 'checkbox']) ? '' : 'display:none;'; ?>">
+                        <th><label><?php _e('Options', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <textarea class="jpm-field-options" rows="4"
+                                placeholder="<?php _e('One option per line', 'job-posting-manager'); ?>"><?php echo esc_textarea($field['options']); ?></textarea>
+                            <p class="description"><?php _e('One option per line', 'job-posting-manager'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php _e('Description', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <textarea class="jpm-field-description"
+                                rows="2"><?php echo esc_textarea($field['description']); ?></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php _e('Required', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" class="jpm-field-required" <?php checked($field['required'], true); ?>>
+                                <?php _e('This field is required', 'job-posting-manager'); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label><?php _e('Column Width', 'job-posting-manager'); ?></label></th>
+                        <td>
+                            <input type="text" class="jpm-field-column-width"
+                                value="<?php echo esc_attr($field['column_width'] ?? '12'); ?>" readonly>
+                            <p class="description">
+                                <?php _e('Column width is automatically calculated based on drag-and-drop position. Drag fields left/right to create columns (max 3 per row).', 'job-posting-manager'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <?php
     }
 
     /**
@@ -478,242 +478,261 @@ class JPM_Form_Builder
 
         ob_start();
         ?>
-                <div class="jpm-application-form-wrapper">
-                    <h3><?php _e('Apply for this Position', 'job-posting-manager'); ?></h3>
+        <div class="jpm-application-form-wrapper">
+            <h3><?php _e('Apply for this Position', 'job-posting-manager'); ?></h3>
 
-                    <!-- Thank You Message (hidden by default) -->
-                    <div class="jpm-thank-you-message" style="display: none;">
-                        <div class="jpm-thank-you-icon">
-                            <div class="jpm-checkmark-circle">
-                                <span class="jpm-checkmark">✓</span>
-                            </div>
-                        </div>
-                        <h2 class="jpm-thank-you-title"><?php _e('Thank You for Your Application!', 'job-posting-manager'); ?></h2>
-                        <p class="jpm-thank-you-text">
-                            <?php _e('Your job application has been successfully submitted.', 'job-posting-manager'); ?>
-                        </p>
-                        <p class="jpm-thank-you-email">
-                            <?php _e('Please check your email for further details regarding your job application. We will review your application and get back to you soon.', 'job-posting-manager'); ?>
-                        </p>
-                        <div class="jpm-thank-you-actions">
-                            <a href="<?php echo esc_url(home_url()); ?>" class="jpm-btn jpm-btn-primary">
-                                <?php _e('Return to Home', 'job-posting-manager'); ?>
-                            </a>
-                            <a href="<?php echo esc_url(get_permalink()); ?>" class="jpm-btn jpm-btn-secondary">
-                                <?php _e('View Other Jobs', 'job-posting-manager'); ?>
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Application Guide Section -->
-                    <div class="jpm-application-guide">
-                        <div class="jpm-guide-icon">
-                            <span class="dashicons dashicons-info-outline"></span>
-                        </div>
-                        <div class="jpm-guide-content">
-                            <h4><?php _e('Application Guidelines', 'job-posting-manager'); ?></h4>
-                            <ul class="jpm-guide-list">
-                                <li><?php _e('Please fill out all required fields marked with an asterisk (*)', 'job-posting-manager'); ?>
-                                </li>
-                                <li><?php _e('Ensure all information is accurate and up-to-date', 'job-posting-manager'); ?></li>
-                                <li><?php _e('Upload clear and professional documents/photos when required', 'job-posting-manager'); ?>
-                                </li>
-                                <li><?php _e('Review your information before submitting', 'job-posting-manager'); ?></li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Stepper Navigation -->
-                    <div class="jpm-stepper-navigation">
-                        <?php foreach ($steps as $step_index => $step): ?>
-                                <div class="jpm-stepper-step <?php echo $step_index === 0 ? 'active' : ''; ?>"
-                                    data-step="<?php echo esc_attr($step_index); ?>">
-                                    <span class="jpm-stepper-number"><?php echo esc_html($step_index + 1); ?>.</span>
-                                    <span class="jpm-stepper-label"><?php echo esc_html($step['title']); ?></span>
-                                    <span class="jpm-stepper-chevron">›</span>
-                                </div>
-                        <?php endforeach; ?>
-                        <!-- Summary Step -->
-                        <div class="jpm-stepper-step" data-step="<?php echo esc_attr(count($steps)); ?>">
-                            <span class="jpm-stepper-number"><?php echo esc_html(count($steps) + 1); ?>.</span>
-                            <span class="jpm-stepper-label"><?php _e('Review', 'job-posting-manager'); ?></span>
-                        </div>
-                    </div>
-
-                    <div class="jpm-application-form-container">
-                        <form id="jpm-application-form" class="jpm-application-form" method="post" enctype="multipart/form-data"
-                            action="#" novalidate>
-                            <?php wp_nonce_field('jpm_application_form', 'jpm_application_nonce'); ?>
-                            <input type="hidden" name="job_id" value="<?php echo esc_attr($post->ID); ?>">
-
-                            <?php
-                            // Generate application number: YY-BDO-XXXXXXXX (8 random digits)
-                            $year = date('y'); // Last 2 digits of current year
-                            $random_digits = str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT); // 8 random digits
-                            $application_number = $year . '-BDO-' . $random_digits;
-
-                            // Generate date of registration: mm/dd/yyyy
-                            $date_of_registration = date('m/d/Y'); // Current date in mm/dd/yyyy format
-                            ?>
-
-                            <!-- Step 0: Application Info (always visible) -->
-                            <div class="jpm-form-step jpm-step-application-info" data-step="0">
-                                <div class="jpm-auto-fill-fields-container">
-                                    <div class="jpm-form-field-group jpm-application-number-field">
-                                        <label
-                                            for="jpm_application_number"><?php _e('Application Number', 'job-posting-manager'); ?></label>
-                                        <input type="text" id="jpm_application_number" name="application_number" class="jpm-form-field"
-                                            value="<?php echo esc_attr($application_number); ?>" readonly
-                                            style="background-color: #f5f5f5; cursor: not-allowed;">
-                                        <p class="description">
-                                            <?php _e('Your unique application reference number', 'job-posting-manager'); ?>
-                                        </p>
-                                    </div>
-
-                                    <div class="jpm-form-field-group jpm-date-of-registration-field">
-                                        <label
-                                            for="jpm_date_of_registration"><?php _e('Date of Registration', 'job-posting-manager'); ?></label>
-                                        <input type="text" id="jpm_date_of_registration" name="date_of_registration"
-                                            class="jpm-form-field" value="<?php echo esc_attr($date_of_registration); ?>" readonly
-                                            style="background-color: #f5f5f5; cursor: not-allowed;">
-                                        <p class="description">
-                                            <?php _e('Date when the application is submitted', 'job-posting-manager'); ?>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <?php
-                            // Render each step
-                            foreach ($steps as $step_index => $step):
-                                $step_number = $step_index + 1;
-                                ?>
-                                    <div class="jpm-form-step" data-step="<?php echo esc_attr($step_number); ?>"
-                                        style="display: <?php echo $step_index === 0 ? 'block' : 'none'; ?>;">
-                                        <?php
-                                        // Group fields in this step into rows based on column width
-                                        $current_row = [];
-                                        $current_row_width = 0;
-
-                                        foreach ($step['fields'] as $field_data):
-                                            $field = $field_data['field'];
-                                            $index = $field_data['index'];
-                                            $column_width = intval($field['column_width'] ?? 12);
-
-                                            // If adding this field would exceed 12 columns, render current row
-                                            if ($current_row_width + $column_width > 12 && !empty($current_row)) {
-                                                $this->render_form_row($current_row);
-                                                $current_row = [];
-                                                $current_row_width = 0;
-                                            }
-
-                                            // Add field to current row
-                                            $current_row[] = [
-                                                'field' => $field,
-                                                'index' => $index,
-                                                'column_width' => $column_width
-                                            ];
-                                            $current_row_width += $column_width;
-
-                                            // If row is full (12 columns), render it
-                                            if ($current_row_width >= 12) {
-                                                $this->render_form_row($current_row);
-                                                $current_row = [];
-                                                $current_row_width = 0;
-                                            }
-                                        endforeach;
-
-                                        // Render any remaining fields
-                                        if (!empty($current_row)) {
-                                            $this->render_form_row($current_row);
-                                        }
-                                        ?>
-                                    </div>
-                            <?php endforeach; ?>
-
-                            <!-- Summary/Review Step -->
-                            <div class="jpm-form-step jpm-summary-step" data-step="<?php echo esc_attr(count($steps) + 1); ?>"
-                                style="display: none;">
-                                <div class="jpm-summary-container">
-                                    <h4 class="jpm-summary-title"><?php _e('Review Your Application', 'job-posting-manager'); ?></h4>
-                                    <p class="jpm-summary-description">
-                                        <?php _e('Please review all the information below before submitting your application.', 'job-posting-manager'); ?>
-                                        <br>
-                                        <small
-                                            style="color: #0073aa; font-style: italic;"><?php _e('💡 Tip: Click on any field to go back and edit it.', 'job-posting-manager'); ?></small>
-                                    </p>
-
-                                    <div class="jpm-summary-content">
-                                        <!-- Application Info Fields -->
-                                        <div class="jpm-summary-item" data-field-name="application_number">
-                                            <div class="jpm-summary-label">
-                                                <?php _e('Application Number', 'job-posting-manager'); ?>
-                                            </div>
-                                            <div class="jpm-summary-value" data-field-id="jpm_application_number">
-                                                <span><?php echo esc_html($application_number); ?></span>
-                                            </div>
-                                        </div>
-                                        <div class="jpm-summary-item" data-field-name="date_of_registration">
-                                            <div class="jpm-summary-label">
-                                                <?php _e('Date of Registration', 'job-posting-manager'); ?>
-                                            </div>
-                                            <div class="jpm-summary-value" data-field-id="jpm_date_of_registration">
-                                                <span><?php echo esc_html($date_of_registration); ?></span>
-                                            </div>
-                                        </div>
-
-                                        <?php
-                                        // Get all form fields for summary
-                                        $all_form_fields = get_post_meta($post->ID, '_jpm_form_fields', true);
-                                        if (!empty($all_form_fields) && is_array($all_form_fields)):
-                                            foreach ($all_form_fields as $index => $field):
-                                                $field_id = 'jpm_field_' . $index;
-                                                $field_name = $field['name'] ?? '';
-                                                $field_label = $field['label'] ?? '';
-                                                $field_type = $field['type'] ?? 'text';
-                                                $is_required = !empty($field['required']);
-                                                ?>
-                                                        <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($field_name); ?>">
-                                                            <div class="jpm-summary-label">
-                                                                <?php echo esc_html($field_label); ?>
-                                                                <?php if ($is_required): ?>
-                                                                        <span class="required">*</span>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                            <div class="jpm-summary-value" data-field-id="<?php echo esc_attr($field_id); ?>">
-                                                                <span
-                                                                    class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
-                                                            </div>
-                                                        </div>
-                                                        <?php
-                                            endforeach;
-                                        endif;
-                                        ?>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Navigation Buttons -->
-                            <div class="jpm-stepper-buttons">
-                                <button type="button" class="jpm-btn jpm-btn-prev" style="display: none;">
-                                    <?php _e('Previous', 'job-posting-manager'); ?>
-                                </button>
-                                <button type="button" class="jpm-btn jpm-btn-next">
-                                    <?php _e('Next', 'job-posting-manager'); ?>
-                                </button>
-                                <button type="submit" class="jpm-btn jpm-btn-submit" style="display: none;">
-                                    <?php _e('Submit Application', 'job-posting-manager'); ?>
-                                </button>
-                            </div>
-
-                            <div id="jpm-form-message" class="jpm-form-message"></div>
-                        </form>
+            <!-- Thank You Message (hidden by default) -->
+            <div class="jpm-thank-you-message" style="display: none;">
+                <div class="jpm-thank-you-icon">
+                    <div class="jpm-checkmark-circle">
+                        <span class="jpm-checkmark">✓</span>
                     </div>
                 </div>
-                <?php
-                $form_html = ob_get_clean();
+                <h2 class="jpm-thank-you-title"><?php _e('Thank You for Your Application!', 'job-posting-manager'); ?></h2>
+                <p class="jpm-thank-you-text">
+                    <?php _e('Your job application has been successfully submitted.', 'job-posting-manager'); ?>
+                </p>
+                <p class="jpm-thank-you-email">
+                    <?php _e('Please check your email for further details regarding your job application. We will review your application and get back to you soon.', 'job-posting-manager'); ?>
+                </p>
+                <div class="jpm-thank-you-actions">
+                    <a href="<?php echo esc_url(home_url()); ?>" class="jpm-btn jpm-btn-primary">
+                        <?php _e('Return to Home', 'job-posting-manager'); ?>
+                    </a>
+                    <?php
+                    // Find the job listings page (page with [all_jobs] shortcode)
+                    $jobs_listing_url = '';
+                    $pages = get_pages();
+                    foreach ($pages as $page) {
+                        if (has_shortcode($page->post_content, 'all_jobs')) {
+                            $jobs_listing_url = get_permalink($page->ID);
+                            break;
+                        }
+                    }
+                    // If no page found, try post type archive
+                    if (empty($jobs_listing_url)) {
+                        $jobs_listing_url = get_post_type_archive_link('job_posting');
+                    }
+                    // If still no URL, use fallback
+                    if (empty($jobs_listing_url)) {
+                        $jobs_listing_url = home_url('/job-postings/');
+                    }
+                    ?>
+                    <a href="<?php echo esc_url($jobs_listing_url); ?>" class="jpm-btn jpm-btn-secondary">
+                        <?php _e('View Other Jobs', 'job-posting-manager'); ?>
+                    </a>
+                </div>
+            </div>
 
-                return $content . $form_html;
+            <!-- Application Guide Section -->
+            <div class="jpm-application-guide">
+                <div class="jpm-guide-icon">
+                    <span class="dashicons dashicons-info-outline"></span>
+                </div>
+                <div class="jpm-guide-content">
+                    <h4><?php _e('Application Guidelines', 'job-posting-manager'); ?></h4>
+                    <ul class="jpm-guide-list">
+                        <li><?php _e('Please fill out all required fields marked with an asterisk (*)', 'job-posting-manager'); ?>
+                        </li>
+                        <li><?php _e('Ensure all information is accurate and up-to-date', 'job-posting-manager'); ?></li>
+                        <li><?php _e('Upload clear and professional documents/photos when required', 'job-posting-manager'); ?>
+                        </li>
+                        <li><?php _e('Review your information before submitting', 'job-posting-manager'); ?></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Stepper Navigation -->
+            <div class="jpm-stepper-navigation">
+                <?php foreach ($steps as $step_index => $step): ?>
+                    <div class="jpm-stepper-step <?php echo $step_index === 0 ? 'active' : ''; ?>"
+                        data-step="<?php echo esc_attr($step_index); ?>">
+                        <span class="jpm-stepper-number"><?php echo esc_html($step_index + 1); ?>.</span>
+                        <span class="jpm-stepper-label"><?php echo esc_html($step['title']); ?></span>
+                        <span class="jpm-stepper-chevron">›</span>
+                    </div>
+                <?php endforeach; ?>
+                <!-- Summary Step -->
+                <div class="jpm-stepper-step" data-step="<?php echo esc_attr(count($steps)); ?>">
+                    <span class="jpm-stepper-number"><?php echo esc_html(count($steps) + 1); ?>.</span>
+                    <span class="jpm-stepper-label"><?php _e('Review', 'job-posting-manager'); ?></span>
+                </div>
+            </div>
+
+            <div class="jpm-application-form-container">
+                <form id="jpm-application-form" class="jpm-application-form" method="post" enctype="multipart/form-data"
+                    action="#" novalidate>
+                    <?php wp_nonce_field('jpm_application_form', 'jpm_application_nonce'); ?>
+                    <input type="hidden" name="job_id" value="<?php echo esc_attr($post->ID); ?>">
+
+                    <?php
+                    // Generate application number: YY-BDO-XXXXXXXX (8 random digits)
+                    $year = date('y'); // Last 2 digits of current year
+                    $random_digits = str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT); // 8 random digits
+                    $application_number = $year . '-BDO-' . $random_digits;
+
+                    // Generate date of registration: mm/dd/yyyy
+                    $date_of_registration = date('m/d/Y'); // Current date in mm/dd/yyyy format
+                    ?>
+
+                    <!-- Step 0: Application Info (always visible) -->
+                    <div class="jpm-form-step jpm-step-application-info" data-step="0">
+                        <div class="jpm-auto-fill-fields-container">
+                            <div class="jpm-form-field-group jpm-application-number-field">
+                                <label
+                                    for="jpm_application_number"><?php _e('Application Number', 'job-posting-manager'); ?></label>
+                                <input type="text" id="jpm_application_number" name="application_number" class="jpm-form-field"
+                                    value="<?php echo esc_attr($application_number); ?>" readonly
+                                    style="background-color: #f5f5f5; cursor: not-allowed;">
+                                <p class="description">
+                                    <?php _e('Your unique application reference number', 'job-posting-manager'); ?>
+                                </p>
+                            </div>
+
+                            <div class="jpm-form-field-group jpm-date-of-registration-field">
+                                <label
+                                    for="jpm_date_of_registration"><?php _e('Date of Registration', 'job-posting-manager'); ?></label>
+                                <input type="text" id="jpm_date_of_registration" name="date_of_registration"
+                                    class="jpm-form-field" value="<?php echo esc_attr($date_of_registration); ?>" readonly
+                                    style="background-color: #f5f5f5; cursor: not-allowed;">
+                                <p class="description">
+                                    <?php _e('Date when the application is submitted', 'job-posting-manager'); ?>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php
+                    // Render each step
+                    foreach ($steps as $step_index => $step):
+                        $step_number = $step_index + 1;
+                        ?>
+                        <div class="jpm-form-step" data-step="<?php echo esc_attr($step_number); ?>"
+                            style="display: <?php echo $step_index === 0 ? 'block' : 'none'; ?>;">
+                            <?php
+                            // Group fields in this step into rows based on column width
+                            $current_row = [];
+                            $current_row_width = 0;
+
+                            foreach ($step['fields'] as $field_data):
+                                $field = $field_data['field'];
+                                $index = $field_data['index'];
+                                $column_width = intval($field['column_width'] ?? 12);
+
+                                // If adding this field would exceed 12 columns, render current row
+                                if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                                    $this->render_form_row($current_row);
+                                    $current_row = [];
+                                    $current_row_width = 0;
+                                }
+
+                                // Add field to current row
+                                $current_row[] = [
+                                    'field' => $field,
+                                    'index' => $index,
+                                    'column_width' => $column_width
+                                ];
+                                $current_row_width += $column_width;
+
+                                // If row is full (12 columns), render it
+                                if ($current_row_width >= 12) {
+                                    $this->render_form_row($current_row);
+                                    $current_row = [];
+                                    $current_row_width = 0;
+                                }
+                            endforeach;
+
+                            // Render any remaining fields
+                            if (!empty($current_row)) {
+                                $this->render_form_row($current_row);
+                            }
+                            ?>
+                        </div>
+                    <?php endforeach; ?>
+
+                    <!-- Summary/Review Step -->
+                    <div class="jpm-form-step jpm-summary-step" data-step="<?php echo esc_attr(count($steps) + 1); ?>"
+                        style="display: none;">
+                        <div class="jpm-summary-container">
+                            <h4 class="jpm-summary-title"><?php _e('Review Your Application', 'job-posting-manager'); ?></h4>
+                            <p class="jpm-summary-description">
+                                <?php _e('Please review all the information below before submitting your application.', 'job-posting-manager'); ?>
+                                <br>
+                                <small
+                                    style="color: #0073aa; font-style: italic;"><?php _e('💡 Tip: Click on any field to go back and edit it.', 'job-posting-manager'); ?></small>
+                            </p>
+
+                            <div class="jpm-summary-content">
+                                <!-- Application Info Fields -->
+                                <div class="jpm-summary-item" data-field-name="application_number">
+                                    <div class="jpm-summary-label">
+                                        <?php _e('Application Number', 'job-posting-manager'); ?>
+                                    </div>
+                                    <div class="jpm-summary-value" data-field-id="jpm_application_number">
+                                        <span><?php echo esc_html($application_number); ?></span>
+                                    </div>
+                                </div>
+                                <div class="jpm-summary-item" data-field-name="date_of_registration">
+                                    <div class="jpm-summary-label">
+                                        <?php _e('Date of Registration', 'job-posting-manager'); ?>
+                                    </div>
+                                    <div class="jpm-summary-value" data-field-id="jpm_date_of_registration">
+                                        <span><?php echo esc_html($date_of_registration); ?></span>
+                                    </div>
+                                </div>
+
+                                <?php
+                                // Get all form fields for summary
+                                $all_form_fields = get_post_meta($post->ID, '_jpm_form_fields', true);
+                                if (!empty($all_form_fields) && is_array($all_form_fields)):
+                                    foreach ($all_form_fields as $index => $field):
+                                        $field_id = 'jpm_field_' . $index;
+                                        $field_name = $field['name'] ?? '';
+                                        $field_label = $field['label'] ?? '';
+                                        $field_type = $field['type'] ?? 'text';
+                                        $is_required = !empty($field['required']);
+                                        ?>
+                                        <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($field_name); ?>">
+                                            <div class="jpm-summary-label">
+                                                <?php echo esc_html($field_label); ?>
+                                                <?php if ($is_required): ?>
+                                                    <span class="required">*</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="jpm-summary-value" data-field-id="<?php echo esc_attr($field_id); ?>">
+                                                <span
+                                                    class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
+                                            </div>
+                                        </div>
+                                        <?php
+                                    endforeach;
+                                endif;
+                                ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="jpm-stepper-buttons">
+                        <button type="button" class="jpm-btn jpm-btn-prev" style="display: none;">
+                            <?php _e('Previous', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="button" class="jpm-btn jpm-btn-next">
+                            <?php _e('Next', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="submit" class="jpm-btn jpm-btn-submit" style="display: none;">
+                            <?php _e('Submit Application', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+
+                    <div id="jpm-form-message" class="jpm-form-message"></div>
+                </form>
+            </div>
+        </div>
+        <?php
+        $form_html = ob_get_clean();
+
+        return $content . $form_html;
     }
 
     /**
