@@ -681,7 +681,7 @@ class JPM_Admin
                                         </select>
                                         <a href="<?php echo admin_url('admin.php?page=jpm-applications&action=print&application_id=' . $application->id); ?>"
                                             target="_blank" class="button button-small" style="text-decoration: none;">
-                                            <?php _e('Print', 'job-posting-manager'); ?>
+                                            <?php _e('View Details', 'job-posting-manager'); ?>
                                         </a>
                                     </div>
                                 </td>
