@@ -1,4 +1,173 @@
 jQuery(document).ready(function ($) {
+  // Stepper Form Navigation
+  function initStepperForm() {
+    const $form = $("#jpm-application-form");
+    if ($form.length === 0) return;
+
+    const $steps = $(".jpm-form-step");
+    const $stepperNav = $(".jpm-stepper-navigation .jpm-stepper-step");
+    const $prevBtn = $(".jpm-btn-prev");
+    const $nextBtn = $(".jpm-btn-next");
+    const $submitBtn = $(".jpm-btn-submit");
+
+    // Step 0 is application info (always visible), form steps start at 1
+    let currentStep = 1;
+    const totalSteps = $steps.length;
+    const formStepsCount = totalSteps - 1; // Exclude step 0
+
+    // Get current step from active step (skip step 0)
+    const $activeStep = $steps.filter(".active").not('[data-step="0"]');
+    if ($activeStep.length > 0) {
+      currentStep = parseInt($activeStep.data("step")) || 1;
+    } else {
+      // If no active step found, activate step 1
+      currentStep = 1;
+    }
+
+    // Function to go to a specific step (step 0 is always visible)
+    function goToStep(stepIndex) {
+      if (stepIndex < 1 || stepIndex >= totalSteps) return;
+
+      // Hide all form steps (but keep step 0 visible)
+      $steps.not('[data-step="0"]').removeClass("active").hide();
+
+      // Show current step
+      const $currentStepEl = $steps.filter('[data-step="' + stepIndex + '"]');
+      $currentStepEl.addClass("active").show();
+
+      // Update stepper navigation (map to form steps: 0-based index for nav, 1-based for form steps)
+      $stepperNav.removeClass("active completed");
+      $stepperNav.each(function (index) {
+        const navStepIndex = index + 1; // Nav step 0 = form step 1, etc.
+        if (navStepIndex < stepIndex) {
+          $(this).addClass("completed");
+        } else if (navStepIndex === stepIndex) {
+          $(this).addClass("active");
+        }
+      });
+
+      // Update buttons
+      if (stepIndex === 1) {
+        $prevBtn.hide();
+      } else {
+        $prevBtn.show();
+      }
+
+      if (stepIndex === totalSteps - 1) {
+        $nextBtn.hide();
+        $submitBtn.show();
+      } else {
+        $nextBtn.show();
+        $submitBtn.hide();
+      }
+
+      currentStep = stepIndex;
+
+      // Scroll to top of form
+      $("html, body").animate(
+        {
+          scrollTop: $form.offset().top - 100,
+        },
+        300
+      );
+    }
+
+    // Next button click
+    $nextBtn.on("click", function (e) {
+      e.preventDefault();
+
+      // Validate current step before proceeding
+      if (validateCurrentStep()) {
+        goToStep(currentStep + 1);
+      }
+    });
+
+    // Previous button click
+    $prevBtn.on("click", function (e) {
+      e.preventDefault();
+      goToStep(currentStep - 1);
+    });
+
+    // Stepper navigation click
+    $stepperNav.on("click", function () {
+      const navStepIndex = parseInt($(this).data("step"));
+      // Map nav step (0-based) to form step (1-based)
+      const stepIndex = navStepIndex + 1;
+      if (stepIndex !== undefined && stepIndex !== currentStep) {
+        // Allow going back without validation, but validate when going forward
+        if (stepIndex < currentStep) {
+          goToStep(stepIndex);
+        } else {
+          if (validateCurrentStep()) {
+            goToStep(stepIndex);
+          }
+        }
+      }
+    });
+
+    // Validate current step
+    function validateCurrentStep() {
+      const $currentStepEl = $steps.filter('[data-step="' + currentStep + '"]');
+      const $requiredFields = $currentStepEl.find(
+        "input[required], textarea[required], select[required]"
+      );
+      let isValid = true;
+
+      $requiredFields.each(function () {
+        const $field = $(this);
+        const value = $field.val();
+
+        if (!value || (typeof value === "string" && value.trim() === "")) {
+          $field.addClass("error");
+          const $errorSpan = $field
+            .closest(".jpm-form-field-group")
+            .find(".jpm-field-error");
+          if ($errorSpan.length === 0) {
+            $field
+              .closest(".jpm-form-field-group")
+              .append(
+                '<span class="jpm-field-error">' +
+                  "This field is required." +
+                  "</span>"
+              );
+          } else {
+            $errorSpan.text("This field is required.").show();
+          }
+          isValid = false;
+        } else {
+          $field.removeClass("error");
+          $field
+            .closest(".jpm-form-field-group")
+            .find(".jpm-field-error")
+            .hide();
+        }
+      });
+
+      if (!isValid) {
+        // Scroll to first error
+        const $firstError = $currentStepEl
+          .find(".jpm-field-error:visible")
+          .first();
+        if ($firstError.length > 0) {
+          $("html, body").animate(
+            {
+              scrollTop: $firstError.offset().top - 100,
+            },
+            300
+          );
+        }
+      }
+
+      return isValid;
+    }
+
+    // Initialize stepper
+    goToStep(currentStep);
+  }
+
+  // Initialize stepper on page load
+  initStepperForm();
+
   // Toast notification function
   function showToast(message, type) {
     type = type || "success"; // success, error, warning, info
