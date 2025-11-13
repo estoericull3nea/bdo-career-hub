@@ -481,6 +481,24 @@ class JPM_Form_Builder
         <div class="jpm-application-form-wrapper">
             <h3><?php _e('Apply for this Position', 'job-posting-manager'); ?></h3>
 
+            <!-- Application Guide Section -->
+            <div class="jpm-application-guide">
+                <div class="jpm-guide-icon">
+                    <span class="dashicons dashicons-info-outline"></span>
+                </div>
+                <div class="jpm-guide-content">
+                    <h4><?php _e('Application Guidelines', 'job-posting-manager'); ?></h4>
+                    <ul class="jpm-guide-list">
+                        <li><?php _e('Please fill out all required fields marked with an asterisk (*)', 'job-posting-manager'); ?>
+                        </li>
+                        <li><?php _e('Ensure all information is accurate and up-to-date', 'job-posting-manager'); ?></li>
+                        <li><?php _e('Upload clear and professional documents/photos when required', 'job-posting-manager'); ?>
+                        </li>
+                        <li><?php _e('Review your information before submitting', 'job-posting-manager'); ?></li>
+                    </ul>
+                </div>
+            </div>
+
             <!-- Stepper Navigation -->
             <div class="jpm-stepper-navigation">
                 <?php foreach ($steps as $step_index => $step): ?>
@@ -488,11 +506,14 @@ class JPM_Form_Builder
                         data-step="<?php echo esc_attr($step_index); ?>">
                         <span class="jpm-stepper-number"><?php echo esc_html($step_index + 1); ?>.</span>
                         <span class="jpm-stepper-label"><?php echo esc_html($step['title']); ?></span>
-                        <?php if ($step_index < count($steps) - 1): ?>
-                            <span class="jpm-stepper-chevron">›</span>
-                        <?php endif; ?>
+                        <span class="jpm-stepper-chevron">›</span>
                     </div>
                 <?php endforeach; ?>
+                <!-- Summary Step -->
+                <div class="jpm-stepper-step" data-step="<?php echo esc_attr(count($steps)); ?>">
+                    <span class="jpm-stepper-number"><?php echo esc_html(count($steps) + 1); ?>.</span>
+                    <span class="jpm-stepper-label"><?php _e('Review', 'job-posting-manager'); ?></span>
+                </div>
             </div>
 
             <form id="jpm-application-form" class="jpm-application-form" method="post" enctype="multipart/form-data" action="#"
@@ -584,6 +605,68 @@ class JPM_Form_Builder
                     </div>
                 <?php endforeach; ?>
 
+                <!-- Summary/Review Step -->
+                <div class="jpm-form-step jpm-summary-step" data-step="<?php echo esc_attr(count($steps) + 1); ?>"
+                    style="display: none;">
+                    <div class="jpm-summary-container">
+                        <h4 class="jpm-summary-title"><?php _e('Review Your Application', 'job-posting-manager'); ?></h4>
+                        <p class="jpm-summary-description">
+                            <?php _e('Please review all the information below before submitting your application.', 'job-posting-manager'); ?>
+                            <br>
+                            <small
+                                style="color: #0073aa; font-style: italic;"><?php _e('💡 Tip: Click on any field to go back and edit it.', 'job-posting-manager'); ?></small>
+                        </p>
+
+                        <div class="jpm-summary-content">
+                            <!-- Application Info Fields -->
+                            <div class="jpm-summary-item" data-field-name="application_number">
+                                <div class="jpm-summary-label">
+                                    <?php _e('Application Number', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="jpm-summary-value" data-field-id="jpm_application_number">
+                                    <span><?php echo esc_html($application_number); ?></span>
+                                </div>
+                            </div>
+                            <div class="jpm-summary-item" data-field-name="date_of_registration">
+                                <div class="jpm-summary-label">
+                                    <?php _e('Date of Registration', 'job-posting-manager'); ?>
+                                </div>
+                                <div class="jpm-summary-value" data-field-id="jpm_date_of_registration">
+                                    <span><?php echo esc_html($date_of_registration); ?></span>
+                                </div>
+                            </div>
+
+                            <?php
+                            // Get all form fields for summary
+                            $all_form_fields = get_post_meta($post->ID, '_jpm_form_fields', true);
+                            if (!empty($all_form_fields) && is_array($all_form_fields)):
+                                foreach ($all_form_fields as $index => $field):
+                                    $field_id = 'jpm_field_' . $index;
+                                    $field_name = $field['name'] ?? '';
+                                    $field_label = $field['label'] ?? '';
+                                    $field_type = $field['type'] ?? 'text';
+                                    $is_required = !empty($field['required']);
+                                    ?>
+                                    <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($field_name); ?>">
+                                        <div class="jpm-summary-label">
+                                            <?php echo esc_html($field_label); ?>
+                                            <?php if ($is_required): ?>
+                                                <span class="required">*</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="jpm-summary-value" data-field-id="<?php echo esc_attr($field_id); ?>">
+                                            <span
+                                                class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
+                                        </div>
+                                    </div>
+                                    <?php
+                                endforeach;
+                            endif;
+                            ?>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Navigation Buttons -->
                 <div class="jpm-stepper-buttons">
                     <button type="button" class="jpm-btn jpm-btn-prev" style="display: none;">
@@ -608,15 +691,52 @@ class JPM_Form_Builder
 
     /**
      * Group form fields into logical steps
+     * Respects row layout - fields in the same row stay together
      */
     private function group_fields_into_steps($form_fields)
     {
         $steps = [];
-        $total_fields = count($form_fields);
 
-        // Determine number of steps (3-4 steps for better UX)
-        $num_steps = min(4, max(3, ceil($total_fields / 5)));
-        $fields_per_step = ceil($total_fields / $num_steps);
+        // First, group fields into rows based on column width (same logic as form builder)
+        $rows = [];
+        $current_row = [];
+        $current_row_width = 0;
+
+        foreach ($form_fields as $index => $field) {
+            $column_width = intval($field['column_width'] ?? 12);
+
+            // If adding this field would exceed 12 columns, start a new row
+            if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                $rows[] = $current_row;
+                $current_row = [];
+                $current_row_width = 0;
+            }
+
+            // Add field to current row
+            $current_row[] = [
+                'field' => $field,
+                'index' => $index,
+                'column_width' => $column_width
+            ];
+            $current_row_width += $column_width;
+
+            // If row is full (12 columns), add it to rows
+            if ($current_row_width >= 12) {
+                $rows[] = $current_row;
+                $current_row = [];
+                $current_row_width = 0;
+            }
+        }
+
+        // Add any remaining fields as a row
+        if (!empty($current_row)) {
+            $rows[] = $current_row;
+        }
+
+        // Now group rows into steps
+        $total_rows = count($rows);
+        $num_steps = min(4, max(3, ceil($total_rows / 2))); // Group 2 rows per step on average
+        $rows_per_step = ceil($total_rows / $num_steps);
 
         // Default step titles
         $default_titles = [
@@ -626,65 +746,73 @@ class JPM_Form_Builder
             __('Additional', 'job-posting-manager'),
         ];
 
-        $field_index = 0;
+        $row_index = 0;
         for ($step = 0; $step < $num_steps; $step++) {
             $step_fields = [];
             $step_title = $default_titles[$step] ?? sprintf(__('Step %d', 'job-posting-manager'), $step + 1);
 
-            // Collect fields for this step
-            $fields_in_step = 0;
-            while ($field_index < $total_fields && $fields_in_step < $fields_per_step) {
-                $field = $form_fields[$field_index];
+            // Collect rows for this step
+            $rows_in_step = 0;
+            while ($row_index < $total_rows && $rows_in_step < $rows_per_step) {
+                $row = $rows[$row_index];
 
-                // Try to detect step from field name/label
-                $field_name_lower = strtolower($field['name'] ?? '');
-                $field_label_lower = strtolower($field['label'] ?? '');
+                // Add all fields from this row to the step
+                foreach ($row as $row_field) {
+                    $field = $row_field['field'];
+                    $field_index = $row_field['index'];
 
-                // Auto-detect step title from first field if not set
-                if ($step === 0 && $fields_in_step === 0) {
-                    if (
-                        stripos($field_name_lower, 'personal') !== false ||
-                        stripos($field_label_lower, 'personal') !== false ||
-                        stripos($field_name_lower, 'name') !== false ||
-                        stripos($field_name_lower, 'email') !== false
-                    ) {
-                        $step_title = __('Personal', 'job-posting-manager');
+                    // Try to detect step from field name/label (only check first field of first row in step)
+                    if ($rows_in_step === 0 && count($step_fields) === 0) {
+                        $field_name_lower = strtolower($field['name'] ?? '');
+                        $field_label_lower = strtolower($field['label'] ?? '');
+
+                        // Auto-detect step title from first field
+                        if ($step === 0) {
+                            if (
+                                stripos($field_name_lower, 'personal') !== false ||
+                                stripos($field_label_lower, 'personal') !== false ||
+                                stripos($field_name_lower, 'name') !== false ||
+                                stripos($field_name_lower, 'email') !== false
+                            ) {
+                                $step_title = __('Personal', 'job-posting-manager');
+                            }
+                        } elseif ($step === 1) {
+                            if (
+                                stripos($field_name_lower, 'education') !== false ||
+                                stripos($field_label_lower, 'education') !== false ||
+                                stripos($field_name_lower, 'school') !== false ||
+                                stripos($field_name_lower, 'degree') !== false
+                            ) {
+                                $step_title = __('Education', 'job-posting-manager');
+                            }
+                        } elseif ($step === 2) {
+                            if (
+                                stripos($field_name_lower, 'employment') !== false ||
+                                stripos($field_label_lower, 'employment') !== false ||
+                                stripos($field_name_lower, 'work') !== false ||
+                                stripos($field_name_lower, 'experience') !== false
+                            ) {
+                                $step_title = __('Employment', 'job-posting-manager');
+                            }
+                        } elseif ($step === 3) {
+                            if (
+                                stripos($field_name_lower, 'achievement') !== false ||
+                                stripos($field_label_lower, 'achievement') !== false ||
+                                stripos($field_name_lower, 'skill') !== false
+                            ) {
+                                $step_title = __('Achievements', 'job-posting-manager');
+                            }
+                        }
                     }
-                } elseif ($step === 1 && $fields_in_step === 0) {
-                    if (
-                        stripos($field_name_lower, 'education') !== false ||
-                        stripos($field_label_lower, 'education') !== false ||
-                        stripos($field_name_lower, 'school') !== false ||
-                        stripos($field_name_lower, 'degree') !== false
-                    ) {
-                        $step_title = __('Education', 'job-posting-manager');
-                    }
-                } elseif ($step === 2 && $fields_in_step === 0) {
-                    if (
-                        stripos($field_name_lower, 'employment') !== false ||
-                        stripos($field_label_lower, 'employment') !== false ||
-                        stripos($field_name_lower, 'work') !== false ||
-                        stripos($field_name_lower, 'experience') !== false
-                    ) {
-                        $step_title = __('Employment', 'job-posting-manager');
-                    }
-                } elseif ($step === 3 && $fields_in_step === 0) {
-                    if (
-                        stripos($field_name_lower, 'achievement') !== false ||
-                        stripos($field_label_lower, 'achievement') !== false ||
-                        stripos($field_name_lower, 'skill') !== false
-                    ) {
-                        $step_title = __('Achievements', 'job-posting-manager');
-                    }
+
+                    $step_fields[] = [
+                        'field' => $field,
+                        'index' => $field_index
+                    ];
                 }
 
-                $step_fields[] = [
-                    'field' => $field,
-                    'index' => $field_index
-                ];
-
-                $field_index++;
-                $fields_in_step++;
+                $row_index++;
+                $rows_in_step++;
             }
 
             if (!empty($step_fields)) {
@@ -820,12 +948,58 @@ class JPM_Form_Builder
                 return $options_html;
 
             case 'file':
-                return sprintf(
-                    '<input type="file" id="%s" name="%s" class="jpm-form-field" %s>',
-                    $field_id,
-                    $field_name,
-                    $required
-                );
+                // Check if this is a picture/photo field
+                $is_picture = stripos($field['name'], 'picture') !== false ||
+                    stripos($field['name'], 'photo') !== false ||
+                    stripos($field['name'], 'image') !== false ||
+                    stripos($field['label'], 'picture') !== false ||
+                    stripos($field['label'], 'photo') !== false ||
+                    stripos($field['label'], 'image') !== false;
+
+                if ($is_picture) {
+                    // Single photo upload (Photo 1 only)
+                    $required_attr = $required ? 'required' : '';
+                    return sprintf(
+                        '<div class="jpm-picture-upload-container">
+                            <input type="file" id="%s" name="%s" class="jpm-form-field jpm-file-input jpm-picture-input" accept="image/*" %s style="display: none;">
+                            <div class="jpm-upload-slot jpm-single-photo" data-slot="1">
+                                <label for="%s" class="jpm-upload-label">
+                                    <span class="jpm-upload-icon">📷</span>
+                                    <span class="jpm-upload-text">%s</span>
+                                    <span class="jpm-upload-hint">%s</span>
+                                </label>
+                                <div class="jpm-upload-preview"></div>
+                                <button type="button" class="jpm-upload-remove" style="display: none;">×</button>
+                            </div>
+                        </div>',
+                        $field_id,
+                        $field_name,
+                        $required_attr,
+                        $field_id,
+                        __('Photo 1', 'job-posting-manager'),
+                        __('Click to upload', 'job-posting-manager')
+                    );
+                } else {
+                    // Regular file upload
+                    return sprintf(
+                        '<div class="jpm-file-upload-wrapper">
+                            <input type="file" id="%s" name="%s" class="jpm-form-field jpm-file-input" %s style="display: none;">
+                            <label for="%s" class="jpm-file-upload-label">
+                                <span class="jpm-file-upload-icon">📄</span>
+                                <span class="jpm-file-upload-text">%s</span>
+                                <span class="jpm-file-upload-filename"></span>
+                            </label>
+                            <div class="jpm-file-upload-preview"></div>
+                            <button type="button" class="jpm-file-upload-remove" style="display: none;">%s</button>
+                        </div>',
+                        $field_id,
+                        $field_name,
+                        $required,
+                        $field_id,
+                        __('Choose File', 'job-posting-manager'),
+                        __('Remove', 'job-posting-manager')
+                    );
+                }
 
             case 'date':
                 return sprintf(

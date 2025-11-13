@@ -11,8 +11,9 @@ jQuery(document).ready(function ($) {
     const $submitBtn = $(".jpm-btn-submit");
 
     // Step 0 is application info (always visible), form steps start at 1
+    // Summary step is the last step
     let currentStep = 1;
-    const totalSteps = $steps.length;
+    const totalSteps = $steps.length; // Includes summary step
     const formStepsCount = totalSteps - 1; // Exclude step 0
 
     // Get current step from active step (skip step 0)
@@ -39,9 +40,12 @@ jQuery(document).ready(function ($) {
       $stepperNav.removeClass("active completed");
       $stepperNav.each(function (index) {
         const navStepIndex = index + 1; // Nav step 0 = form step 1, etc.
-        if (navStepIndex < stepIndex) {
+        const isSummaryNav = index === $stepperNav.length - 1; // Last nav item is summary
+        const navStepNum = isSummaryNav ? totalSteps - 1 : navStepIndex;
+
+        if (navStepNum < stepIndex) {
           $(this).addClass("completed");
-        } else if (navStepIndex === stepIndex) {
+        } else if (navStepNum === stepIndex) {
           $(this).addClass("active");
         }
       });
@@ -53,7 +57,12 @@ jQuery(document).ready(function ($) {
         $prevBtn.show();
       }
 
-      if (stepIndex === totalSteps - 1) {
+      // Check if this is the summary step (last step)
+      const isSummaryStep = stepIndex === totalSteps - 1;
+
+      if (isSummaryStep) {
+        // Populate summary before showing it
+        populateSummary();
         $nextBtn.hide();
         $submitBtn.show();
       } else {
@@ -70,6 +79,236 @@ jQuery(document).ready(function ($) {
         },
         300
       );
+    }
+
+    // Populate summary with form values
+    function populateSummary() {
+      $(".jpm-summary-item").each(function () {
+        const $item = $(this);
+        const fieldName = $item.data("field-name");
+        const $valueContainer = $item.find(".jpm-summary-value");
+        const fieldId = $valueContainer.data("field-id");
+
+        // Skip if already has content (like application number, date)
+        if (
+          $valueContainer.find("span").length > 0 &&
+          !$valueContainer.find(".jpm-summary-placeholder").length
+        ) {
+          return; // Already populated
+        }
+
+        // Handle special fields
+        if (
+          fieldName === "application_number" ||
+          fieldId === "jpm_application_number"
+        ) {
+          const value = $("#jpm_application_number").val();
+          if (value) {
+            $valueContainer.html("<span>" + value + "</span>");
+          }
+          return;
+        }
+
+        if (
+          fieldName === "date_of_registration" ||
+          fieldId === "jpm_date_of_registration"
+        ) {
+          const value = $("#jpm_date_of_registration").val();
+          if (value) {
+            $valueContainer.html("<span>" + value + "</span>");
+          }
+          return;
+        }
+
+        // Find the actual form field
+        let $field = $("#" + fieldId);
+
+        if ($field.length === 0) {
+          // Try to find by name attribute (handle array names like jpm_fields[field_name])
+          $field = $form
+            .find(
+              '[name="jpm_fields[' +
+                fieldName +
+                ']"], [name*="' +
+                fieldName +
+                '"]'
+            )
+            .first();
+
+          // If still not found, try picture input
+          if ($field.length === 0) {
+            $field = $form
+              .find(".jpm-picture-input, .jpm-file-input")
+              .filter(function () {
+                const name = $(this).attr("name") || "";
+                return name.includes(fieldName);
+              })
+              .first();
+          }
+        }
+
+        if ($field.length > 0) {
+          updateSummaryValue($valueContainer, $field, fieldName);
+        } else {
+          $valueContainer.html(
+            '<span class="jpm-summary-empty">' + "Field not found" + "</span>"
+          );
+        }
+      });
+    }
+
+    // Update summary value based on field type
+    function updateSummaryValue($container, $field, fieldName) {
+      const fieldType =
+        $field.attr("type") || $field.prop("tagName").toLowerCase();
+      let displayValue = "";
+
+      if (
+        fieldType === "file" ||
+        $field.hasClass("jpm-file-input") ||
+        $field.hasClass("jpm-picture-input")
+      ) {
+        // Handle file uploads
+        if ($field[0].files && $field[0].files.length > 0) {
+          const fileNames = [];
+          const filePreviews = [];
+
+          for (let i = 0; i < $field[0].files.length; i++) {
+            const file = $field[0].files[i];
+            fileNames.push(file.name);
+
+            // If it's an image, create preview
+            if (file.type.startsWith("image/")) {
+              const reader = new FileReader();
+              reader.onload = function (e) {
+                filePreviews.push(
+                  '<img src="' +
+                    e.target.result +
+                    '" alt="' +
+                    file.name +
+                    '" style="max-width: 150px; max-height: 150px; border-radius: 4px; margin: 5px;">'
+                );
+                if (filePreviews.length === $field[0].files.length) {
+                  $container.html(
+                    filePreviews.join("") +
+                      '<div style="margin-top: 8px; color: #666; font-size: 13px;">' +
+                      fileNames.join(", ") +
+                      "</div>"
+                  );
+                }
+              };
+              reader.readAsDataURL(file);
+            }
+          }
+
+          // If no images, just show file names
+          if (filePreviews.length === 0) {
+            displayValue = fileNames.join(", ");
+          } else {
+            // Will be updated by FileReader callbacks
+            return; // Exit early, value will be set by callback
+          }
+        } else {
+          // Check if there's a preview in the upload slot (for pictures)
+          const $container_parent = $field.closest(
+            ".jpm-picture-upload-container, .jpm-file-upload-wrapper"
+          );
+          if ($container_parent.length > 0) {
+            const $preview = $container_parent.find(
+              ".jpm-upload-preview img, .jpm-file-upload-preview img"
+            );
+            if ($preview.length > 0) {
+              displayValue = $preview.clone().wrap("<div>").parent().html();
+            } else {
+              displayValue =
+                '<span class="jpm-summary-empty">' + "Not uploaded" + "</span>";
+            }
+          } else {
+            displayValue =
+              '<span class="jpm-summary-empty">' + "Not uploaded" + "</span>";
+          }
+        }
+      } else if (fieldType === "checkbox") {
+        // Handle checkboxes - find all checkboxes with the same name
+        const checkboxName = $field.attr("name");
+        if (checkboxName) {
+          const checked = $form.find(
+            'input[name="' + checkboxName + '"]:checked'
+          );
+          if (checked.length > 0) {
+            const values = checked
+              .map(function () {
+                // Get label text if available
+                const $label = $(this).closest("label");
+                if ($label.length > 0) {
+                  return $label.text().trim();
+                }
+                return $(this).val();
+              })
+              .get();
+            displayValue = values.join(", ");
+          } else {
+            displayValue =
+              '<span class="jpm-summary-empty">' + "Not selected" + "</span>";
+          }
+        } else {
+          // Single checkbox
+          if ($field.is(":checked")) {
+            displayValue = "Yes";
+          } else {
+            displayValue =
+              '<span class="jpm-summary-empty">' + "Not selected" + "</span>";
+          }
+        }
+      } else if (fieldType === "radio") {
+        // Handle radio buttons
+        const checked = $form.find(
+          'input[name="' + $field.attr("name") + '"]:checked'
+        );
+        if (checked.length > 0) {
+          displayValue = checked.val();
+        } else {
+          displayValue =
+            '<span class="jpm-summary-empty">' + "Not selected" + "</span>";
+        }
+      } else if (fieldType === "select" || $field.is("select")) {
+        // Handle select dropdowns
+        const selected = $field.find("option:selected");
+        if (selected.length > 0 && selected.val() !== "") {
+          displayValue = selected.text();
+        } else {
+          displayValue =
+            '<span class="jpm-summary-empty">' + "Not selected" + "</span>";
+        }
+      } else if (fieldType === "textarea" || $field.is("textarea")) {
+        // Handle textareas
+        const value = $field.val().trim();
+        if (value) {
+          displayValue =
+            value.length > 100 ? value.substring(0, 100) + "..." : value;
+        } else {
+          displayValue =
+            '<span class="jpm-summary-empty">' + "Not filled" + "</span>";
+        }
+      } else {
+        // Handle text inputs, email, tel, date, number, etc.
+        const value = $field.val();
+        if (value && value.trim() !== "") {
+          displayValue = value;
+        } else {
+          displayValue =
+            '<span class="jpm-summary-empty">' + "Not filled" + "</span>";
+        }
+      }
+
+      // Update the container
+      if (displayValue) {
+        $container.html(displayValue);
+      } else {
+        $container.html(
+          '<span class="jpm-summary-empty">' + "Not filled" + "</span>"
+        );
+      }
     }
 
     // Next button click
@@ -92,14 +331,39 @@ jQuery(document).ready(function ($) {
     $stepperNav.on("click", function () {
       const navStepIndex = parseInt($(this).data("step"));
       // Map nav step (0-based) to form step (1-based)
-      const stepIndex = navStepIndex + 1;
+      // The last nav item is the summary step
+      const isSummaryNav = navStepIndex === $stepperNav.length - 1;
+      const stepIndex = isSummaryNav ? totalSteps - 1 : navStepIndex + 1;
+
       if (stepIndex !== undefined && stepIndex !== currentStep) {
         // Allow going back without validation, but validate when going forward
         if (stepIndex < currentStep) {
           goToStep(stepIndex);
         } else {
-          if (validateCurrentStep()) {
-            goToStep(stepIndex);
+          // For summary step, validate all previous steps
+          if (isSummaryNav || stepIndex === totalSteps - 1) {
+            // Validate all steps before showing summary
+            let allValid = true;
+            for (let i = 1; i < totalSteps - 1; i++) {
+              const $stepEl = $steps.filter('[data-step="' + i + '"]');
+              if ($stepEl.length > 0) {
+                const originalStep = currentStep;
+                currentStep = i;
+                if (!validateCurrentStep()) {
+                  allValid = false;
+                  goToStep(i); // Go to the step with errors
+                  break;
+                }
+                currentStep = originalStep;
+              }
+            }
+            if (allValid) {
+              goToStep(totalSteps - 1); // Go to summary step
+            }
+          } else {
+            if (validateCurrentStep()) {
+              goToStep(stepIndex);
+            }
           }
         }
       }
@@ -167,6 +431,179 @@ jQuery(document).ready(function ($) {
 
   // Initialize stepper on page load
   initStepperForm();
+
+  // File Upload Preview Functionality
+  function initFileUploads() {
+    // Regular file uploads
+    $(document).on(
+      "change",
+      ".jpm-file-input:not(.jpm-picture-upload-grid .jpm-file-input)",
+      function () {
+        const $input = $(this);
+        const $wrapper = $input.closest(".jpm-file-upload-wrapper");
+        const $label = $wrapper.find(".jpm-file-upload-label");
+        const $filename = $wrapper.find(".jpm-file-upload-filename");
+        const $preview = $wrapper.find(".jpm-file-upload-preview");
+        const $removeBtn = $wrapper.find(".jpm-file-upload-remove");
+        const file = this.files[0];
+
+        if (file) {
+          $filename.text(file.name);
+          $removeBtn.show();
+
+          // Show preview for images
+          if (file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              $preview
+                .html('<img src="' + e.target.result + '" alt="Preview">')
+                .show();
+            };
+            reader.readAsDataURL(file);
+          } else {
+            $preview.hide();
+          }
+        }
+      }
+    );
+
+    // Remove regular file upload (not picture grid)
+    $(document).on(
+      "click",
+      ".jpm-file-upload-wrapper .jpm-file-upload-remove",
+      function (e) {
+        e.preventDefault();
+        const $wrapper = $(this).closest(".jpm-file-upload-wrapper");
+        const $input = $wrapper.find(".jpm-file-input");
+        const $filename = $wrapper.find(".jpm-file-upload-filename");
+        const $preview = $wrapper.find(".jpm-file-upload-preview");
+        const $removeBtn = $(this);
+
+        $input.val("");
+        $filename.text("");
+        $preview.hide().empty();
+        $removeBtn.hide();
+      }
+    );
+
+    // Single photo upload (Photo 1 only)
+    $(document).on("change", ".jpm-picture-input", function () {
+      const $input = $(this);
+      const $container = $input.closest(".jpm-picture-upload-container");
+      const $slot = $container.find(".jpm-upload-slot");
+      const $preview = $slot.find(".jpm-upload-preview");
+      const $removeBtn = $slot.find(".jpm-upload-remove");
+      const file = this.files[0];
+
+      if (file && file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          $preview.html('<img src="' + e.target.result + '" alt="Preview">');
+          $slot.addClass("has-image");
+          $removeBtn.show();
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert("Please select a valid image file.");
+        $input.val("");
+      }
+    });
+
+    // Remove photo
+    $(document).on(
+      "click",
+      ".jpm-picture-upload-container .jpm-upload-remove",
+      function (e) {
+        e.preventDefault();
+        const $slot = $(this).closest(".jpm-upload-slot");
+        const $container = $slot.closest(".jpm-picture-upload-container");
+        const $input = $container.find(".jpm-picture-input");
+        const $preview = $slot.find(".jpm-upload-preview");
+        const $removeBtn = $(this);
+
+        $input.val("");
+        $preview.empty();
+        $slot.removeClass("has-image");
+        $removeBtn.hide();
+      }
+    );
+  }
+
+  // Initialize file uploads
+  initFileUploads();
+
+  // Summary step - click to edit functionality (inside stepper form scope)
+  function initSummaryClickToEdit() {
+    const $form = $("#jpm-application-form");
+    if ($form.length === 0) return;
+
+    const $steps = $(".jpm-form-step");
+    const totalSteps = $steps.length;
+
+    $(document).on("click", ".jpm-summary-item", function () {
+      const $item = $(this);
+      const fieldName = $item.data("field-name");
+      const fieldId = $item.find(".jpm-summary-value").data("field-id");
+
+      // Skip navigation for read-only fields
+      if (
+        fieldName === "application_number" ||
+        fieldName === "date_of_registration"
+      ) {
+        return;
+      }
+
+      // Find which step contains this field
+      let targetStep = 1;
+      $steps.each(function (index) {
+        const $step = $(this);
+        const stepNum = parseInt($step.data("step"));
+        if (stepNum > 0 && stepNum < totalSteps) {
+          // Check if this step contains the field
+          if (
+            $step.find("#" + fieldId).length > 0 ||
+            $step.find('[name*="' + fieldName + '"]').length > 0
+          ) {
+            targetStep = stepNum;
+            return false; // Break loop
+          }
+        }
+      });
+
+      // Navigate to the step containing this field
+      if (targetStep > 0) {
+        // Trigger the stepper navigation to go to that step
+        const $stepperNav = $(".jpm-stepper-navigation .jpm-stepper-step");
+        $stepperNav.each(function (index) {
+          const navStepIndex = parseInt($(this).data("step"));
+          const isSummaryNav = index === $stepperNav.length - 1;
+          const navStepNum = isSummaryNav ? totalSteps - 1 : navStepIndex + 1;
+
+          if (navStepNum === targetStep) {
+            $(this).trigger("click");
+            return false;
+          }
+        });
+
+        // Scroll to the field after navigation
+        setTimeout(function () {
+          const $field = $("#" + fieldId);
+          if ($field.length > 0) {
+            $("html, body").animate(
+              {
+                scrollTop: $field.offset().top - 150,
+              },
+              500
+            );
+            $field.focus();
+          }
+        }, 500);
+      }
+    });
+  }
+
+  // Initialize summary click to edit
+  initSummaryClickToEdit();
 
   // Toast notification function
   function showToast(message, type) {
