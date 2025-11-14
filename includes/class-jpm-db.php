@@ -3810,14 +3810,17 @@ class JPM_Admin
                         // Exclude internal fields from display
                         $excluded_fields = ['application_number', 'date_of_registration', 'applicant_number'];
 
+                        // Skip if already displayed in applicant information
+                        $skip_fields = ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email'];
+
+                        // Collect valid form fields
+                        $valid_fields = [];
                         foreach ($form_data as $field_name => $field_value):
                             if (in_array($field_name, $excluded_fields)) {
                                 continue;
                             }
 
-                            // Skip if already displayed in applicant information
                             $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
-                            $skip_fields = ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email'];
                             if (in_array($field_name_lower, $skip_fields)) {
                                 continue;
                             }
@@ -3827,20 +3830,67 @@ class JPM_Admin
                             }
 
                             $field_label = ucwords(str_replace(['_', '-'], ' ', $field_name));
+                            $valid_fields[$field_label] = $field_value;
+                        endforeach;
+
+                        if (!empty($valid_fields)):
                             ?>
-                            <div class="form-field">
-                                <span class="form-field-label"><?php echo esc_html($field_label); ?></span>
-                                <div class="form-field-value">
-                                    <?php
-                                    if (is_array($field_value)) {
-                                        echo esc_html(implode(', ', $field_value));
-                                    } else {
-                                        echo esc_html($field_value);
-                                    }
-                                    ?>
-                                </div>
+                            <div class="info-grid">
+                                <?php foreach ($valid_fields as $field_label => $field_value): ?>
+                                    <div class="info-row">
+                                        <div class="info-label">
+                                            <?php echo esc_html($field_label); ?>
+                                        </div>
+                                        <div class="info-value">
+                                            <?php
+                                            if (is_array($field_value)) {
+                                                // Handle array values (e.g., checkboxes, multiple selections)
+                                                echo '<ul style="margin: 0; padding-left: 20px; list-style-type: disc;">';
+                                                foreach ($field_value as $item) {
+                                                    echo '<li style="margin-bottom: 5px;">' . esc_html($item) . '</li>';
+                                                }
+                                                echo '</ul>';
+                                            } elseif (
+                                                filter_var($field_value, FILTER_VALIDATE_URL) &&
+                                                (strpos($field_value, '.pdf') !== false ||
+                                                    strpos($field_value, '.doc') !== false ||
+                                                    strpos($field_value, '.docx') !== false ||
+                                                    strpos($field_value, '.jpg') !== false ||
+                                                    strpos($field_value, '.png') !== false ||
+                                                    strpos($field_value, '.jpeg') !== false)
+                                            ) {
+                                                // Handle file URLs
+                                                $file_name = basename($field_value);
+                                                echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none; font-weight: 600;">';
+                                                echo '<span style="margin-right: 8px;">📎</span>';
+                                                echo esc_html($file_name);
+                                                echo ' <span style="font-size: 9pt; color: #7f8c8d;">(' . __('Click to download', 'job-posting-manager') . ')</span>';
+                                                echo '</a>';
+                                            } elseif (filter_var($field_value, FILTER_VALIDATE_EMAIL)) {
+                                                // Handle email addresses
+                                                echo '<a href="mailto:' . esc_attr($field_value) . '" style="color: #3498db; text-decoration: none;">' . esc_html($field_value) . '</a>';
+                                            } elseif (filter_var($field_value, FILTER_VALIDATE_URL)) {
+                                                // Handle URLs
+                                                echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none;">' . esc_html($field_value) . '</a>';
+                                            } elseif (strlen($field_value) > 200) {
+                                                // Handle long text - preserve line breaks and format nicely
+                                                $formatted_value = nl2br(esc_html($field_value));
+                                                echo '<div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0;">' . $formatted_value . '</div>';
+                                            } else {
+                                                // Regular text - preserve line breaks
+                                                $formatted_value = nl2br(esc_html($field_value));
+                                                echo $formatted_value;
+                                            }
+                                            ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
-                        <?php endforeach; ?>
+                        <?php else: ?>
+                            <p style="color: #95a5a6; font-style: italic; padding: 20px; text-align: center;">
+                                <?php _e('No additional form data available.', 'job-posting-manager'); ?>
+                            </p>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
 
