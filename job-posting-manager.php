@@ -155,6 +155,66 @@ function jpm_init_default_template()
     }
 }
 
+// Register cron hook for async admin email notifications (backup method)
+add_action('jpm_send_admin_notification_async', 'jpm_handle_async_admin_notification', 10, 6);
+function jpm_handle_async_admin_notification($application_id, $job_id, $form_data, $admin_email, $customer_email, $first_name, $last_name)
+{
+    if (class_exists('JPM_Emails')) {
+        try {
+            JPM_Emails::send_admin_notification($application_id, $job_id, $form_data, $admin_email, $customer_email, $first_name, $last_name);
+        } catch (Exception $e) {
+            error_log('JPM: Failed to send async admin notification - ' . $e->getMessage());
+        }
+    }
+}
+
+// Direct AJAX handler to send admin email immediately (fastest method)
+add_action('wp_ajax_jpm_send_admin_email_direct', 'jpm_send_admin_email_direct_handler');
+add_action('wp_ajax_nopriv_jpm_send_admin_email_direct', 'jpm_send_admin_email_direct_handler');
+function jpm_send_admin_email_direct_handler()
+{
+    // Get email data from transient
+    $transient_key = isset($_POST['transient_key']) ? sanitize_text_field($_POST['transient_key']) : '';
+
+    if (empty($transient_key)) {
+        wp_die('Invalid request');
+    }
+
+    $email_data = get_transient($transient_key);
+
+    if (!$email_data || !is_array($email_data)) {
+        wp_die('Email data not found');
+    }
+
+    // Verify nonce
+    $nonce = isset($_POST['nonce']) ? sanitize_text_field($_POST['nonce']) : '';
+    if (!wp_verify_nonce($nonce, 'jpm_email_nonce_' . $email_data['application_id'])) {
+        wp_die('Security check failed');
+    }
+
+    // Send the email
+    if (class_exists('JPM_Emails')) {
+        try {
+            JPM_Emails::send_admin_notification(
+                $email_data['application_id'],
+                $email_data['job_id'],
+                $email_data['form_data'],
+                $email_data['admin_email'],
+                $email_data['customer_email'],
+                $email_data['first_name'],
+                $email_data['last_name']
+            );
+
+            // Delete transient after successful send
+            delete_transient($transient_key);
+        } catch (Exception $e) {
+            error_log('JPM: Failed to send admin email via direct handler - ' . $e->getMessage());
+        }
+    }
+
+    wp_die('OK');
+}
+
 // Initialize classes
 new JPM_Admin();
 new JPM_Frontend();

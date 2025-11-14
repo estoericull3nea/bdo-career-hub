@@ -463,7 +463,8 @@ class JPM_Emails
         // Get job details
         $job_title = get_the_title($job_id);
         $job_link = admin_url('post.php?post=' . $job_id . '&action=edit');
-        $application_link = admin_url('post.php?post=' . $job_id . '&action=edit#jpm_job_applications');
+        // Link to applications page with view details action (dynamic based on application_id)
+        $application_link = admin_url('admin.php?page=jpm-applications&action=print&application_id=' . $application_id);
 
         // Extract customer information from form data if not provided
         if (empty($first_name) || empty($last_name) || empty($customer_email)) {
@@ -568,21 +569,24 @@ class JPM_Emails
         // Body
         $body .= '<div style="background-color: ' . esc_attr($template['body_bg_color']) . '; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">';
 
-        // Greeting
+        // Greeting (from admin template settings)
         if (!empty($template['greeting'])) {
             $greeting = self::replace_placeholders($template['greeting'], [
                 '[Full Name]' => esc_html($full_name),
+                '[Job Title]' => esc_html($job_title),
+                '[Application ID]' => $application_id,
             ]);
-            $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($greeting) . '</p>';
+            $body .= '<p style="font-size: 16px; margin-bottom: 15px;">' . wp_kses_post($greeting) . '</p>';
         }
 
-        // Intro message
+        // Intro message (from admin template settings)
         if (!empty($template['intro_message'])) {
             $intro_message = self::replace_placeholders($template['intro_message'], [
                 '[Job Title]' => esc_html($job_title),
                 '[Full Name]' => esc_html($full_name),
+                '[Application ID]' => $application_id,
             ]);
-            $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($intro_message) . '</p>';
+            $body .= '<p style="font-size: 15px; margin-bottom: 20px;">' . wp_kses_post($intro_message) . '</p>';
         }
 
         // Job Information Section
@@ -611,83 +615,133 @@ class JPM_Emails
         $body .= '</table>';
         $body .= '</div>';
 
-        // Application Details Section
+        // Application Details Section - OPTIMIZED: Show only key fields to reduce email size
         $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
         $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['details_section_title']) . '</h2>';
-        $body .= '<table border="1" cellpadding="12" cellspacing="0" style="border-collapse: collapse; width: 100%; background-color: #ffffff;">';
-        $body .= '<tr style="background-color: #2c3e50; color: #ffffff;"><th style="text-align: left; padding: 10px; font-weight: bold;">' . __('Field', 'job-posting-manager') . '</th><th style="text-align: left; padding: 10px; font-weight: bold;">' . __('Value', 'job-posting-manager') . '</th></tr>';
 
-        // Display form data (exclude internal fields)
-        $exclude_fields = ['application_number', 'date_of_registration', 'applicant_number'];
-        foreach ($form_data as $field_name => $field_value) {
-            // Skip excluded fields and empty values
-            if (in_array($field_name, $exclude_fields) || empty($field_value)) {
-                continue;
+        // Only show essential/key fields (limit to 5 most important fields to reduce email size)
+        $exclude_fields = ['application_number', 'date_of_registration', 'applicant_number', 'first_name', 'last_name', 'email', 'email_address'];
+        $priority_fields = ['phone', 'phone_number', 'mobile', 'contact_number', 'resume', 'cv', 'cover_letter', 'message', 'experience', 'qualification', 'education'];
+
+        $fields_shown = 0;
+        $max_fields = 5; // Limit to 5 fields to keep email small
+
+        // First, show priority fields
+        foreach ($priority_fields as $priority_field) {
+            if ($fields_shown >= $max_fields)
+                break;
+
+            // Check variations of field name
+            $field_found = false;
+            $field_value = '';
+            foreach ($form_data as $field_name => $field_val) {
+                if (stripos($field_name, $priority_field) !== false && !in_array($field_name, $exclude_fields) && !empty($field_val)) {
+                    $field_found = true;
+                    $field_name_display = ucwords(str_replace(['_', '-'], ' ', $field_name));
+                    if (is_array($field_val)) {
+                        $field_value = implode(', ', $field_val);
+                    } else {
+                        $field_value = $field_val;
+                    }
+                    // Truncate long values
+                    if (strlen($field_value) > 100) {
+                        $field_value = substr($field_value, 0, 100) . '...';
+                    }
+                    break;
+                }
             }
 
-            $body .= '<tr>';
-            $body .= '<td style="padding: 10px; font-weight: bold; background-color: #f8f9fa; border: 1px solid #e0e0e0;">' . esc_html(ucwords(str_replace(['_', '-'], ' ', $field_name))) . '</td>';
-
-            // Handle different field types
-            if (is_array($field_value)) {
-                $field_value = implode(', ', $field_value);
+            if ($field_found) {
+                $body .= '<p style="margin: 8px 0;"><strong>' . esc_html($field_name_display) . ':</strong> ' . esc_html($field_value) . '</p>';
+                $fields_shown++;
             }
-
-            // Check if it's a file URL
-            if (filter_var($field_value, FILTER_VALIDATE_URL) && (strpos($field_value, '.pdf') !== false || strpos($field_value, '.doc') !== false || strpos($field_value, '.docx') !== false || strpos($field_value, '.jpg') !== false || strpos($field_value, '.png') !== false)) {
-                $body .= '<td style="padding: 10px; border: 1px solid #e0e0e0;"><a href="' . esc_url($field_value) . '" style="color: #0073aa; text-decoration: none; font-weight: bold;">' . __('Download File', 'job-posting-manager') . '</a></td>';
-            } else {
-                $body .= '<td style="padding: 10px; border: 1px solid #e0e0e0;">' . nl2br(esc_html($field_value)) . '</td>';
-            }
-
-            $body .= '</tr>';
         }
 
-        $body .= '</table>';
+        // Show count of remaining fields
+        $total_fields = 0;
+        foreach ($form_data as $key => $value) {
+            if (!in_array($key, $exclude_fields) && !empty($value)) {
+                $total_fields++;
+            }
+        }
+
+        if ($total_fields > $fields_shown) {
+            $remaining = $total_fields - $fields_shown;
+            $body .= '<p style="margin: 12px 0; color: #666; font-style: italic;">' . sprintf(__('+ %d more field(s) available in admin panel', 'job-posting-manager'), $remaining) . '</p>';
+        }
+
         $body .= '</div>';
 
-        // Closing message
+        // Prominent call-to-action to view full details
+        $body .= '<div style="margin: 25px 0; text-align: center; padding: 20px; background-color: #f0f8ff; border: 2px solid #0073aa; border-radius: 5px;">';
+        $body .= '<p style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #0073aa;">' . __('View Complete Application Details', 'job-posting-manager') . '</p>';
+        $body .= '<a href="' . esc_url($application_link) . '" style="background-color: #0073aa; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;">' . __('View Full Application in Admin Panel', 'job-posting-manager') . '</a>';
+        $body .= '</div>';
+
+        // Action required message (from admin template settings)
+        if (!empty($template['action_required_message'])) {
+            $action_required_message = self::replace_placeholders($template['action_required_message'], [
+                '[Job Title]' => esc_html($job_title),
+                '[Full Name]' => esc_html($full_name),
+                '[Application ID]' => $application_id,
+            ]);
+            $body .= '<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px;">';
+            $body .= '<p style="margin: 0; font-size: 14px; color: #856404;">' . wp_kses_post($action_required_message) . '</p>';
+            $body .= '</div>';
+        }
+
+        // Closing message (from admin template settings)
         if (!empty($template['closing_message'])) {
             $closing_message = self::replace_placeholders($template['closing_message'], [
                 '[Job Title]' => esc_html($job_title),
                 '[Full Name]' => esc_html($full_name),
+                '[Application ID]' => $application_id,
             ]);
-            $body .= '<p style="font-size: 16px; margin: 20px 0;">' . wp_kses_post($closing_message) . '</p>';
+            $body .= '<p style="font-size: 15px; margin: 20px 0;">' . wp_kses_post($closing_message) . '</p>';
         }
 
-        // Action required message
-        $action_required_message = self::replace_placeholders($template['action_required_message'], [
-            '[Job Title]' => esc_html($job_title),
-            '[Full Name]' => esc_html($full_name),
-        ]);
-        $body .= '<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px;">';
-        $body .= '<p style="margin: 0; font-size: 14px; color: #856404;">' . wp_kses_post($action_required_message) . '</p>';
         $body .= '</div>';
 
-        $body .= '</div>';
-
-        // Footer
+        // Footer (from admin template settings)
         $footer_message = self::replace_placeholders($template['footer_message'], [
             '[Job Title]' => esc_html($job_title),
             '[Full Name]' => esc_html($full_name),
+            '[Application ID]' => $application_id,
         ]);
         $body .= '<div style="background-color: ' . esc_attr($template['footer_bg_color']) . '; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; border: 1px solid #e0e0e0; border-top: none;">';
         $body .= '<p style="margin: 0; font-size: 12px; color: #666;">' . wp_kses_post($footer_message) . '</p>';
         $body .= '</div>';
         $body .= '</body></html>';
 
-        // Email headers
+        // Email headers with priority
         $headers = [
             'Content-Type: text/html; charset=UTF-8',
-            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
+            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>',
+            'X-Priority: 1', // High priority
+            'Importance: High',
+            'X-Mailer: Job Posting Manager'
         ];
+
+        // Set PHP execution time limit for email sending (if possible)
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(30); // 30 seconds for email sending
+        }
+
+        // Log start time for debugging
+        $start_time = microtime(true);
+        error_log('JPM: Starting admin notification email send to ' . $admin_email . ' at ' . date('Y-m-d H:i:s'));
 
         // Send email and return result
         $result = wp_mail($admin_email, $subject, $body, $headers);
 
-        // Log email sending attempt
+        // Log email sending attempt with timing
+        $end_time = microtime(true);
+        $duration = round($end_time - $start_time, 2);
+
         if (!$result) {
-            error_log('JPM: Failed to send admin notification email to ' . $admin_email);
+            error_log('JPM: Failed to send admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
+        } else {
+            error_log('JPM: Successfully sent admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
         }
 
         return $result;

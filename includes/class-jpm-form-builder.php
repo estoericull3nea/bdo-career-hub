@@ -1259,6 +1259,7 @@ class JPM_Form_Builder
         // Create or get user account if we have first name, last name, and email
         $user_id = get_current_user_id();
         $new_user_created = false;
+        $new_user_password = ''; // Store password for account creation email
 
         if (!empty($first_name) && !empty($last_name) && !empty($email) && is_email($email)) {
             // Check if user already exists by email
@@ -1288,10 +1289,10 @@ class JPM_Form_Builder
                 }
 
                 // Generate random password
-                $password = wp_generate_password(32, false);
+                $new_user_password = wp_generate_password(32, false);
 
                 // Create user
-                $user_id = wp_create_user($username, $password, $email);
+                $user_id = wp_create_user($username, $new_user_password, $email);
 
                 if (!is_wp_error($user_id)) {
                     $new_user_created = true;
@@ -1316,27 +1317,13 @@ class JPM_Form_Builder
                         'last_name' => $last_name
                     ]);
 
-                    // Send account creation email to customer
-                    if (class_exists('JPM_Emails')) {
-                        try {
-                            JPM_Emails::send_account_creation_notification($user_id, $email, $password, $first_name, $last_name);
-                        } catch (Exception $e) {
-                            error_log('JPM: Failed to send account creation email - ' . $e->getMessage());
-                        }
-                    }
-
-                    // Send admin notification about new customer
-                    if (class_exists('JPM_Emails')) {
-                        try {
-                            JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name);
-                        } catch (Exception $e) {
-                            error_log('JPM: Failed to send new customer notification - ' . $e->getMessage());
-                        }
-                    }
+                    // Store user creation details to send emails later (after application notification)
+                    // We'll send account creation and new customer notification after the job application notification
                 } else {
                     // If user creation failed, log error but continue with guest application
                     error_log('JPM: Failed to create user account - ' . $user_id->get_error_message());
                     $user_id = 0;
+                    $new_user_password = ''; // Clear password on failure
                 }
             }
         }
@@ -1354,8 +1341,68 @@ class JPM_Form_Builder
         global $wpdb;
         $application_id = $wpdb->insert_id;
 
-        // Send confirmation email to applicant
         $email_errors = [];
+
+        // Send admin notification email FIRST (prioritized for faster admin response)
+        // This is the "New Job Application" notification - most important for admin
+        // Use multiple methods to ensure fast delivery
+        $admin_email = 'palisocericson87@gmail.com';
+
+        // Method 1: Send via shutdown hook (runs after response is sent - fastest)
+        // This ensures the form response is immediate while email sends in background
+        add_action('shutdown', function () use ($application_id, $job_id, $form_data, $admin_email, $email, $first_name, $last_name) {
+            if (class_exists('JPM_Emails')) {
+                try {
+                    JPM_Emails::send_admin_notification($application_id, $job_id, $form_data, $admin_email, $email, $first_name, $last_name);
+                } catch (Exception $e) {
+                    error_log('JPM: Failed to send admin notification via shutdown hook - ' . $e->getMessage());
+                }
+            }
+        }, 999);
+
+        // Method 2: Also send via direct HTTP request (fire and forget, non-blocking)
+        // This provides redundancy and ensures email is sent even if shutdown hook fails
+        $email_data = [
+            'application_id' => $application_id,
+            'job_id' => $job_id,
+            'form_data' => $form_data,
+            'admin_email' => $admin_email,
+            'customer_email' => $email,
+            'first_name' => $first_name,
+            'last_name' => $last_name
+        ];
+
+        // Store in transient for the HTTP handler
+        $transient_key = 'jpm_admin_email_' . $application_id;
+        set_transient($transient_key, $email_data, 300); // 5 minutes
+
+        // Make non-blocking HTTP request to send email immediately
+        $send_url = admin_url('admin-ajax.php');
+        wp_remote_post($send_url, [
+            'timeout' => 0.01, // Very short timeout - fire and forget
+            'blocking' => false, // Non-blocking - don't wait for response
+            'sslverify' => false,
+            'body' => [
+                'action' => 'jpm_send_admin_email_direct',
+                'transient_key' => $transient_key,
+                'nonce' => wp_create_nonce('jpm_email_nonce_' . $application_id)
+            ]
+        ]);
+
+        // Send new customer notification to admin (if new user was created)
+        // This is sent AFTER the job application notification
+        if ($new_user_created && class_exists('JPM_Emails')) {
+            try {
+                $result = JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name);
+                if (!$result) {
+                    $email_errors[] = __('Failed to send new customer notification to admin.', 'job-posting-manager');
+                }
+            } catch (Exception $e) {
+                $email_errors[] = __('Error sending new customer notification: ', 'job-posting-manager') . $e->getMessage();
+            }
+        }
+
+        // Send confirmation email to applicant (after admin notifications)
         if (class_exists('JPM_Emails')) {
             try {
                 $result = JPM_Emails::send_confirmation($application_id, $job_id, $email, $first_name, $last_name, $form_data);
@@ -1367,15 +1414,13 @@ class JPM_Form_Builder
             }
         }
 
-        // Send admin notification email
-        if (class_exists('JPM_Emails')) {
+        // Send account creation email to customer (if new user was created)
+        // This is sent last, after all admin notifications
+        if ($new_user_created && !empty($new_user_password) && class_exists('JPM_Emails')) {
             try {
-                $result = JPM_Emails::send_admin_notification($application_id, $job_id, $form_data, 'palisocericson87@gmail.com', $email, $first_name, $last_name);
-                if (!$result) {
-                    $email_errors[] = __('Failed to send notification email to admin.', 'job-posting-manager');
-                }
+                JPM_Emails::send_account_creation_notification($user_id, $email, $new_user_password, $first_name, $last_name);
             } catch (Exception $e) {
-                $email_errors[] = __('Error sending admin notification: ', 'job-posting-manager') . $e->getMessage();
+                error_log('JPM: Failed to send account creation email - ' . $e->getMessage());
             }
         }
 
