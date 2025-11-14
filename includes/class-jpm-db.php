@@ -3286,8 +3286,8 @@ class JPM_Admin
                     width: 100% !important;
                     height: 100% !important;
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-                    font-size: 11pt !important;
-                    line-height: 1.7 !important;
+                    font-size: 10pt !important;
+                    line-height: 1.5 !important;
                     color: #2c3e50 !important;
                     background: #fff !important;
                     margin: 0 !important;
@@ -3335,7 +3335,7 @@ class JPM_Admin
                     body>.print-container>.print-header {
                         margin-top: 0 !important;
                         padding-top: 0 !important;
-                        margin-bottom: 25px !important;
+                        margin-bottom: 15px !important;
                     }
 
                     body>.print-container>.print-header>h1 {
@@ -3349,53 +3349,244 @@ class JPM_Admin
 
                     @page {
                         size: A4;
-                        margin: 0 1cm 1cm 1cm;
+                        margin: 0.3cm 0.5cm 0.3cm 0.5cm;
                     }
 
                     .section {
-                        page-break-inside: avoid;
-                        margin-bottom: 30px;
+                        page-break-inside: auto;
+                        margin-bottom: 4px !important;
+                        padding-bottom: 0 !important;
                     }
 
                     .print-header {
                         page-break-after: avoid;
                         margin-top: 0 !important;
-                        margin-bottom: 30px !important;
+                        margin-bottom: 5px !important;
                         padding-top: 0 !important;
-                        padding-bottom: 20px;
+                        padding-bottom: 3px !important;
+                        border-bottom-width: 1px !important;
                     }
 
                     .print-header h1 {
                         margin-top: 0 !important;
                         padding-top: 0 !important;
+                        margin-bottom: 2px !important;
+                        font-size: 16pt !important;
+                        line-height: 1.0 !important;
+                    }
+
+                    .print-header .subtitle {
+                        font-size: 9pt !important;
+                        margin-bottom: 1px !important;
+                        line-height: 1.2 !important;
+                    }
+
+                    .print-header .company-info {
+                        font-size: 8pt !important;
+                        margin-top: 2px !important;
+                        line-height: 1.2 !important;
                     }
 
                     .print-container {
-                        padding: 0 !important;
+                        padding: 0 5px 5px 5px !important;
                         padding-top: 0 !important;
                         margin-top: 0 !important;
                         max-width: 100%;
+                    }
+
+                    .section-title {
+                        font-size: 9.5pt !important;
+                        margin-bottom: 3px !important;
+                        padding-bottom: 2px !important;
+                        border-bottom-width: 1px !important;
+                        line-height: 1.2 !important;
+                    }
+
+                    .info-grid {
+                        margin: 0 !important;
+                        border-width: 1px !important;
                     }
 
                     .info-row {
                         page-break-inside: avoid;
                     }
 
+                    .info-row:last-child {
+                        border-bottom: none !important;
+                    }
+
+                    .info-label {
+                        padding: 4px 8px !important;
+                        font-size: 8.5pt !important;
+                        line-height: 1.3 !important;
+                        width: 32% !important;
+                    }
+
+                    .info-value {
+                        padding: 4px 8px !important;
+                        font-size: 9pt !important;
+                        line-height: 1.4 !important;
+                    }
+
+                    .divider {
+                        margin: 3px 0 !important;
+                        border-top-width: 0.5px !important;
+                    }
+
                     .form-field {
                         page-break-inside: avoid;
-                        margin-bottom: 15px;
+                        margin-bottom: 6px !important;
+                        padding: 6px 8px !important;
+                    }
+
+                    .form-data-section {
+                        margin-top: 4px !important;
                     }
 
                     .footer {
-                        margin-top: 50px;
-                        padding-top: 20px;
+                        margin-top: 10px !important;
+                        padding-top: 5px !important;
+                        border-top-width: 0.5px !important;
+                        font-size: 7.5pt !important;
+                        line-height: 1.3 !important;
+                    }
+
+                    /* Reduce line heights for compact printing */
+                    .info-value ul {
+                        margin: 2px 0 !important;
+                        padding-left: 15px !important;
+                    }
+
+                    .info-value li {
+                        margin-bottom: 1px !important;
+                        line-height: 1.3 !important;
+                    }
+
+                    /* Optimize long text boxes */
+                    .info-value div[style*="max-height"] {
+                        max-height: 150px !important;
+                        padding: 5px !important;
+                        font-size: 8.5pt !important;
+                        line-height: 1.3 !important;
+                    }
+
+                    /* Reduce overall body font size for print */
+                    body {
+                        font-size: 9pt !important;
+                        line-height: 1.3 !important;
+                    }
+
+                    /* Optimize status badge for print */
+                    .status-badge {
+                        padding: 3px 10px !important;
+                        font-size: 8pt !important;
+                        margin: 0 !important;
+                        line-height: 1.2 !important;
+                    }
+
+                    /* Better page break control - allow grids to break but keep rows together */
+                    .info-grid {
+                        page-break-inside: auto;
+                    }
+
+                    .info-row {
+                        page-break-inside: avoid;
+                        page-break-after: auto;
+                        break-inside: avoid;
+                    }
+
+                    /* Prevent orphaned section titles */
+                    .section-title {
+                        page-break-after: avoid;
+                        orphans: 3;
+                        widows: 3;
+                    }
+
+                    /* Optimize table cell spacing */
+                    .info-label,
+                    .info-value {
+                        page-break-inside: avoid;
+                    }
+
+                    /* MAXIMUM DENSITY - Reduce all spacing to absolute minimum */
+                    .section+.section {
+                        margin-top: 4px !important;
+                    }
+
+                    .section+.divider {
+                        margin-top: 4px !important;
+                        margin-bottom: 4px !important;
+                    }
+
+                    /* Remove spacing after section titles */
+                    .section-title+.info-grid {
+                        margin-top: 0 !important;
+                    }
+
+                    /* Ultra-compact table borders */
+                    .info-grid {
+                        border-width: 0.5px !important;
+                    }
+
+                    .info-row {
+                        border-bottom-width: 0.5px !important;
+                    }
+
+                    .info-label {
+                        border-right-width: 0.5px !important;
+                    }
+
+                    /* Ultra-compact cell padding - MAXIMUM DENSITY */
+                    .info-label,
+                    .info-value {
+                        padding: 3px 6px !important;
+                    }
+
+                    /* Minimal section spacing */
+                    .section {
+                        margin-top: 0 !important;
+                        margin-bottom: 4px !important;
+                    }
+
+                    .section-title {
+                        margin-top: 0 !important;
+                        margin-bottom: 3px !important;
+                    }
+
+                    .divider {
+                        margin: 3px 0 !important;
+                    }
+
+                    .footer {
+                        margin-top: 6px !important;
+                        padding-top: 2px !important;
+                    }
+
+                    /* Remove all top margins from text elements */
+                    p,
+                    div,
+                    span,
+                    h1,
+                    h2,
+                    h3,
+                    h4,
+                    h5,
+                    h6 {
+                        margin-top: 0 !important;
+                    }
+
+                    /* Compact header - no spacing */
+                    .print-header h1,
+                    .print-header .subtitle,
+                    .print-header .company-info {
+                        margin-top: 0 !important;
                     }
                 }
 
                 .print-container {
                     max-width: 210mm;
                     margin: 0 auto !important;
-                    padding: 0 40px 30px 40px !important;
+                    padding: 0 20px 20px 20px !important;
                     padding-top: 0 !important;
                     margin-top: 0 !important;
                     background: #fff;
@@ -3439,11 +3630,11 @@ class JPM_Admin
 
                 .print-header {
                     text-align: center;
-                    border-bottom: 3px solid #2c3e50;
-                    padding-bottom: 25px;
+                    border-bottom: 2px solid #2c3e50;
+                    padding-bottom: 15px;
                     padding-top: 0 !important;
                     margin-top: 0 !important;
-                    margin-bottom: 45px;
+                    margin-bottom: 25px;
                     position: relative;
                 }
 
@@ -3459,44 +3650,44 @@ class JPM_Admin
                 }
 
                 .print-header h1 {
-                    font-size: 32pt;
+                    font-size: 24pt;
                     margin-top: 0 !important;
-                    margin-bottom: 10px;
+                    margin-bottom: 6px;
                     padding-top: 0 !important;
                     color: #2c3e50;
                     font-weight: 700;
-                    letter-spacing: -0.5px;
-                    line-height: 1.2;
+                    letter-spacing: -0.3px;
+                    line-height: 1.1;
                 }
 
                 .print-header .subtitle {
-                    font-size: 16pt;
+                    font-size: 12pt;
                     color: #7f8c8d;
                     font-weight: 400;
-                    margin-bottom: 8px;
+                    margin-bottom: 5px;
                 }
 
                 .print-header .company-info {
-                    margin-top: 12px;
-                    font-size: 12pt;
+                    margin-top: 8px;
+                    font-size: 10pt;
                     color: #95a5a6;
                     font-weight: 500;
                 }
 
                 .section {
-                    margin-bottom: 40px;
+                    margin-bottom: 25px;
                     page-break-inside: avoid;
                 }
 
                 .section-title {
-                    font-size: 15pt;
+                    font-size: 13pt;
                     font-weight: 700;
                     color: #2c3e50;
                     border-bottom: 2px solid #3498db;
-                    padding-bottom: 10px;
-                    margin-bottom: 25px;
+                    padding-bottom: 8px;
+                    margin-bottom: 15px;
                     text-transform: uppercase;
-                    letter-spacing: 0.8px;
+                    letter-spacing: 0.6px;
                     line-height: 1.3;
                 }
 
@@ -3520,24 +3711,24 @@ class JPM_Admin
 
                 .info-label {
                     display: table-cell;
-                    width: 38%;
-                    padding: 14px 18px;
+                    width: 35%;
+                    padding: 10px 14px;
                     font-weight: 600;
                     color: #34495e;
                     background: #f5f7fa;
                     vertical-align: middle;
                     border-right: 1px solid #e8e8e8;
-                    font-size: 10.5pt;
-                    line-height: 1.5;
+                    font-size: 10pt;
+                    line-height: 1.4;
                 }
 
                 .info-value {
                     display: table-cell;
-                    padding: 14px 18px;
+                    padding: 10px 14px;
                     color: #2c3e50;
                     vertical-align: middle;
-                    font-size: 11pt;
-                    line-height: 1.6;
+                    font-size: 10.5pt;
+                    line-height: 1.5;
                 }
 
                 .status-badge {
@@ -3552,7 +3743,7 @@ class JPM_Admin
                 }
 
                 .form-data-section {
-                    margin-top: 35px;
+                    margin-top: 20px;
                 }
 
                 .form-field {
@@ -3588,20 +3779,20 @@ class JPM_Admin
                 }
 
                 .footer {
-                    margin-top: 70px;
-                    padding-top: 25px;
-                    border-top: 2px solid #e0e0e0;
+                    margin-top: 30px;
+                    padding-top: 15px;
+                    border-top: 1px solid #e0e0e0;
                     text-align: center;
-                    font-size: 9.5pt;
+                    font-size: 9pt;
                     color: #95a5a6;
-                    line-height: 1.6;
+                    line-height: 1.5;
                 }
 
                 .divider {
                     height: 0;
                     border: none;
                     border-top: 1px solid #e0e0e0;
-                    margin: 35px 0;
+                    margin: 20px 0;
                 }
 
                 @media screen {
@@ -3647,7 +3838,7 @@ class JPM_Admin
             </div>
 
             <div class="print-container" style="margin-top: 0 !important; padding-top: 0 !important;">
-                <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important; margin-bottom: 30px;">
+                <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important;">
                     <h1><?php _e('Job Application', 'job-posting-manager'); ?></h1>
                     <div class="subtitle"><?php printf(__('Application #%d', 'job-posting-manager'), $application_id); ?></div>
                     <?php if (get_bloginfo('name')): ?>
