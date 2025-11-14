@@ -788,7 +788,7 @@ class JPM_Frontend
                         <?php _e('Application Number', 'job-posting-manager'); ?>
                     </label>
                     <input type="text" id="application_number" name="application_number" class="jpm-input"
-                        placeholder="<?php esc_attr_e('Enter your application number (e.g., 25-BDO-79226701)', 'job-posting-manager'); ?>"
+                        placeholder="<?php esc_attr_e('Enter your application number (e.g., 25-BDO-792*****)', 'job-posting-manager'); ?>"
                         required>
                 </div>
                 <button type="submit" class="jpm-btn jpm-btn-primary">
