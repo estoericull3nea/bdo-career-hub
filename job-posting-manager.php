@@ -122,6 +122,7 @@ function jpm_register_post_type()
         'supports' => ['title', 'editor', 'custom-fields', 'categories', 'tags'],
         'menu_icon' => 'dashicons-businessman',
         'rewrite' => ['slug' => 'job-postings'],
+        'show_in_menu' => false, // Hide from menu, we'll add it as submenu under Job Postings
     ]);
 }
 

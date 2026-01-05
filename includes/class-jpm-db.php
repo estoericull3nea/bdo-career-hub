@@ -20,7 +20,9 @@ class JPM_Admin
 
     public function add_menu()
     {
-        add_menu_page(__('Job Manager', 'job-posting-manager'), __('Job Manager', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page'], 'dashicons-businessman');
+        add_menu_page(__('Job Postings', 'job-posting-manager'), __('Job Postings', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page'], 'dashicons-businessman');
+        add_submenu_page('jpm-dashboard', __('All Job Postings', 'job-posting-manager'), __('All Job Postings', 'job-posting-manager'), 'manage_options', 'edit.php?post_type=job_posting');
+        add_submenu_page('jpm-dashboard', __('Add New', 'job-posting-manager'), __('Add New', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
         add_submenu_page('jpm-dashboard', __('Status Management', 'job-posting-manager'), __('Status Management', 'job-posting-manager'), 'manage_options', 'jpm-status-management', [$this, 'status_management_page']);
     }
