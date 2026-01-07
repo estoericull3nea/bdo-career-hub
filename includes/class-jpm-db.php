@@ -21,6 +21,7 @@ class JPM_Admin
     public function add_menu()
     {
         add_menu_page(__('Job Postings', 'job-posting-manager'), __('Job Postings', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page'], 'dashicons-businessman');
+        add_submenu_page('jpm-dashboard', __('Dashboard', 'job-posting-manager'), __('Dashboard', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page']);
         add_submenu_page('jpm-dashboard', __('All Job Postings', 'job-posting-manager'), __('All Job Postings', 'job-posting-manager'), 'manage_options', 'edit.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Add New', 'job-posting-manager'), __('Add New', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
@@ -731,56 +732,12 @@ class JPM_Admin
             }
         </style>
 
-        <script>
-            jQuery(document).ready(function ($) {
-                // Update status on change
-                $('.jpm-application-status-select').on('change', function () {
-                    var $select = $(this);
-                    var applicationId = $select.data('application-id');
-                    var newStatus = $select.val();
-                    var $row = $select.closest('tr');
-
-                    // Disable select while updating
-                    $select.prop('disabled', true);
-
-                    $.ajax({
-                        url: ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'jpm_update_application_status',
-                            application_id: applicationId,
-                            status: newStatus,
-                            nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>'
-                        },
-                        success: function (response) {
-                            if (response.success) {
-                                // Update status badge in the same row
-                                var $statusBadge = $row.find('.jpm-status-badge');
-                                $statusBadge.removeClass('jpm-status-pending jpm-status-reviewed jpm-status-accepted jpm-status-rejected');
-                                $statusBadge.addClass('jpm-status-' + newStatus);
-                                $statusBadge.text(newStatus.charAt(0).toUpperCase() + newStatus.slice(1));
-
-                                // Show success message
-                                $select.after('<span class="jpm-status-update-success" style="color: #28a745; margin-left: 5px; font-size: 12px;">✓ Updated</span>');
-                                setTimeout(function () {
-                                    $select.siblings('.jpm-status-update-success').fadeOut(function () {
-                                        $(this).remove();
-                                    });
-                                }, 2000);
-                            } else {
-                                alert('Error updating status: ' + (response.data && response.data.message ? response.data.message : 'Unknown error'));
-                                // Revert select to original value
-                                location.reload();
-                            }
-                            $select.prop('disabled', false);
-                        },
-                        error: function () {
-                            alert('Error updating status. Please try again.');
-                            location.reload();
-                        }
-                    });
-                });
-            });
+        <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status-select').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();             var $row = $select.closest('tr');
+                // Disable select while updating             $select.prop('disabled', true);
+                $.ajax({
+                    url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) {
+                        if (response.success) {                         // Update status badge in the same row                         var $statusBadge = $row.find('.jpm-status-badge');                         $statusBadge.removeClass('jpm-status-pending jpm-status-reviewed jpm-status-accepted jpm-status-rejected');                         $statusBadge.addClass('jpm-status-' + newStatus);                         $statusBadge.text(newStatus.charAt(0).toUpperCase() + newStatus.slice(1));
+            // Show success message                         $select.after('<span class="jpm-status-update-success" style="color: #28a745; margin-left: 5px; font-size: 12px;">✓ Updated</span>');                         setTimeout(function () {                             $select.siblings('.jpm-status-update-success').fadeOut(function () {                                 $(this).remove();                             });                         }, 2000);                     } else {                         alert('Error updating status: ' + (response.data && response.data.message ? response.data.message : 'Unknown error'));                         // Revert select to original value                         location.reload();                     }                     $select.prop('disabled', false);                 },                 error: function () {                     alert('Error updating status. Please try again.');                     location.reload();                 }             });         });     });
         </script>
         <?php
     }
@@ -1111,33 +1068,10 @@ class JPM_Admin
             }
         </style>
 
-        <script>
-            jQuery(document).ready(function ($) {
-                // Update status on change
-                $('.jpm-application-status').on('change', function () {
-                    var $select = $(this);
-                    var applicationId = $select.data('application-id');
-                    var newStatus = $select.val();
-
-                    $.ajax({
-                        url: ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'jpm_update_application_status',
-                            application_id: applicationId,
-                            status: newStatus,
-                            nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>'
-                        },
-                        success: function (response) {
-                            if (response.success) {
-                                location.reload();
-                            } else {
-                                alert('Error updating status');
-                            }
-                        }
-                    });
-                });
-            });
+        <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();
+                                     $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
+                                 });
+                             });
         </script>
         <?php
     }
@@ -4093,9 +4027,7 @@ class JPM_Admin
                 </div>
             </div>
 
-            <script>
-                // Auto-print w         hen         page loads (optional)
-                // window.onload = function() { window.print(); };
+            <script>         // Auto-print w         hen         page loads (optional)         // window.onload = function() { window.print(); };
             </script>
         </body>
 
