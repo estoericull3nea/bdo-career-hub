@@ -2115,6 +2115,14 @@
   font-size: 1.8em;
 }
 
+.jpm-tracker-intro {
+  color: #555;
+  font-size: 1em;
+  line-height: 1.6;
+  margin: 0 0 15px 0;
+  text-align: left;
+}
+
 .jpm-tracker-description {
   color: #666;
   font-size: 1em;
@@ -2200,6 +2208,35 @@
   margin-top: 30px;
   padding-top: 30px;
   border-top: 2px solid #e5e5e5;
+}
+
+.jpm-tracker-footer {
+  margin-top: 30px;
+  padding-top: 30px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.jpm-tracker-footer-text {
+  color: #666;
+  font-size: 0.95em;
+  line-height: 1.6;
+  margin: 0 0 10px 0;
+}
+
+.jpm-tracker-footer-text:last-child {
+  margin-bottom: 0;
+}
+
+.jpm-tracker-footer-text a {
+  color: #0073aa;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.jpm-tracker-footer-text a:hover {
+  color: #005a87;
+  text-decoration: underline;
 }
 
 .jpm-tracker-section {

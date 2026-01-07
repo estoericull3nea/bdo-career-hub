@@ -772,13 +772,34 @@ class JPM_Frontend
             'title' => __('Track Your Application', 'job-posting-manager'),
         ], $atts);
 
+        // Find the job listings page URL
+        $jobs_listing_url = '';
+        $pages = get_pages();
+        foreach ($pages as $page) {
+            if (has_shortcode($page->post_content, 'all_jobs')) {
+                $jobs_listing_url = get_permalink($page->ID);
+                break;
+            }
+        }
+        // If no page found, try post type archive
+        if (empty($jobs_listing_url)) {
+            $jobs_listing_url = get_post_type_archive_link('job_posting');
+        }
+        // If still no URL, use fallback
+        if (empty($jobs_listing_url)) {
+            $jobs_listing_url = home_url('/job-postings/');
+        }
+
         ob_start();
         ?>
         <div class="jpm-application-tracker">
             <div class="jpm-tracker-header">
                 <h2><?php echo esc_html($atts['title']); ?></h2>
+                <p class="jpm-tracker-intro">
+                    <?php _e('We understand the importance of staying informed about your job application status. This page provides you with real-time updates on your application, ensuring transparency throughout the hiring process. You can easily track where your application stands and what to expect next.', 'job-posting-manager'); ?>
+                </p>
                 <p class="jpm-tracker-description">
-                    <?php _e('Enter your application number to view the status and details of your job application.', 'job-posting-manager'); ?>
+                    <?php _e('To track your job application, just enter your application number below:', 'job-posting-manager'); ?>
                 </p>
             </div>
 
@@ -792,7 +813,7 @@ class JPM_Frontend
                         required>
                 </div>
                 <button type="submit" class="jpm-btn jpm-btn-primary">
-                    <span class="jpm-btn-text"><?php _e('Track Application', 'job-posting-manager'); ?></span>
+                    <span class="jpm-btn-text"><?php _e('Check Status', 'job-posting-manager'); ?></span>
                     <span class="jpm-btn-spinner" style="display: none;">
                         <span class="spinner is-active"></span>
                     </span>
@@ -801,6 +822,27 @@ class JPM_Frontend
 
             <div class="jpm-tracker-error" id="jpm-tracker-error" style="display: none;"></div>
             <div class="jpm-tracker-results" id="jpm-tracker-results" style="display: none;"></div>
+
+            <div class="jpm-tracker-footer" id="jpm-tracker-footer">
+                <p class="jpm-tracker-footer-text">
+                    <?php
+                    printf(
+                        __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
+                        '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
+                    );
+                    ?>
+                </p>
+                <?php if (!is_user_logged_in()): ?>
+                    <p class="jpm-tracker-footer-text">
+                        <?php
+                        printf(
+                            __('Have an existing account? %s to login.', 'job-posting-manager'),
+                            '<a href="' . esc_url(wp_login_url()) . '">' . __('Click here', 'job-posting-manager') . '</a>'
+                        );
+                        ?>
+                    </p>
+                <?php endif; ?>
+            </div>
         </div>
         <?php
         return ob_get_clean();
