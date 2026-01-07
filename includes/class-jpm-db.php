@@ -16,14 +16,26 @@ class JPM_Admin
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
         add_action('wp_ajax_jpm_get_chart_data', [$this, 'get_chart_data_ajax']);
+        add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
+    }
+
+    /**
+     * Prevent direct access to the default Job Postings list page since it has been removed from the menu.
+     * Redirects to the dashboard for consistency.
+     */
+    public function redirect_job_postings_list()
+    {
+        if (isset($_GET['post_type']) && $_GET['post_type'] === 'job_posting') {
+            wp_redirect(admin_url('admin.php?page=jpm-dashboard'));
+            exit;
+        }
     }
 
     public function add_menu()
     {
         add_menu_page(__('Job Postings', 'job-posting-manager'), __('Job Postings', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page'], 'dashicons-businessman');
         add_submenu_page('jpm-dashboard', __('Dashboard', 'job-posting-manager'), __('Dashboard', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page']);
-        add_submenu_page('jpm-dashboard', __('All Job Postings', 'job-posting-manager'), __('All Job Postings', 'job-posting-manager'), 'manage_options', 'edit.php?post_type=job_posting');
-        add_submenu_page('jpm-dashboard', __('Add New', 'job-posting-manager'), __('Add New', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
+        add_submenu_page('jpm-dashboard', __('Add New Job', 'job-posting-manager'), __('Add New Job', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
         add_submenu_page('jpm-dashboard', __('Status Management', 'job-posting-manager'), __('Status Management', 'job-posting-manager'), 'manage_options', 'jpm-status-management', [$this, 'status_management_page']);
     }
@@ -1069,9 +1081,9 @@ class JPM_Admin
         </style>
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();
-                                     $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
-                                 });
-                             });
+                                        $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
+                                    });
+                                });
         </script>
         <?php
     }
