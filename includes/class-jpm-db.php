@@ -506,6 +506,7 @@ class JPM_Admin
         ];
 
         $applications = JPM_DB::get_applications($filters);
+        $has_applications = !empty($applications);
 
         // Get all jobs for filter dropdown
         $jobs = get_posts([
@@ -518,111 +519,125 @@ class JPM_Admin
         <div class="wrap">
             <h1><?php _e('Applications', 'job-posting-manager'); ?></h1>
 
-            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
-                <form method="get" action="">
-                    <input type="hidden" name="page" value="jpm-applications">
+            <?php if ($has_applications): ?>
+                <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+                    <form method="get" action="">
+                        <input type="hidden" name="page" value="jpm-applications">
 
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
-                            <?php _e('Search Applications:', 'job-posting-manager'); ?>
-                        </label>
-                        <input type="text" name="search" class="regular-text"
-                            value="<?php echo esc_attr($filters['search']); ?>"
-                            placeholder="<?php esc_attr_e('Search by name, email, or application number...', 'job-posting-manager'); ?>"
-                            style="width: 100%; max-width: 500px;">
-                        <p class="description" style="margin-top: 5px;">
-                            <?php _e('Search by given name, middle name, surname, email, or application number', 'job-posting-manager'); ?>
-                        </p>
-                    </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                                <?php _e('Search Applications:', 'job-posting-manager'); ?>
+                            </label>
+                            <input type="text" name="search" class="regular-text"
+                                value="<?php echo esc_attr($filters['search']); ?>"
+                                placeholder="<?php esc_attr_e('Search by name, email, or application number...', 'job-posting-manager'); ?>"
+                                style="width: 100%; max-width: 500px;">
+                            <p class="description" style="margin-top: 5px;">
+                                <?php _e('Search by given name, middle name, surname, email, or application number', 'job-posting-manager'); ?>
+                            </p>
+                        </div>
 
-                    <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
-                        <label>
-                            <?php _e('Filter by Job:', 'job-posting-manager'); ?>
-                            <select name="job_id">
-                                <option value=""><?php _e('All Jobs', 'job-posting-manager'); ?></option>
-                                <?php foreach ($jobs as $job): ?>
-                                    <option value="<?php echo esc_attr($job->ID); ?>" <?php selected($filters['job_id'], $job->ID); ?>>
-                                        <?php echo esc_html($job->post_title); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label>
-                            <?php _e('Filter by Status:', 'job-posting-manager'); ?>
-                            <select name="status">
-                                <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
-                                <?php
-                                $status_options = self::get_status_options();
-                                foreach ($status_options as $slug => $name):
-                                    ?>
-                                    <option value="<?php echo esc_attr($slug); ?>" <?php selected($filters['status'], $slug); ?>>
-                                        <?php echo esc_html($name); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <input type="submit" class="button button-primary"
-                            value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
-                        <?php if (!empty($filters['search']) || !empty($filters['job_id']) || !empty($filters['status'])): ?>
-                            <a href="<?php echo admin_url('admin.php?page=jpm-applications'); ?>" class="button">
-                                <?php _e('Clear', 'job-posting-manager'); ?>
-                            </a>
-                        <?php endif; ?>
-                    </div>
-                </form>
-
-                <?php if (current_user_can('edit_posts')): ?>
-                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                            <!-- Export Section -->
-                            <?php if (!empty($applications)): ?>
-                                <div>
-                                    <strong><?php _e('Export Applications:', 'job-posting-manager'); ?></strong>
-                                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)); ?>"
-                                            class="button">
-                                            <?php _e('Export to CSV', 'job-posting-manager'); ?>
-                                        </a>
-                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)); ?>"
-                                            class="button">
-                                            <?php _e('Export to JSON', 'job-posting-manager'); ?>
-                                        </a>
-                                    </div>
-                                    <p class="description" style="margin-top: 5px;">
-                                        <?php _e('Export will include all applications matching your current filters and search.', 'job-posting-manager'); ?>
-                                    </p>
-                                </div>
+                        <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                            <label>
+                                <?php _e('Filter by Job:', 'job-posting-manager'); ?>
+                                <select name="job_id">
+                                    <option value=""><?php _e('All Jobs', 'job-posting-manager'); ?></option>
+                                    <?php foreach ($jobs as $job): ?>
+                                        <option value="<?php echo esc_attr($job->ID); ?>" <?php selected($filters['job_id'], $job->ID); ?>>
+                                            <?php echo esc_html($job->post_title); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label>
+                                <?php _e('Filter by Status:', 'job-posting-manager'); ?>
+                                <select name="status">
+                                    <option value=""><?php _e('All Statuses', 'job-posting-manager'); ?></option>
+                                    <?php
+                                    $status_options = self::get_status_options();
+                                    foreach ($status_options as $slug => $name):
+                                        ?>
+                                        <option value="<?php echo esc_attr($slug); ?>" <?php selected($filters['status'], $slug); ?>>
+                                            <?php echo esc_html($name); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <input type="submit" class="button button-primary"
+                                value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
+                            <?php if (!empty($filters['search']) || !empty($filters['job_id']) || !empty($filters['status'])): ?>
+                                <a href="<?php echo admin_url('admin.php?page=jpm-applications'); ?>" class="button">
+                                    <?php _e('Clear', 'job-posting-manager'); ?>
+                                </a>
                             <?php endif; ?>
+                        </div>
+                    </form>
 
-                            <!-- Import Section -->
-                            <div>
-                                <strong><?php _e('Import Applications:', 'job-posting-manager'); ?></strong>
-                                <form method="post" action="" enctype="multipart/form-data" style="margin-top: 10px;">
-                                    <?php wp_nonce_field('jpm_import_applications', 'jpm_import_nonce'); ?>
-                                    <input type="hidden" name="jpm_import_action" value="import">
-                                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                                        <input type="file" name="jpm_import_file" accept=".csv,.json" required
-                                            style="padding: 5px;">
-                                        <select name="jpm_import_format" required style="padding: 5px;">
-                                            <option value=""><?php _e('Select Format', 'job-posting-manager'); ?></option>
-                                            <option value="csv"><?php _e('CSV', 'job-posting-manager'); ?></option>
-                                            <option value="json"><?php _e('JSON', 'job-posting-manager'); ?></option>
-                                        </select>
-                                        <input type="submit" name="jpm_import_submit" class="button button-primary"
-                                            value="<?php _e('Import', 'job-posting-manager'); ?>">
+                    <?php if (current_user_can('edit_posts')): ?>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <!-- Export Section -->
+                                <?php if (!empty($applications)): ?>
+                                    <div>
+                                        <strong><?php _e('Export Applications:', 'job-posting-manager'); ?></strong>
+                                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)); ?>"
+                                                class="button">
+                                                <?php _e('Export to CSV', 'job-posting-manager'); ?>
+                                            </a>
+                                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)); ?>"
+                                                class="button">
+                                                <?php _e('Export to JSON', 'job-posting-manager'); ?>
+                                            </a>
+                                        </div>
+                                        <p class="description" style="margin-top: 5px;">
+                                            <?php _e('Export will include all applications matching your current filters and search.', 'job-posting-manager'); ?>
+                                        </p>
                                     </div>
-                                    <p class="description" style="margin-top: 5px;">
-                                        <?php _e('Import applications from a previously exported CSV or JSON file. File must match the export format.', 'job-posting-manager'); ?>
-                                    </p>
-                                </form>
+                                <?php endif; ?>
+
+                                <!-- Import Section -->
+                                <div>
+                                    <strong><?php _e('Import Applications:', 'job-posting-manager'); ?></strong>
+                                    <form method="post" action="" enctype="multipart/form-data" style="margin-top: 10px;">
+                                        <?php wp_nonce_field('jpm_import_applications', 'jpm_import_nonce'); ?>
+                                        <input type="hidden" name="jpm_import_action" value="import">
+                                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                            <input type="file" name="jpm_import_file" accept=".csv,.json" required
+                                                style="padding: 5px;">
+                                            <select name="jpm_import_format" required style="padding: 5px;">
+                                                <option value=""><?php _e('Select Format', 'job-posting-manager'); ?></option>
+                                                <option value="csv"><?php _e('CSV', 'job-posting-manager'); ?></option>
+                                                <option value="json"><?php _e('JSON', 'job-posting-manager'); ?></option>
+                                            </select>
+                                            <input type="submit" name="jpm_import_submit" class="button button-primary"
+                                                value="<?php _e('Import', 'job-posting-manager'); ?>">
+                                        </div>
+                                        <p class="description" style="margin-top: 5px;">
+                                            <?php _e('Import applications from a previously exported CSV or JSON file. File must match the export format.', 'job-posting-manager'); ?>
+                                        </p>
+                                    </form>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                <?php endif; ?>
-            </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
 
-            <?php if (empty($applications)): ?>
-                <p><?php _e('No applications found.', 'job-posting-manager'); ?></p>
+            <?php if (!$has_applications): ?>
+                <div class="jpm-empty-state">
+                    <div class="jpm-empty-card">
+                        <div class="jpm-empty-icon">📄</div>
+                        <h2><?php _e('No applications found', 'job-posting-manager'); ?></h2>
+                        <p><?php _e('Once candidates submit applications, they will appear here. You can also import applications if you have previous data.', 'job-posting-manager'); ?>
+                        </p>
+                        <div class="jpm-empty-actions">
+                            <a class="button" href="<?php echo admin_url('admin.php?page=jpm-dashboard'); ?>">
+                                <?php _e('Go to Dashboard', 'job-posting-manager'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
             <?php else: ?>
                 <table class="widefat fixed striped">
                     <thead>
@@ -741,6 +756,44 @@ class JPM_Admin
                 border: 1px solid #ddd;
                 border-radius: 3px;
                 font-size: 13px;
+            }
+
+            .jpm-empty-state {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 60px 0;
+            }
+
+            .jpm-empty-card {
+                text-align: center;
+                max-width: 520px;
+                padding: 40px 32px;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            }
+
+            .jpm-empty-icon {
+                font-size: 48px;
+                margin-bottom: 16px;
+            }
+
+            .jpm-empty-card h2 {
+                margin: 0 0 12px;
+            }
+
+            .jpm-empty-card p {
+                margin: 0 0 20px;
+                color: #555d66;
+            }
+
+            .jpm-empty-actions {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                flex-wrap: wrap;
             }
         </style>
 
@@ -1081,9 +1134,9 @@ class JPM_Admin
         </style>
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();
-                                        $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
-                                    });
-                                });
+                                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
+                                            });
+                                        });
         </script>
         <?php
     }
