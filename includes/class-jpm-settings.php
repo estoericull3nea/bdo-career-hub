@@ -3,7 +3,8 @@ class JPM_Settings
 {
     public function __construct()
     {
-        add_action('admin_menu', [$this, 'add_settings_page']);
+        // Use higher priority so Settings is added last (after Form Templates, Email Notifications, etc.)
+        add_action('admin_menu', [$this, 'add_settings_page'], 99);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_init', [$this, 'save_smtp_settings']);
         add_action('admin_init', [$this, 'test_smtp_connection']);
