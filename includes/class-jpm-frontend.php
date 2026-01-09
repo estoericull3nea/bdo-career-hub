@@ -859,7 +859,7 @@ class JPM_Frontend
                         <?php
                         printf(
                             __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
-                            '<a href=" style="text-decoration: underline;"' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
+                            '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
                         );
                         ?>
                     </p>
