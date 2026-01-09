@@ -2096,89 +2096,181 @@
 
 /* Application Tracker Styles */
 .jpm-application-tracker {
-  max-width: 800px;
-  margin: 30px auto;
-  padding: 30px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 50px 40px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.jpm-application-tracker::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0073aa 0%, #00a0d2 50%, #0073aa 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .jpm-tracker-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  position: relative;
 }
 
 .jpm-tracker-header h2 {
-  margin: 0 0 10px 0;
-  color: #333;
-  font-size: 1.8em;
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 2.2em;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #0073aa 0%, #00a0d2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .jpm-tracker-intro {
-  color: #555;
-  font-size: 1em;
-  line-height: 1.6;
-  margin: 0 0 15px 0;
+  color: #4a5568;
+  font-size: 1.05em;
+  line-height: 1.8;
+  margin: 0 0 20px 0;
   text-align: left;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  border-left: 4px solid #0073aa;
+  backdrop-filter: blur(10px);
 }
 
 .jpm-tracker-description {
-  color: #666;
-  font-size: 1em;
+  color: #64748b;
+  font-size: 1.05em;
   margin: 0;
+  font-weight: 500;
 }
 
 .jpm-tracker-form {
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  background: #ffffff;
+  padding: 35px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.jpm-tracker-form:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
 }
 
 .jpm-tracker-form .jpm-form-group {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
 }
 
 .jpm-tracker-form label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   font-weight: 600;
-  color: #333;
+  color: #1a1a1a;
+  font-size: 0.95em;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .jpm-tracker-form .jpm-input {
   width: 100%;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1em;
-  transition: border-color 0.3s ease;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1.05em;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #f8f9fa;
+  color: #1a1a1a;
+  box-sizing: border-box;
 }
 
 .jpm-tracker-form .jpm-input:focus {
   outline: none;
   border-color: #0073aa;
-  box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.1);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(0, 115, 170, 0.1),
+    0 4px 12px rgba(0, 115, 170, 0.15);
+  transform: translateY(-1px);
+}
+
+.jpm-tracker-form .jpm-input::placeholder {
+  color: #94a3b8;
+  opacity: 0.7;
 }
 
 .jpm-tracker-form .jpm-btn-primary {
   width: 100%;
-  padding: 12px 30px;
-  background: #0073aa;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #0073aa 0%, #00a0d2 100%);
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 12px;
   font-size: 1em;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 115, 170, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.jpm-tracker-form .jpm-btn-primary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.jpm-tracker-form .jpm-btn-primary:hover::before {
+  left: 100%;
 }
 
 .jpm-tracker-form .jpm-btn-primary:hover {
-  background: #005a87;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 115, 170, 0.4);
+  background: linear-gradient(135deg, #005a87 0%, #0073aa 100%);
+}
+
+.jpm-tracker-form .jpm-btn-primary:active {
+  transform: translateY(0);
 }
 
 .jpm-tracker-form .jpm-btn-primary:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 115, 170, 0.2);
 }
 
 .jpm-btn-spinner {
@@ -2192,35 +2284,76 @@
 }
 
 .jpm-tracker-error {
-  padding: 15px;
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 4px;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, #fee 0%, #fdd 100%);
+  border: 2px solid #fcc;
+  border-radius: 12px;
   color: #c33;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 12px rgba(204, 51, 51, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .jpm-tracker-error p {
   margin: 0;
+  font-weight: 500;
 }
 
 .jpm-tracker-results {
-  margin-top: 30px;
-  padding-top: 30px;
-  border-top: 2px solid #e5e5e5;
+  margin-top: 40px;
+  padding: 35px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border-top: 3px solid #0073aa;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .jpm-tracker-footer {
-  margin-top: 40px;
-  padding-top: 35px;
-  border-top: 2px solid #e5e5e5;
+  margin-top: 50px;
+  padding-top: 40px;
+  border-top: 3px solid #e2e8f0;
+  position: relative;
+}
+
+.jpm-tracker-footer::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 100px;
+  height: 3px;
+  background: linear-gradient(90deg, #0073aa 0%, #00a0d2 100%);
+  border-radius: 0 0 3px 3px;
 }
 
 .jpm-tracker-footer-text {
-  color: #666;
-  font-size: 0.95em;
-  line-height: 1.6;
-  margin: 0 0 10px 0;
+  color: #64748b;
+  font-size: 0.98em;
+  line-height: 1.7;
+  margin: 0 0 12px 0;
 }
 
 .jpm-tracker-footer-text:last-child {
@@ -2230,69 +2363,121 @@
 .jpm-tracker-footer-text a {
   color: #0073aa;
   text-decoration: none;
-  font-weight: normal;
-  transition: color 0.3s ease;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
 }
 
 .jpm-tracker-footer-text a:hover {
   color: #005a87;
-  text-decoration: underline;
+  border-bottom-color: #005a87;
 }
 
 .jpm-tracker-footer-title {
-  margin: 0 0 25px 0;
-  color: #333;
-  font-size: 1.3em;
-  font-weight: 600;
+  margin: 0 0 30px 0;
+  color: #1a1a1a;
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  position: relative;
+  padding-left: 15px;
+}
+
+.jpm-tracker-footer-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 24px;
+  background: linear-gradient(135deg, #0073aa 0%, #00a0d2 100%);
+  border-radius: 2px;
 }
 
 .jpm-tracker-status-list {
   margin-bottom: 40px;
+  display: grid;
+  gap: 20px;
 }
 
 .jpm-tracker-status-item {
-  margin-bottom: 25px;
-  padding-bottom: 20px;
-  border-bottom: none;
+  margin-bottom: 0;
+  padding: 25px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 14px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.jpm-tracker-status-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(135deg, #0073aa 0%, #00a0d2 100%);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+}
+
+.jpm-tracker-status-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e0;
+}
+
+.jpm-tracker-status-item:hover::before {
+  transform: scaleY(1);
 }
 
 .jpm-tracker-status-item:last-child {
   margin-bottom: 0;
-  padding-bottom: 0;
+  padding-bottom: 25px;
 }
 
 .jpm-tracker-status-name {
   display: block;
-  color: #333;
-  font-size: 1em;
+  color: #1a1a1a;
+  font-size: 1.1em;
   font-weight: 700;
-  margin-bottom: 8px;
-  line-height: 1.5;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  letter-spacing: -0.2px;
 }
 
 .jpm-tracker-status-desc {
-  color: #555;
-  font-size: 0.95em;
-  line-height: 1.7;
-  margin: 0 0 0 0;
+  color: #4a5568;
+  font-size: 0.98em;
+  line-height: 1.75;
+  margin: 0;
   padding-left: 0;
 }
 
 .jpm-tracker-status-desc a {
   color: #0073aa;
   text-decoration: none;
-  font-weight: normal;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
+  transition: all 0.3s ease;
 }
 
 .jpm-tracker-status-desc a:hover {
   color: #005a87;
-  text-decoration: underline;
+  border-bottom-color: #005a87;
 }
 
 .jpm-tracker-footer-links {
-  margin-top: 35px;
-  padding-top: 25px;
-  border-top: 1px solid #e5e5e5;
+  margin-top: 40px;
+  padding: 30px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 14px;
+  border: 2px solid #e2e8f0;
 }
 
 .jpm-tracker-section {
@@ -2354,8 +2539,44 @@
 
 @media (max-width: 768px) {
   .jpm-application-tracker {
-    padding: 20px;
+    padding: 30px 20px;
     margin: 20px 10px;
+    border-radius: 16px;
+  }
+
+  .jpm-tracker-header h2 {
+    font-size: 1.8em;
+  }
+
+  .jpm-tracker-intro {
+    padding: 15px;
+    font-size: 0.95em;
+  }
+
+  .jpm-tracker-form {
+    padding: 25px 20px;
+  }
+
+  .jpm-tracker-form .jpm-input {
+    padding: 14px 16px;
+    font-size: 1em;
+  }
+
+  .jpm-tracker-form .jpm-btn-primary {
+    padding: 10px 20px;
+    font-size: 0.95em;
+  }
+
+  .jpm-tracker-results {
+    padding: 25px 20px;
+  }
+
+  .jpm-tracker-status-item {
+    padding: 20px;
+  }
+
+  .jpm-tracker-footer-links {
+    padding: 20px;
   }
 
   .jpm-tracker-info-row {
@@ -2368,4 +2589,23 @@
     min-width: auto;
     margin-right: 0;
   }
+}
+
+.jpm-tracker-status-item {
+  padding: 20px;
+}
+
+.jpm-tracker-footer-links {
+  padding: 20px;
+}
+
+.jpm-tracker-info-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.jpm-tracker-label {
+  min-width: auto;
+  margin-right: 0;
 }

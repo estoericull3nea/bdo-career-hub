@@ -812,11 +812,9 @@ class JPM_Frontend
                         placeholder="<?php esc_attr_e('Enter your application number (e.g., 25-BDO-792*****)', 'job-posting-manager'); ?>"
                         required>
                 </div>
-                <button type="submit" class="jpm-btn jpm-btn-primary">
-                    <span class="jpm-btn-text"><?php _e('Check Status', 'job-posting-manager'); ?></span>
-                    <span class="jpm-btn-spinner" style="display: none;">
-                        <span class="spinner is-active"></span>
-                    </span>
+                <button type="submit" class="jpm-btn jpm-btn-primary"><span
+                        class="jpm-btn-text"><?php _e('Track Application', 'job-posting-manager'); ?></span> <span
+                        class="jpm-btn-spinner" style="display: none;"> <span class="spinner is-active"></span> </span>
                 </button>
             </form>
 
