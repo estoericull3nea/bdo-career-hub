@@ -2398,54 +2398,42 @@
 
 .jpm-tracker-status-list {
   margin-bottom: 40px;
-  display: grid;
-  gap: 20px;
+  list-style: none;
+  padding-left: 0;
 }
 
 .jpm-tracker-status-item {
-  margin-bottom: 0;
-  padding: 25px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border-radius: 14px;
-  border: 2px solid #e2e8f0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 20px;
+  padding: 0;
   position: relative;
-  overflow: hidden;
+  padding-left: 40px;
+}
+
+.jpm-tracker-status-item::marker {
+  display: none;
 }
 
 .jpm-tracker-status-item::before {
-  content: "";
+  content: "•";
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(135deg, #0073aa 0%, #00a0d2 100%);
-  transform: scaleY(0);
-  transition: transform 0.3s ease;
-}
-
-.jpm-tracker-status-item:hover {
-  transform: translateX(5px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  border-color: #cbd5e0;
-}
-
-.jpm-tracker-status-item:hover::before {
-  transform: scaleY(1);
+  color: #0073aa;
+  font-size: 1.5em;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .jpm-tracker-status-item:last-child {
   margin-bottom: 0;
-  padding-bottom: 25px;
 }
 
 .jpm-tracker-status-name {
-  display: block;
+  display: inline;
   color: #1a1a1a;
-  font-size: 1.1em;
+  font-size: 1.05em;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   line-height: 1.4;
   letter-spacing: -0.2px;
 }
@@ -2454,7 +2442,7 @@
   color: #4a5568;
   font-size: 0.98em;
   line-height: 1.75;
-  margin: 0;
+  margin: 8px 0 0 0;
   padding-left: 0;
 }
 
@@ -2572,7 +2560,8 @@
   }
 
   .jpm-tracker-status-item {
-    padding: 20px;
+    padding-left: 35px;
+    margin-bottom: 18px;
   }
 
   .jpm-tracker-footer-links {

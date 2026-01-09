@@ -823,7 +823,7 @@ class JPM_Frontend
 
             <div class="jpm-tracker-footer" id="jpm-tracker-footer">
                 <h3 class="jpm-tracker-footer-title"><?php _e('Application Status:', 'job-posting-manager'); ?></h3>
-                <div class="jpm-tracker-status-list">
+                <ul class="jpm-tracker-status-list">
                     <?php
                     // Get all statuses from database
                     $all_statuses = JPM_DB::get_all_statuses_info();
@@ -844,22 +844,22 @@ class JPM_Frontend
                                 ? $status['description']
                                 : sprintf(__('This means that your application status is %s.', 'job-posting-manager'), strtolower($status_name));
                             ?>
-                            <div class="jpm-tracker-status-item">
+                            <li class="jpm-tracker-status-item">
                                 <strong class="jpm-tracker-status-name"><?php echo esc_html($status_title); ?></strong>
                                 <p class="jpm-tracker-status-desc"><?php echo wp_kses_post($status_description); ?></p>
-                            </div>
+                            </li>
                             <?php
                         endforeach;
                     endif;
                     ?>
-                </div>
+                </ul>
 
                 <div class="jpm-tracker-footer-links">
                     <p class="jpm-tracker-footer-text">
                         <?php
                         printf(
                             __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
-                            '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
+                            '<a href=" style="text-decoration: underline;"' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
                         );
                         ?>
                     </p>
