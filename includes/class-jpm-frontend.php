@@ -824,24 +824,48 @@ class JPM_Frontend
             <div class="jpm-tracker-results" id="jpm-tracker-results" style="display: none;"></div>
 
             <div class="jpm-tracker-footer" id="jpm-tracker-footer">
-                <p class="jpm-tracker-footer-text">
+                <h3 class="jpm-tracker-footer-title"><?php _e('Application Status:', 'job-posting-manager'); ?></h3>
+                <div class="jpm-tracker-status-list">
                     <?php
-                    printf(
-                        __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
-                        '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
-                    );
+                    // Get all statuses from database
+                    $all_statuses = JPM_DB::get_all_statuses_info();
+                    if (!empty($all_statuses)):
+                        foreach ($all_statuses as $status):
+                            $status_name = isset($status['name']) ? $status['name'] : ucfirst($status['slug']);
+                            $status_description = isset($status['description']) && !empty($status['description'])
+                                ? $status['description']
+                                : sprintf(__('Your application status is %s.', 'job-posting-manager'), $status_name);
+                            ?>
+                            <div class="jpm-tracker-status-item">
+                                <strong class="jpm-tracker-status-name"><?php echo esc_html($status_name); ?></strong>
+                                <p class="jpm-tracker-status-desc"><?php echo esc_html($status_description); ?></p>
+                            </div>
+                            <?php
+                        endforeach;
+                    endif;
                     ?>
-                </p>
-                <?php if (!is_user_logged_in()): ?>
+                </div>
+
+                <div class="jpm-tracker-footer-links">
                     <p class="jpm-tracker-footer-text">
                         <?php
                         printf(
-                            __('Have an existing account? %s to login.', 'job-posting-manager'),
-                            '<a href="' . esc_url(wp_login_url()) . '">' . __('Click here', 'job-posting-manager') . '</a>'
+                            __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
+                            '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
                         );
                         ?>
                     </p>
-                <?php endif; ?>
+                    <?php if (!is_user_logged_in()): ?>
+                        <p class="jpm-tracker-footer-text">
+                            <?php
+                            printf(
+                                __('Have an existing account? %s to login.', 'job-posting-manager'),
+                                '<a href="' . esc_url(wp_login_url()) . '">' . __('Click here', 'job-posting-manager') . '</a>'
+                            );
+                            ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
         <?php

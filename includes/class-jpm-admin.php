@@ -168,4 +168,26 @@ class JPM_DB
 
         return $applications;
     }
+
+    /**
+     * Get all statuses with full information
+     */
+    public static function get_all_statuses_info()
+    {
+        // Get statuses from option
+        $statuses = get_option('jpm_application_statuses', []);
+
+        // If no custom statuses, return default ones
+        if (empty($statuses)) {
+            $default_statuses = [
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+            ];
+            $statuses = $default_statuses;
+        }
+
+        return $statuses;
+    }
 }

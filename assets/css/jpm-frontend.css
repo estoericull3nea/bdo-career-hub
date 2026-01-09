@@ -2239,6 +2239,50 @@
   text-decoration: underline;
 }
 
+.jpm-tracker-footer-title {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.jpm-tracker-status-list {
+  margin-bottom: 30px;
+}
+
+.jpm-tracker-status-item {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.jpm-tracker-status-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.jpm-tracker-status-name {
+  display: block;
+  color: #333;
+  font-size: 1em;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.jpm-tracker-status-desc {
+  color: #666;
+  font-size: 0.95em;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.jpm-tracker-footer-links {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e5e5;
+}
+
 .jpm-tracker-section {
   margin-bottom: 30px;
 }
