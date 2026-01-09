@@ -180,10 +180,10 @@ class JPM_DB
         // If no custom statuses, return default ones
         if (empty($statuses)) {
             $default_statuses = [
-                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
-                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
-                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
-                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'This means that your application was successfully submitted and is currently pending review by our hiring team. We will notify you once your application has been reviewed.'],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Thank you. Your application has been reviewed by our hiring team and is currently under consideration. We will contact you with further updates.'],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Congratulations! Your application has been accepted. Our team will contact you shortly with next steps and additional information.'],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'We appreciate your interest in this position. Unfortunately, your application was not selected for this role at this time. We encourage you to apply for other positions that match your qualifications.'],
             ];
             $statuses = $default_statuses;
         }

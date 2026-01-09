@@ -832,13 +832,23 @@ class JPM_Frontend
                     if (!empty($all_statuses)):
                         foreach ($all_statuses as $status):
                             $status_name = isset($status['name']) ? $status['name'] : ucfirst($status['slug']);
+                            // Format status name to match PSA page style: "Your application is [status]"
+                            // Use past tense for completed actions, present for ongoing
+                            $status_lower = strtolower($status_name);
+                            if (in_array($status_lower, ['accepted', 'rejected', 'reviewed'])) {
+                                $status_title = sprintf(__('Your application has been %s', 'job-posting-manager'), $status_lower);
+                            } else {
+                                $status_title = sprintf(__('Your application is %s', 'job-posting-manager'), $status_lower);
+                            }
+
+                            // Get description, allow HTML for links
                             $status_description = isset($status['description']) && !empty($status['description'])
                                 ? $status['description']
-                                : sprintf(__('Your application status is %s.', 'job-posting-manager'), $status_name);
+                                : sprintf(__('This means that your application status is %s.', 'job-posting-manager'), strtolower($status_name));
                             ?>
                             <div class="jpm-tracker-status-item">
-                                <strong class="jpm-tracker-status-name"><?php echo esc_html($status_name); ?></strong>
-                                <p class="jpm-tracker-status-desc"><?php echo esc_html($status_description); ?></p>
+                                <strong class="jpm-tracker-status-name"><?php echo esc_html($status_title); ?></strong>
+                                <p class="jpm-tracker-status-desc"><?php echo wp_kses_post($status_description); ?></p>
                             </div>
                             <?php
                         endforeach;
