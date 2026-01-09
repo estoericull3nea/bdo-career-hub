@@ -153,11 +153,8 @@ class JPM_Frontend
                             <?php endif; ?>
                         </div>
                         <?php if (!empty($company_name)): ?>
-                            <div class="jpm-job-card-meta">
-                                <span class="jpm-job-company">
-                                    <i class="dashicons dashicons-building"></i>
-                                    <?php echo esc_html($company_name); ?>
-                                </span>
+                            <div class="jpm-job-card-meta"><span class="jpm-job-company"><i class="dashicons dashicons-building"></i>
+                                    <?php echo esc_html($company_name); ?></span>
                             </div>
                         <?php endif; ?>
                         <div class="jpm-job-card-info">
@@ -524,11 +521,8 @@ class JPM_Frontend
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($company_name)): ?>
-                                    <div class="jpm-job-card-meta">
-                                        <span class="jpm-job-company">
-                                            <i class="dashicons dashicons-building"></i>
-                                            <?php echo esc_html($company_name); ?>
-                                        </span>
+                                    <div class="jpm-job-card-meta"><span class="jpm-job-company"> <i
+                                                class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?>  </span>
                                     </div>
                                 <?php endif; ?>
                                 <div class="jpm-job-card-info">
@@ -705,11 +699,8 @@ class JPM_Frontend
                             <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
                         </h3>
                         <?php if (!empty($company_name)): ?>
-                            <div class="jpm-job-card-meta">
-                                <span class="jpm-job-company">
-                                    <i class="dashicons dashicons-building"></i>
-                                    <?php echo esc_html($company_name); ?>
-                                </span>
+                            <div class="jpm-job-card-meta"><span class="jpm-job-company"><i
+                                        class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?></span>
                             </div>
                         <?php endif; ?>
                         <div class="jpm-job-card-info">
