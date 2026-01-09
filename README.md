@@ -1011,19 +1011,3 @@ GNU General Public License for more details.
 ```
 
 ---
-
-## Changelog
-
-### Version 1.0.0
-
-- Initial release
-- Core functionality:
-  - Job posting management
-  - Drag-and-drop form builder
-  - Multi-step application forms
-  - Email notification system
-  - Application tracking
-  - Template management
-  - SMTP integration
-
----
