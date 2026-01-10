@@ -158,33 +158,21 @@ class JPM_Frontend
                             </div>
                         <?php endif; ?>
                         <div class="jpm-job-card-info">
-                            <?php if (!empty($location)): ?>
-                                <span class="jpm-job-info-item">
-                                    <i class="dashicons dashicons-location"></i>
-                                    <?php echo esc_html($location); ?>
-                                </span>
+                            <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
+                                        class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
                             <?php endif; ?>
-                            <?php if (!empty($salary)): ?>
-                                <span class="jpm-job-info-item">
-                                    <i class="dashicons dashicons-money-alt"></i>
-                                    <?php echo esc_html($salary); ?>
-                                </span>
+                            <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
+                                        class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
                             <?php endif; ?>
-                            <?php if (!empty($duration)): ?>
-                                <span class="jpm-job-info-item">
-                                    <i class="dashicons dashicons-clock"></i>
-                                    <?php echo esc_html($duration); ?>
-                                </span>
+                            <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
+                                        class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
                             <?php endif; ?>
                         </div>
                         <?php if (!empty($excerpt)): ?>
                             <p class="jpm-job-card-excerpt"><?php echo esc_html($excerpt); ?></p>
                         <?php endif; ?>
-                        <div class="jpm-job-card-footer">
-                            <span class="jpm-job-posted-date">
-                                <i class="dashicons dashicons-calendar-alt"></i>
-                                <?php echo esc_html(get_the_date('', $job->ID)); ?>
-                            </span>
+                        <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
+                                    class="dashicons dashicons-calendar-alt"></i><?php echo esc_html(get_the_date('', $job->ID)); ?> </span>
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
@@ -522,36 +510,25 @@ class JPM_Frontend
                                 </div>
                                 <?php if (!empty($company_name)): ?>
                                     <div class="jpm-job-card-meta"><span class="jpm-job-company"> <i
-                                                class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?>  </span>
+                                                class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?> </span>
                                     </div>
                                 <?php endif; ?>
                                 <div class="jpm-job-card-info">
-                                    <?php if (!empty($location)): ?>
-                                        <span class="jpm-job-info-item">
-                                            <i class="dashicons dashicons-location"></i>
-                                            <?php echo esc_html($location); ?>
-                                        </span>
+                                    <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
+                                                class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
                                     <?php endif; ?>
-                                    <?php if (!empty($salary)): ?>
-                                        <span class="jpm-job-info-item">
-                                            <i class="dashicons dashicons-money-alt"></i>
-                                            <?php echo esc_html($salary); ?>
-                                        </span>
+                                    <?php if (!empty($salary)): ?> <span class="jpm-job-info-item"> <i
+                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
                                     <?php endif; ?>
-                                    <?php if (!empty($duration)): ?>
-                                        <span class="jpm-job-info-item">
-                                            <i class="dashicons dashicons-clock"></i>
-                                            <?php echo esc_html($duration); ?>
-                                        </span>
+                                    <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
+                                                class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($excerpt)): ?>
                                     <p class="jpm-job-card-excerpt"><?php echo esc_html($excerpt); ?></p>
                                 <?php endif; ?>
-                                <div class="jpm-job-card-footer">
-                                    <span class="jpm-job-posted-date">
-                                        <i class="dashicons dashicons-calendar-alt"></i>
-                                        <?php echo esc_html(get_the_date()); ?>
+                                <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
+                                            class="dashicons dashicons-calendar-alt"></i> <?php echo esc_html(get_the_date()); ?>
                                     </span>
                                 </div>
                                 <div class="jpm-job-card-actions">
@@ -726,11 +703,8 @@ class JPM_Frontend
                         <?php if (!empty($excerpt)): ?>
                             <p class="jpm-job-card-excerpt"><?php echo esc_html($excerpt); ?></p>
                         <?php endif; ?>
-                        <div class="jpm-job-card-footer">
-                            <span class="jpm-job-posted-date">
-                                <i class="dashicons dashicons-calendar-alt"></i>
-                                <?php echo esc_html(get_the_date()); ?>
-                            </span>
+                        <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
+                                    class="dashicons dashicons-calendar-alt"></i><?php echo esc_html(get_the_date()); ?> </span>
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
