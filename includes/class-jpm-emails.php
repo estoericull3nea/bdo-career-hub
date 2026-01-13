@@ -95,6 +95,34 @@ class JPM_Emails
             $application_number = $form_data['application_number'];
         }
 
+        // Get application status from database
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
+        
+        // Get status information
+        $status_slug = 'pending'; // Default status
+        if ($application && !empty($application->status)) {
+            $status_slug = $application->status;
+        }
+        
+        // Get status info from JPM_Admin class
+        if (class_exists('JPM_Admin')) {
+            $status_info = JPM_Admin::get_status_by_slug($status_slug);
+        } else {
+            $status_info = null;
+        }
+
+        if ($status_info) {
+            $status_name = $status_info['name'];
+            $status_color = $status_info['color'];
+            $status_text_color = $status_info['text_color'];
+        } else {
+            $status_name = ucfirst($status_slug);
+            $status_color = '#ffc107';
+            $status_text_color = '#000000';
+        }
+
         // Get email template
         $template = JPM_Email_Templates::get_template('confirmation');
 
@@ -137,7 +165,9 @@ class JPM_Emails
         $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px;">' . esc_html($template['details_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">#' . esc_html($app_id) . '</td></tr>';
-        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>Pending</strong></td></tr>';
+        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">';
+        $body .= '<span style="display: inline-block; background-color: ' . esc_attr($status_color) . '; color: ' . esc_attr($status_text_color) . '; padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; text-transform: uppercase;">' . esc_html($status_name) . '</span>';
+        $body .= '</td></tr>';
         if (!empty($application_number)) {
             $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application Number:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($application_number) . '</td></tr>';
         }
