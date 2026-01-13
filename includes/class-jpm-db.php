@@ -12,6 +12,8 @@ class JPM_Admin
         add_filter('the_title', [$this, 'display_company_image_with_title'], 10, 2);
         add_action('template_redirect', [$this, 'restrict_draft_job_access']);
         add_action('wp_ajax_jpm_update_application_status', [$this, 'update_application_status']);
+        add_action('wp_ajax_jpm_get_medical_details', [$this, 'get_medical_details_ajax']);
+        add_action('wp_ajax_jpm_save_medical_details', [$this, 'save_medical_details_ajax']);
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
@@ -722,6 +724,62 @@ class JPM_Admin
                 </table>
             <?php endif; ?>
         </div>
+
+        <div id="jpm-medical-modal" class="jpm-admin-modal" style="display:none;">
+            <div class="jpm-admin-modal__backdrop"></div>
+            <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="jpm-medical-modal-title">
+                <button type="button" class="jpm-admin-modal__close"
+                    aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                <h2 id="jpm-medical-modal-title"><?php _e('Set Medical Requirements', 'job-posting-manager'); ?></h2>
+                <p class="description" style="margin-bottom: 15px;">
+                    <?php _e('Provide the requirements and schedule details for this applicant.', 'job-posting-manager'); ?>
+                </p>
+                <form id="jpm-medical-form">
+                    <input type="hidden" name="application_id" value="">
+                    <div class="jpm-admin-field">
+                        <label for="jpm-medical-requirements">
+                            <?php _e('Requirements', 'job-posting-manager'); ?>
+                        </label>
+                        <textarea id="jpm-medical-requirements" name="requirements" rows="4" required
+                            placeholder="<?php esc_attr_e('e.g., Bring two valid IDs, chest X-ray results, vaccination card…', 'job-posting-manager'); ?>"></textarea>
+                        <small
+                            class="description"><?php _e('List what the customer must bring.', 'job-posting-manager'); ?></small>
+                    </div>
+                    <div class="jpm-admin-field">
+                        <label for="jpm-medical-address">
+                            <?php _e('Medical Address', 'job-posting-manager'); ?>
+                        </label>
+                        <input id="jpm-medical-address" type="text" name="address"
+                            value="<?php echo esc_attr($this->get_default_medical_address()); ?>" required />
+                        <small
+                            class="description"><?php _e('Default clinic address is pre-filled.', 'job-posting-manager'); ?></small>
+                    </div>
+                    <div class="jpm-admin-field jpm-admin-field--inline">
+                        <div>
+                            <label for="jpm-medical-date">
+                                <?php _e('Date', 'job-posting-manager'); ?>
+                            </label>
+                            <input id="jpm-medical-date" type="date" name="date" />
+                        </div>
+                        <div>
+                            <label for="jpm-medical-time">
+                                <?php _e('Time', 'job-posting-manager'); ?>
+                            </label>
+                            <input id="jpm-medical-time" type="time" name="time" />
+                        </div>
+                    </div>
+                    <div class="jpm-admin-field" style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button type="submit" class="button button-primary">
+                            <?php _e('Save and Update Status', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="button" class="button jpm-medical-cancel">
+                            <?php _e('Cancel', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <style>
             .jpm-status-badge {
                 display: inline-block;
@@ -796,9 +854,268 @@ class JPM_Admin
                 gap: 12px;
                 flex-wrap: wrap;
             }
+
+            .jpm-admin-modal {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 99999;
+            }
+
+            .jpm-admin-modal__backdrop {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.45);
+            }
+
+            .jpm-admin-modal__dialog {
+                position: relative;
+                background: #fff;
+                padding: 24px;
+                border-radius: 6px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                width: 100%;
+                max-width: 560px;
+                z-index: 2;
+            }
+
+            .jpm-admin-modal__close {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                border: none;
+                background: none;
+                font-size: 22px;
+                cursor: pointer;
+            }
+
+            .jpm-admin-field {
+                margin-bottom: 14px;
+            }
+
+            .jpm-admin-field label {
+                display: block;
+                font-weight: 600;
+                margin-bottom: 6px;
+            }
+
+            .jpm-admin-field textarea,
+            .jpm-admin-field input[type="text"],
+            .jpm-admin-field input[type="date"],
+            .jpm-admin-field input[type="time"] {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .jpm-admin-field--inline {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 12px;
+            }
+
+            .jpm-status-update-success {
+                color: #28a745;
+                margin-left: 5px;
+                font-size: 12px;
+            }
         </style>
 
-        <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status-select').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();             var $row = $select.closest('tr');         // Disable select while updating             $select.prop('disabled', true);         $.ajax({             url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) {                 if (response.success) {                         // Update status badge in the same row                         var $statusBadge = $row.find('.jpm-status-badge');                         $statusBadge.removeClass('jpm-status-pending jpm-status-reviewed jpm-status-accepted jpm-status-rejected');                         $statusBadge.addClass('jpm-status-' + newStatus);                         $statusBadge.text(newStatus.charAt(0).toUpperCase() + newStatus.slice(1));     // Show success message                         $select.after('<span class="jpm-status-update-success" style="color: #28a745; margin-left: 5px; font-size: 12px;">✓ Updated</span>');                         setTimeout(function () {                             $select.siblings('.jpm-status-update-success').fadeOut(function () {                                 $(this).remove();                             });                         }, 2000);                     } else {                         alert('Error updating status: ' + (response.data && response.data.message ? response.data.message : 'Unknown error'));                         // Revert select to original value                         location.reload();                     }                     $select.prop('disabled', false);                 },                 error: function () {                     alert('Error updating status. Please try again.');                     location.reload();                 }             });         });     });
+        <?php
+        $medical_status_slug = $this->get_medical_status_slug();
+        $status_labels = self::get_status_options();
+        ?>
+        <script>
+            jQuery(function ($) {
+                const statusLabels = <?php echo wp_json_encode($status_labels); ?>;
+                const medicalStatusSlug = '<?php echo esc_js($medical_status_slug); ?>';
+                const updateNonce = '<?php echo wp_create_nonce('jpm_update_status'); ?>';
+                const medicalNonce = '<?php echo wp_create_nonce('jpm_medical_details'); ?>';
+                const defaultMedicalAddress = '<?php echo esc_js($this->get_default_medical_address()); ?>';
+
+                let activeSelect = null;
+                let activeRow = null;
+                let previousStatus = null;
+                let activeApplicationId = null;
+
+                $('.jpm-application-status-select').each(function () {
+                    $(this).data('previous', $(this).val());
+                });
+
+                function updateBadge($row, statusSlug) {
+                    const label = statusLabels[statusSlug] || statusSlug.charAt(0).toUpperCase() + statusSlug.slice(1);
+                    const $badge = $row.find('.jpm-status-badge');
+
+                    const cleanedClass = ($badge.attr('class') || '').replace(/\bjpm-status-[^\s]+/g, '').trim();
+                    $badge.attr('class', `${cleanedClass} jpm-status-badge jpm-status-${statusSlug}`);
+                    $badge.text(label);
+                }
+
+                function showSuccess($select) {
+                    $select.next('.jpm-status-update-success').remove();
+                    $select.after('<span class="jpm-status-update-success">✓ Updated</span>');
+                    setTimeout(function () {
+                        $select.siblings('.jpm-status-update-success').fadeOut(function () {
+                            $(this).remove();
+                        });
+                    }, 2000);
+                }
+
+                function updateStatus(applicationId, newStatus, $select, $row) {
+                    $select.prop('disabled', true);
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_update_application_status',
+                            application_id: applicationId,
+                            status: newStatus,
+                            nonce: updateNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success) {
+                            updateBadge($row, newStatus);
+                            $select.data('previous', newStatus);
+                            showSuccess($select);
+                        } else {
+                            alert('Error updating status: ' + (response.data && response.data.message ? response.data.message : 'Unknown error'));
+                            $select.val($select.data('previous'));
+                        }
+                    }).fail(function () {
+                        alert('Error updating status. Please try again.');
+                        $select.val($select.data('previous'));
+                    }).always(function () {
+                        $select.prop('disabled', false);
+                    });
+                }
+
+                function closeMedicalModal(revertSelect = false) {
+                    $('#jpm-medical-modal').hide();
+                    if (revertSelect && activeSelect && previousStatus !== null) {
+                        activeSelect.val(previousStatus);
+                    }
+                    activeSelect = null;
+                    activeRow = null;
+                    activeApplicationId = null;
+                    previousStatus = null;
+                }
+
+                function openMedicalModal(applicationId, $select, $row) {
+                    if (!medicalStatusSlug) {
+                        updateStatus(applicationId, $select.data('previous'), $select, $row);
+                        return;
+                    }
+
+                    activeSelect = $select;
+                    activeRow = $row;
+                    activeApplicationId = applicationId;
+                    previousStatus = $select.data('previous');
+
+                    const $modal = $('#jpm-medical-modal');
+                    const $form = $('#jpm-medical-form');
+
+                    $form[0].reset();
+                    $form.find('input[name="application_id"]').val(applicationId);
+                    $form.find('input[name="address"]').val(defaultMedicalAddress);
+
+                    $modal.show();
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_get_medical_details',
+                            application_id: applicationId,
+                            nonce: medicalNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data && response.data.details) {
+                            const details = response.data.details;
+                            $form.find('textarea[name="requirements"]').val(details.requirements || '');
+                            $form.find('input[name="address"]').val(details.address || defaultMedicalAddress);
+                            $form.find('input[name="date"]').val(details.date || '');
+                            $form.find('input[name="time"]').val(details.time || '');
+                        }
+                    });
+                }
+
+                $('.jpm-application-status-select').on('change', function () {
+                    const $select = $(this);
+                    const applicationId = $select.data('application-id');
+                    const newStatus = $select.val();
+                    const $row = $select.closest('tr');
+
+                    if (medicalStatusSlug && newStatus === medicalStatusSlug) {
+                        openMedicalModal(applicationId, $select, $row);
+                        return;
+                    }
+
+                    updateStatus(applicationId, newStatus, $select, $row);
+                });
+
+                $('#jpm-medical-form').on('submit', function (e) {
+                    e.preventDefault();
+                    const $form = $(this);
+
+                    if (!activeSelect || !activeRow || !activeApplicationId) {
+                        closeMedicalModal(true);
+                        return;
+                    }
+
+                    const requirements = $form.find('textarea[name="requirements"]').val();
+                    const address = $form.find('input[name="address"]').val();
+                    const date = $form.find('input[name="date"]').val();
+                    const time = $form.find('input[name="time"]').val();
+
+                    if (!requirements.trim()) {
+                        alert('<?php echo esc_js(__('Please enter the requirements.', 'job-posting-manager')); ?>');
+                        return;
+                    }
+
+                    const $submitBtn = $form.find('button[type="submit"]');
+                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving…', 'job-posting-manager')); ?>');
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_save_medical_details',
+                            application_id: activeApplicationId,
+                            requirements: requirements,
+                            address: address,
+                            date: date,
+                            time: time,
+                            nonce: medicalNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data) {
+                            const statusSlug = response.data.status_slug || medicalStatusSlug;
+                            if (activeSelect) {
+                                activeSelect.val(statusSlug);
+                                activeSelect.data('previous', statusSlug);
+                            }
+                            if (activeRow) {
+                                updateBadge(activeRow, statusSlug);
+                            }
+                            if (activeSelect) {
+                                showSuccess(activeSelect);
+                            }
+                            closeMedicalModal(false);
+                        } else {
+                            alert(response.data && response.data.message ? response.data.message : '<?php echo esc_js(__('Failed to save medical details.', 'job-posting-manager')); ?>');
+                        }
+                    }).fail(function () {
+                        alert('<?php echo esc_js(__('Error saving medical details. Please try again.', 'job-posting-manager')); ?>');
+                    }).always(function () {
+                        $submitBtn.prop('disabled', false).text('<?php echo esc_js(__('Save and Update Status', 'job-posting-manager')); ?>');
+                    });
+                });
+
+                $('.jpm-medical-cancel, .jpm-admin-modal__close, .jpm-admin-modal__backdrop').on('click', function () {
+                    closeMedicalModal(true);
+                });
+            });
         </script>
         <?php
     }
@@ -1130,8 +1447,8 @@ class JPM_Admin
         </style>
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
-                         });
-                     });
+            });
+                             });
         </script>
         <?php
     }
@@ -1692,6 +2009,148 @@ class JPM_Admin
         } else {
             wp_send_json_error(['message' => __('Failed to update status', 'job-posting-manager')]);
         }
+    }
+
+    /**
+     * Find the slug configured for the "For Medical" status (by slug or display name).
+     */
+    private function get_medical_status_slug()
+    {
+        $statuses = self::get_all_statuses_info();
+        foreach ($statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'for-medical' || $slug === 'for_medical' || $name === 'for medical') {
+                return $status['slug'];
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Default medical address used when none is provided.
+     */
+    private function get_default_medical_address()
+    {
+        return '2250 Singalong St., Malate Manila';
+    }
+
+    /**
+     * Get stored medical details for an application.
+     *
+     * @param int $application_id
+     * @return array
+     */
+    private function get_application_medical_details($application_id)
+    {
+        $details = get_option('jpm_application_medical_details_' . absint($application_id), []);
+        if (!is_array($details)) {
+            return [
+                'requirements' => '',
+                'address' => '',
+                'date' => '',
+                'time' => '',
+                'updated_at' => '',
+            ];
+        }
+
+        return [
+            'requirements' => isset($details['requirements']) ? wp_kses_post($details['requirements']) : '',
+            'address' => isset($details['address']) ? sanitize_text_field($details['address']) : '',
+            'date' => isset($details['date']) ? sanitize_text_field($details['date']) : '',
+            'time' => isset($details['time']) ? sanitize_text_field($details['time']) : '',
+            'updated_at' => isset($details['updated_at']) ? sanitize_text_field($details['updated_at']) : '',
+        ];
+    }
+
+    /**
+     * AJAX: Fetch medical details for an application.
+     */
+    public function get_medical_details_ajax()
+    {
+        check_ajax_referer('jpm_medical_details', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = absint($_REQUEST['application_id'] ?? 0);
+        if ($application_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        }
+
+        $details = $this->get_application_medical_details($application_id);
+        if (empty($details['address'])) {
+            $details['address'] = $this->get_default_medical_address();
+        }
+
+        wp_send_json_success([
+            'details' => $details,
+            'status_slug' => $this->get_medical_status_slug(),
+        ]);
+    }
+
+    /**
+     * AJAX: Save medical details and update status.
+     */
+    public function save_medical_details_ajax()
+    {
+        check_ajax_referer('jpm_medical_details', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = absint($_POST['application_id'] ?? 0);
+        $requirements = isset($_POST['requirements']) ? wp_kses_post(wp_unslash($_POST['requirements'])) : '';
+        $address = isset($_POST['address']) ? sanitize_text_field(wp_unslash($_POST['address'])) : '';
+        $date = isset($_POST['date']) ? sanitize_text_field(wp_unslash($_POST['date'])) : '';
+        $time = isset($_POST['time']) ? sanitize_text_field(wp_unslash($_POST['time'])) : '';
+
+        if ($application_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        }
+
+        if (empty($requirements)) {
+            wp_send_json_error(['message' => __('Please enter the requirements.', 'job-posting-manager')]);
+        }
+
+        $medical_status_slug = $this->get_medical_status_slug();
+        if (empty($medical_status_slug)) {
+            wp_send_json_error(['message' => __('The "For Medical" status is not configured.', 'job-posting-manager')]);
+        }
+
+        // Persist details
+        $details = [
+            'requirements' => $requirements,
+            'address' => !empty($address) ? $address : $this->get_default_medical_address(),
+            'date' => $date,
+            'time' => $time,
+            'updated_at' => current_time('mysql'),
+        ];
+
+        update_option('jpm_application_medical_details_' . $application_id, $details, false);
+
+        // Update status
+        JPM_DB::update_status($application_id, $medical_status_slug);
+
+        // Send notification (reuse existing flow)
+        if (class_exists('JPM_Emails')) {
+            try {
+                JPM_Emails::send_status_update($application_id);
+            } catch (Exception $e) {
+                error_log('JPM Medical Email Error: ' . $e->getMessage());
+            }
+        }
+
+        $status_info = self::get_status_by_slug($medical_status_slug);
+
+        wp_send_json_success([
+            'message' => __('Medical details saved and status updated.', 'job-posting-manager'),
+            'status_slug' => $medical_status_slug,
+            'status_label' => $status_info ? $status_info['name'] : ucfirst($medical_status_slug),
+            'details' => $details,
+        ]);
     }
 
     /**
@@ -3320,6 +3779,9 @@ class JPM_Admin
         $status_color = $status_info ? $status_info['color'] : '#ffc107';
         $status_text_color = $status_info ? $status_info['text_color'] : '#000000';
 
+        $medical_details = $this->get_application_medical_details($application_id);
+        $medical_status_slug = $this->get_medical_status_slug();
+
         // Print page - standalone HTML without WordPress admin
         // Send headers to prevent caching
         nocache_headers();
@@ -3966,6 +4428,60 @@ class JPM_Admin
                         <?php endif; ?>
                     </div>
                 </div>
+
+                <?php
+                $has_medical_details = $medical_status_slug && ($application->status === $medical_status_slug) && (trim(implode('', $medical_details)) !== '');
+                if ($has_medical_details):
+                    ?>
+                    <div class="divider"></div>
+                    <div class="section">
+                        <div class="section-title"><?php _e('Medical Requirements & Schedule', 'job-posting-manager'); ?></div>
+                        <div class="info-grid">
+                            <?php if (!empty($medical_details['requirements'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('Requirements', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <?php echo nl2br(wp_kses_post($medical_details['requirements'])); ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($medical_details['address'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('Address', 'job-posting-manager'); ?></div>
+                                    <div class="info-value"><?php echo esc_html($medical_details['address']); ?></div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($medical_details['date']) || !empty($medical_details['time'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('Schedule', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <?php if (!empty($medical_details['date'])): ?>
+                                            <div><?php _e('Date:', 'job-posting-manager'); ?>
+                                                <strong><?php echo esc_html($medical_details['date']); ?></strong>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($medical_details['time'])): ?>
+                                            <div><?php _e('Time:', 'job-posting-manager'); ?>
+                                                <strong><?php echo esc_html($medical_details['time']); ?></strong>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($medical_details['updated_at'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('Last Updated', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($medical_details['updated_at']))); ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <div class="divider"></div>
 
