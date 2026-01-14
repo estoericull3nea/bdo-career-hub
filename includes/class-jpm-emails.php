@@ -458,16 +458,16 @@ class JPM_Emails
 
         // Medical details section (only when status is For Medical)
         if ($is_medical) {
-            $body .= '<div style="background-color: #f8f9fa; padding: 25px; border-radius: 6px; margin: 25px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
-            $body .= '<h2 style="color: #0073aa; margin-top: 0; margin-bottom: 20px; font-size: 20px; font-weight: 600; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px;">' . __('Medical Requirements & Schedule', 'job-posting-manager') . '</h2>';
+            $body .= '<div style="background: linear-gradient(to right, #e8f4f8 0%, #f0f8fb 100%); padding: 25px; border-radius: 8px; margin: 25px 0; box-shadow: 0 2px 6px rgba(0,115,170,0.15);">';
+            $body .= '<h2 style="color: #0073aa; margin-top: 0; margin-bottom: 20px; font-size: 21px; font-weight: 700; border-bottom: 2px solid #0073aa; padding-bottom: 12px; letter-spacing: 0.3px;">' . __('Medical Requirements & Schedule', 'job-posting-manager') . '</h2>';
             $body .= '<table style="width: 100%; border-collapse: collapse;">';
 
             if (!empty($medical_details['requirements'])) {
-                $body .= '<tr><td style="padding: 12px 0; font-weight: 600; width: 35%; vertical-align: top; color: #333;">' . __('Requirements:', 'job-posting-manager') . '</td><td style="padding: 12px 0; line-height: 1.7; color: #555;">' . nl2br(wp_kses_post($medical_details['requirements'])) . '</td></tr>';
+                $body .= '<tr style="background-color: rgba(255,255,255,0.6);"><td style="padding: 14px 12px; font-weight: 700; width: 35%; vertical-align: top; color: #0073aa; border-radius: 4px 0 0 4px;">' . __('Requirements:', 'job-posting-manager') . '</td><td style="padding: 14px 12px; line-height: 1.8; color: #2c3e50; border-radius: 0 4px 4px 0;">' . nl2br(wp_kses_post($medical_details['requirements'])) . '</td></tr>';
             }
 
             $medical_address = !empty($medical_details['address']) ? $medical_details['address'] : self::get_default_medical_address();
-            $body .= '<tr><td style="padding: 12px 0; font-weight: 600; vertical-align: top; color: #333; border-top: 1px solid #e0e0e0;">' . __('Address:', 'job-posting-manager') . '</td><td style="padding: 12px 0; border-top: 1px solid #e0e0e0; line-height: 1.7; color: #555; font-size: 15px;">' . esc_html($medical_address) . '</td></tr>';
+            $body .= '<tr style="background-color: rgba(255,255,255,0.4); margin-top: 8px;"><td style="padding: 14px 12px; font-weight: 700; vertical-align: top; color: #0073aa; border-top: 1px solid rgba(0,115,170,0.2); border-radius: 4px 0 0 4px;">' . __('Address:', 'job-posting-manager') . '</td><td style="padding: 14px 12px; border-top: 1px solid rgba(0,115,170,0.2); line-height: 1.8; color: #2c3e50; font-size: 15px; border-radius: 0 4px 4px 0;">' . esc_html($medical_address) . '</td></tr>';
 
             if (!empty($medical_details['date']) || !empty($medical_details['time'])) {
                 $schedule = '';
@@ -475,7 +475,7 @@ class JPM_Emails
                     // Format date from YYYY-MM-DD to readable format (e.g., January 14, 2026)
                     $date_timestamp = strtotime($medical_details['date']);
                     $formatted_date = $date_timestamp ? date_i18n('F j, Y', $date_timestamp) : esc_html($medical_details['date']);
-                    $schedule .= '<div style="margin-bottom: 8px;"><strong style="color: #0073aa;">' . __('Date:', 'job-posting-manager') . '</strong> <span style="color: #333; font-size: 15px;">' . $formatted_date . '</span></div>';
+                    $schedule .= '<div style="margin-bottom: 10px; padding: 8px 0;"><strong style="color: #0073aa; font-size: 14px;">' . __('Date:', 'job-posting-manager') . '</strong> <span style="color: #2c3e50; font-size: 15px; font-weight: 500; margin-left: 8px;">' . $formatted_date . '</span></div>';
                 }
                 if (!empty($medical_details['time'])) {
                     // Format time to readable format (e.g., 2:30 PM)
@@ -483,9 +483,9 @@ class JPM_Emails
                     if (!$time_formatted) {
                         $time_formatted = esc_html($medical_details['time']);
                     }
-                    $schedule .= '<div><strong style="color: #0073aa;">' . __('Time:', 'job-posting-manager') . '</strong> <span style="color: #333; font-size: 15px;">' . $time_formatted . '</span></div>';
+                    $schedule .= '<div style="padding: 8px 0;"><strong style="color: #0073aa; font-size: 14px;">' . __('Time:', 'job-posting-manager') . '</strong> <span style="color: #2c3e50; font-size: 15px; font-weight: 500; margin-left: 8px;">' . $time_formatted . '</span></div>';
                 }
-                $body .= '<tr><td style="padding: 12px 0; font-weight: 600; vertical-align: top; color: #333; border-top: 1px solid #e0e0e0;">' . __('Schedule:', 'job-posting-manager') . '</td><td style="padding: 12px 0; border-top: 1px solid #e0e0e0; line-height: 1.7;">' . $schedule . '</td></tr>';
+                $body .= '<tr style="background-color: rgba(255,255,255,0.4);"><td style="padding: 14px 12px; font-weight: 700; vertical-align: top; color: #0073aa; border-top: 1px solid rgba(0,115,170,0.2); border-radius: 4px 0 0 4px;">' . __('Schedule:', 'job-posting-manager') . '</td><td style="padding: 14px 12px; border-top: 1px solid rgba(0,115,170,0.2); line-height: 1.8; border-radius: 0 4px 4px 0;">' . $schedule . '</td></tr>';
             }
 
             $body .= '</table>';
