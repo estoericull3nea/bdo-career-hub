@@ -2,6 +2,30 @@
 class JPM_Emails
 {
     /**
+     * Detect the slug used for the "For Medical" status.
+     */
+    private static function get_medical_status_slug()
+    {
+        $statuses = JPM_Admin::get_all_statuses_info();
+        foreach ($statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'for-medical' || $slug === 'for_medical' || $name === 'for medical') {
+                return $status['slug'];
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Default medical address fallback.
+     */
+    private static function get_default_medical_address()
+    {
+        return '2250 Singalong St., Malate Manila';
+    }
+
+    /**
      * Check if SMTP is available (either external plugin or our own configured)
      * 
      * @return bool True if SMTP is available
@@ -99,13 +123,13 @@ class JPM_Emails
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
-        
+
         // Get status information
         $status_slug = 'pending'; // Default status
         if ($application && !empty($application->status)) {
             $status_slug = $application->status;
         }
-        
+
         // Get status info from JPM_Admin class
         if (class_exists('JPM_Admin')) {
             $status_info = JPM_Admin::get_status_by_slug($status_slug);
@@ -354,6 +378,26 @@ class JPM_Emails
             $application_number = $form_data['application_number'];
         }
 
+        // Medical details (if status is For Medical)
+        $medical_details = [];
+        $medical_status_slug = self::get_medical_status_slug();
+        $is_medical = $medical_status_slug && $status_slug === $medical_status_slug;
+
+        if ($is_medical) {
+            $stored = get_option('jpm_application_medical_details_' . $app_id, []);
+            if (!is_array($stored)) {
+                $stored = [];
+            }
+
+            $medical_details = [
+                'requirements' => isset($stored['requirements']) ? wp_kses_post($stored['requirements']) : '',
+                'address' => isset($stored['address']) && !empty($stored['address']) ? sanitize_text_field($stored['address']) : self::get_default_medical_address(),
+                'date' => isset($stored['date']) ? sanitize_text_field($stored['date']) : '',
+                'time' => isset($stored['time']) ? sanitize_text_field($stored['time']) : '',
+                'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+            ];
+        }
+
         // Get email template
         $template = JPM_Email_Templates::get_template('status_update');
 
@@ -411,6 +455,37 @@ class JPM_Emails
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Date Updated:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), current_time('timestamp'))) . '</td></tr>';
         $body .= '</table>';
         $body .= '</div>';
+
+        // Medical details section (only when status is For Medical)
+        if ($is_medical) {
+            $body .= '<div style="background-color: ' . esc_attr($template['details_bg_color']) . '; padding: 20px; border-radius: 5px; margin: 20px 0;">';
+            $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px;">' . __('Medical Requirements & Schedule', 'job-posting-manager') . '</h2>';
+            $body .= '<table style="width: 100%; border-collapse: collapse;">';
+
+            if (!empty($medical_details['requirements'])) {
+                $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Requirements:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . nl2br(wp_kses_post($medical_details['requirements'])) . '</td></tr>';
+            }
+
+            if (!empty($medical_details['address'])) {
+                $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Address:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($medical_details['address']) . '</td></tr>';
+            } else {
+                $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Address:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html(self::get_default_medical_address()) . '</td></tr>';
+            }
+
+            if (!empty($medical_details['date']) || !empty($medical_details['time'])) {
+                $schedule = '';
+                if (!empty($medical_details['date'])) {
+                    $schedule .= '<div>' . __('Date:', 'job-posting-manager') . ' <strong>' . esc_html($medical_details['date']) . '</strong></div>';
+                }
+                if (!empty($medical_details['time'])) {
+                    $schedule .= '<div>' . __('Time:', 'job-posting-manager') . ' <strong>' . esc_html($medical_details['time']) . '</strong></div>';
+                }
+                $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Schedule:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . $schedule . '</td></tr>';
+            }
+
+            $body .= '</table>';
+            $body .= '</div>';
+        }
 
         // Status-specific message
         $status_specific_message = self::replace_placeholders($template['status_specific_message'], [
