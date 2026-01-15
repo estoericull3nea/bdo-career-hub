@@ -2220,6 +2220,36 @@ class JPM_Admin
     }
 
     /**
+     * Format date to "January 13, 2003" format.
+     *
+     * @param string $date_string Date string in YYYY-MM-DD format
+     * @return string Formatted date string
+     */
+    private function format_medical_date($date_string)
+    {
+        if (empty($date_string)) {
+            return '';
+        }
+
+        $timestamp = strtotime($date_string);
+        if ($timestamp === false) {
+            return $date_string; // Return original if invalid
+        }
+
+        $months = [
+            1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+            5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+            9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
+        ];
+
+        $month = $months[(int) date('n', $timestamp)];
+        $day = date('j', $timestamp);
+        $year = date('Y', $timestamp);
+
+        return $month . ' ' . $day . ', ' . $year;
+    }
+
+    /**
      * AJAX: Fetch medical details for an application.
      */
     public function get_medical_details_ajax()
@@ -4615,7 +4645,7 @@ class JPM_Admin
                                     <div class="info-value">
                                         <?php if (!empty($medical_details['date'])): ?>
                                             <div><?php _e('Date:', 'job-posting-manager'); ?>
-                                                <strong><?php echo esc_html($medical_details['date']); ?></strong>
+                                                <strong><?php echo esc_html($this->format_medical_date($medical_details['date'])); ?></strong>
                                             </div>
                                         <?php endif; ?>
                                         <?php if (!empty($medical_details['time'])): ?>
