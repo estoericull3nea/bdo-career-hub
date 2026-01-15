@@ -7,6 +7,7 @@ class JPM_Settings
         add_action('admin_menu', [$this, 'add_settings_page'], 99);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_init', [$this, 'save_smtp_settings']);
+        add_action('wp_ajax_jpm_send_test_email', [$this, 'ajax_send_test_email']);
     }
 
     public function add_settings_page()
@@ -302,6 +303,46 @@ class JPM_Settings
 
                             <?php submit_button(__('Save Settings', 'job-posting-manager')); ?>
                         </form>
+
+                        <hr style="margin: 30px 0;">
+
+                        <h3><?php _e('Send Test Email', 'job-posting-manager'); ?></h3>
+                        <p class="description">
+                            <?php _e('Send a test email to verify your SMTP configuration is working correctly.', 'job-posting-manager'); ?>
+                        </p>
+
+                        <div id="jpm-test-email-message" style="margin-top: 15px; display: none;"></div>
+
+                        <form id="jpm-test-email-form" style="margin-top: 20px;">
+                            <?php wp_nonce_field('jpm_send_test_email', 'jpm_test_email_nonce'); ?>
+
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">
+                                        <label
+                                            for="test_email_address"><?php _e('Test Email Address', 'job-posting-manager'); ?></label>
+                                    </th>
+                                    <td>
+                                        <input type="email" id="test_email_address" name="test_email_address"
+                                            value="<?php echo esc_attr(get_option('admin_email')); ?>" class="regular-text"
+                                            required />
+                                        <p class="description">
+                                            <?php _e('Enter the email address where you want to receive the test email', 'job-posting-manager'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p class="submit">
+                                <button type="submit" id="jpm-send-test-email-btn" class="button button-secondary">
+                                    <span class="jpm-btn-text"><?php _e('Send Test Email', 'job-posting-manager'); ?></span>
+                                    <span class="jpm-btn-spinner" style="display: none; margin-left: 8px;">
+                                        <span class="spinner is-active"
+                                            style="float: none; margin: 0; visibility: visible;"></span>
+                                    </span>
+                                </button>
+                            </p>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -477,6 +518,20 @@ class JPM_Settings
                 margin: 15px 0;
                 color: #856404;
             }
+
+            #jpm-send-test-email-btn {
+                position: relative;
+            }
+
+            #jpm-send-test-email-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            #jpm-send-test-email-btn .jpm-btn-spinner {
+                display: inline-block;
+                vertical-align: middle;
+            }
         </style>
         <script>
             jQuery(document).ready(function ($) {
@@ -508,6 +563,52 @@ class JPM_Settings
                     // Add active class to clicked tab and corresponding content
                     $(this).addClass('active');
                     $('#shortcode-tab-' + tabId).addClass('active');
+                });
+
+                // Test email form AJAX
+                $('#jpm-test-email-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-test-email-message');
+                    var $button = $('#jpm-send-test-email-btn');
+                    var email = $('#test_email_address').val();
+
+                    // Validate email
+                    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Please enter a valid email address.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    // Disable button and show loading
+                    $button.prop('disabled', true).text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
+                    $message.hide();
+
+                    // Send AJAX request
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_send_test_email',
+                            email: email,
+                            nonce: '<?php echo wp_create_nonce('jpm_send_test_email'); ?>'
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success is-dismissible"><p>' + response.data.message + '</p></div>').show();
+                            } else {
+                                $message.html('<div class="notice notice-error is-dismissible"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to send test email. Please check your SMTP settings.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error is-dismissible"><p><?php echo esc_js(__('An error occurred while sending the test email. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                        },
+                        complete: function () {
+                            $button.prop('disabled', false);
+                            $button.find('.jpm-btn-text').text('<?php echo esc_js(__('Send Test Email', 'job-posting-manager')); ?>');
+                            $button.find('.jpm-btn-spinner').hide();
+                        }
+                    });
                 });
             });
         </script>
@@ -605,6 +706,87 @@ class JPM_Settings
             // Redirect to prevent form resubmission
             wp_redirect(admin_url('admin.php?page=jpm-settings&settings_saved=1'));
             exit;
+        }
+    }
+
+    /**
+     * AJAX handler for sending test email
+     */
+    public function ajax_send_test_email()
+    {
+        check_ajax_referer('jpm_send_test_email', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'job-posting-manager')]);
+        }
+
+        $test_email = sanitize_email($_POST['email'] ?? '');
+
+        if (empty($test_email) || !is_email($test_email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        }
+
+        // Check if SMTP is available
+        if (!JPM_Emails::is_smtp_available()) {
+            wp_send_json_error(['message' => __('SMTP is not configured. Please configure your SMTP settings first.', 'job-posting-manager')]);
+        }
+
+        // Prepare test email
+        $subject = __('Test Email from Job Posting Manager', 'job-posting-manager');
+        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">';
+        $body .= '<div style="max-width: 600px; margin: 0 auto; padding: 20px;">';
+        $body .= '<h2 style="color: #2271b1;">' . __('Test Email', 'job-posting-manager') . '</h2>';
+        $body .= '<p>' . __('This is a test email to verify your SMTP configuration is working correctly.', 'job-posting-manager') . '</p>';
+        $body .= '<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">';
+        $body .= '<p style="color: #666; font-size: 12px;">';
+        $body .= __('If you received this email, your SMTP settings are configured correctly!', 'job-posting-manager');
+        $body .= '</p>';
+        $body .= '<p style="color: #666; font-size: 12px;">';
+        $body .= sprintf(__('Sent from: %s', 'job-posting-manager'), get_bloginfo('name'));
+        $body .= '<br>';
+        $body .= sprintf(__('Time: %s', 'job-posting-manager'), current_time('mysql'));
+        $body .= '</p>';
+        $body .= '</div>';
+        $body .= '</body></html>';
+
+        // Email headers
+        $smtp_settings = get_option('jpm_smtp_settings', []);
+        $from_email = !empty($smtp_settings['from_email']) ? $smtp_settings['from_email'] : get_option('admin_email');
+        $from_name = !empty($smtp_settings['from_name']) ? $smtp_settings['from_name'] : get_bloginfo('name');
+
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>'
+        ];
+
+        // Add CC and BCC from settings
+        $email_settings = get_option('jpm_email_settings', []);
+        if (!empty($email_settings['cc_emails'])) {
+            $cc_emails = array_map('trim', explode(',', $email_settings['cc_emails']));
+            $cc_emails = array_filter($cc_emails, 'is_email');
+            if (!empty($cc_emails)) {
+                $headers[] = 'Cc: ' . implode(', ', $cc_emails);
+            }
+        }
+        if (!empty($email_settings['bcc_emails'])) {
+            $bcc_emails = array_map('trim', explode(',', $email_settings['bcc_emails']));
+            $bcc_emails = array_filter($bcc_emails, 'is_email');
+            if (!empty($bcc_emails)) {
+                $headers[] = 'Bcc: ' . implode(', ', $bcc_emails);
+            }
+        }
+
+        // Send test email
+        $result = wp_mail($test_email, $subject, $body, $headers);
+
+        if ($result) {
+            wp_send_json_success([
+                'message' => sprintf(__('Test email sent successfully to %s!', 'job-posting-manager'), $test_email)
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => __('Failed to send test email. Please check your SMTP settings and try again.', 'job-posting-manager')
+            ]);
         }
     }
 }
