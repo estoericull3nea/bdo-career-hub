@@ -518,6 +518,9 @@ class JPM_Admin
             'post_status' => 'any'
         ]);
 
+        // Get medical status slug for checking
+        $medical_status_slug = $this->get_medical_status_slug();
+
         ?>
         <div class="wrap">
             <h1><?php _e('Applications', 'job-posting-manager'); ?></h1>
@@ -716,6 +719,13 @@ class JPM_Admin
                                             target="_blank" class="button button-small" style="text-decoration: none;">
                                             <?php _e('View Details', 'job-posting-manager'); ?>
                                         </a>
+                                        <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
+                                            <button type="button" class="button button-small jpm-view-requirements-btn"
+                                                data-application-id="<?php echo esc_attr($application->id); ?>"
+                                                style="text-decoration: none;">
+                                                <?php _e('View Requirements', 'job-posting-manager'); ?>
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -723,6 +733,27 @@ class JPM_Admin
                     </tbody>
                 </table>
             <?php endif; ?>
+        </div>
+
+        <div id="jpm-view-requirements-modal" class="jpm-admin-modal" style="display:none;">
+            <div class="jpm-admin-modal__backdrop"></div>
+            <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                aria-labelledby="jpm-view-requirements-modal-title" style="max-width: 600px;">
+                <button type="button" class="jpm-admin-modal__close"
+                    aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                <h2 id="jpm-view-requirements-modal-title"><?php _e('Medical Requirements', 'job-posting-manager'); ?></h2>
+                <div id="jpm-view-requirements-content" style="margin-top: 20px;">
+                    <div style="text-align: center; padding: 20px;">
+                        <span class="spinner is-active" style="float: none; margin: 0;"></span>
+                        <p><?php _e('Loading requirements...', 'job-posting-manager'); ?></p>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; text-align: right;">
+                    <button type="button" class="button jpm-view-requirements-close">
+                        <?php _e('Close', 'job-posting-manager'); ?>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div id="jpm-medical-modal" class="jpm-admin-modal" style="display:none;">
@@ -1115,6 +1146,91 @@ class JPM_Admin
                 $('.jpm-medical-cancel, .jpm-admin-modal__close, .jpm-admin-modal__backdrop').on('click', function () {
                     closeMedicalModal(true);
                 });
+
+                // View Requirements functionality
+                function closeViewRequirementsModal() {
+                    $('#jpm-view-requirements-modal').hide();
+                }
+
+                function openViewRequirementsModal(applicationId) {
+                    const $modal = $('#jpm-view-requirements-modal');
+                    const $content = $('#jpm-view-requirements-content');
+
+                    // Show loading state
+                    $content.html('<div style="text-align: center; padding: 20px;"><span class="spinner is-active" style="float: none; margin: 0;"></span><p><?php echo esc_js(__('Loading requirements...', 'job-posting-manager')); ?></p></div>');
+                    $modal.show();
+
+                    // Fetch medical details
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_get_medical_details',
+                            application_id: applicationId,
+                            nonce: medicalNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data && response.data.details) {
+                            const details = response.data.details;
+                            let html = '<div class="jpm-view-requirements-details">';
+
+                            if (details.requirements) {
+                                html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
+                                html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Requirements:', 'job-posting-manager')); ?></label>';
+                                html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px; line-height: 1.6; white-space: pre-wrap;">' + $('<div>').text(details.requirements).html().replace(/\n/g, '<br>') + '</div>';
+                                html += '</div>';
+                            }
+
+                            if (details.address) {
+                                html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
+                                html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Medical Address:', 'job-posting-manager')); ?></label>';
+                                html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">' + $('<div>').text(details.address).html() + '</div>';
+                                html += '</div>';
+                            }
+
+                            if (details.date || details.time) {
+                                html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
+                                html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Schedule:', 'job-posting-manager')); ?></label>';
+                                html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">';
+                                if (details.date) {
+                                    html += '<strong><?php echo esc_js(__('Date:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(details.date).html();
+                                }
+                                if (details.time) {
+                                    if (details.date) html += '<br>';
+                                    html += '<strong><?php echo esc_js(__('Time:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(details.time).html();
+                                }
+                                html += '</div>';
+                                html += '</div>';
+                            }
+
+                            if (!details.requirements && !details.address && !details.date && !details.time) {
+                                html += '<div style="text-align: center; padding: 20px; color: #666;">';
+                                html += '<p><?php echo esc_js(__('No requirements have been set for this application yet.', 'job-posting-manager')); ?></p>';
+                                html += '</div>';
+                            }
+
+                            html += '</div>';
+                            $content.html(html);
+                        } else {
+                            $content.html('<div style="text-align: center; padding: 20px; color: #dc3545;"><p><?php echo esc_js(__('Failed to load requirements. Please try again.', 'job-posting-manager')); ?></p></div>');
+                        }
+                    }).fail(function () {
+                        $content.html('<div style="text-align: center; padding: 20px; color: #dc3545;"><p><?php echo esc_js(__('Error loading requirements. Please try again.', 'job-posting-manager')); ?></p></div>');
+                    });
+                }
+
+                // Handle View Requirements button click
+                $(document).on('click', '.jpm-view-requirements-btn', function () {
+                    const applicationId = $(this).data('application-id');
+                    if (applicationId) {
+                        openViewRequirementsModal(applicationId);
+                    }
+                });
+
+                // Close View Requirements modal
+                $(document).on('click', '.jpm-view-requirements-close, #jpm-view-requirements-modal .jpm-admin-modal__close, #jpm-view-requirements-modal .jpm-admin-modal__backdrop', function () {
+                    closeViewRequirementsModal();
+                });
             });
         </script>
         <?php
@@ -1448,7 +1564,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                             });
+                                     });
         </script>
         <?php
     }
