@@ -74,6 +74,25 @@ class JPM_Settings
                 'example' => '[job_listings]',
                 'note' => __('This shortcode requires users to be logged in. Non-logged-in users will see a login message.', 'job-posting-manager'),
             ],
+            'jpm_register' => [
+                'title' => __('Registration Form', 'job-posting-manager'),
+                'description' => __('Display a user registration form for creating new accounts.', 'job-posting-manager'),
+                'usage' => '[jpm_register title="Create Account" redirect_url=""]',
+                'parameters' => [
+                    'title' => __('Title for the registration form (default: "Create Account")', 'job-posting-manager'),
+                    'redirect_url' => __('URL to redirect after successful registration (optional)', 'job-posting-manager'),
+                ],
+                'example' => '[jpm_register title="Sign Up" redirect_url="/jobs/"]',
+                'features' => [
+                    __('User registration with first name, last name, email, and password', 'job-posting-manager'),
+                    __('Password confirmation field', 'job-posting-manager'),
+                    __('Automatic account creation email', 'job-posting-manager'),
+                    __('Auto-login after registration', 'job-posting-manager'),
+                    __('Admin notification for new registrations', 'job-posting-manager'),
+                    __('Redirect to jobs page or custom URL after registration', 'job-posting-manager'),
+                ],
+                'note' => __('Logged-in users will see a message to logout first. The form automatically validates email uniqueness and password strength.', 'job-posting-manager'),
+            ],
         ];
         // Get current settings
         $smtp_settings = get_option('jpm_smtp_settings', []);

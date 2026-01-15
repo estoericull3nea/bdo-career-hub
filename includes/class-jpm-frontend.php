@@ -8,6 +8,7 @@ class JPM_Frontend
         add_shortcode('latest_jobs', [$this, 'latest_jobs_shortcode']);
         add_shortcode('all_jobs', [$this, 'all_jobs_shortcode']);
         add_shortcode('application_tracker', [$this, 'application_tracker_shortcode']);
+        add_shortcode('jpm_register', [$this, 'register_shortcode']);
         add_action('wp_ajax_jpm_apply', [$this, 'handle_application']);
         add_action('wp_ajax_nopriv_jpm_apply', [$this, 'handle_application']); // But redirect if not logged in
         add_action('wp_ajax_jpm_get_status', [$this, 'get_status']);
@@ -17,6 +18,8 @@ class JPM_Frontend
         add_action('wp_ajax_nopriv_jpm_filter_jobs', [$this, 'filter_jobs_ajax']);
         add_action('wp_ajax_jpm_track_application', [$this, 'track_application_ajax']);
         add_action('wp_ajax_nopriv_jpm_track_application', [$this, 'track_application_ajax']);
+        add_action('wp_ajax_jpm_register', [$this, 'handle_registration']);
+        add_action('wp_ajax_nopriv_jpm_register', [$this, 'handle_registration']);
     }
 
     public function job_listings_shortcode($atts)
@@ -172,7 +175,8 @@ class JPM_Frontend
                             <p class="jpm-job-card-excerpt"><?php echo esc_html($excerpt); ?></p>
                         <?php endif; ?>
                         <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
-                                    class="dashicons dashicons-calendar-alt"></i><?php echo esc_html(get_the_date('', $job->ID)); ?> </span>
+                                    class="dashicons dashicons-calendar-alt"></i><?php echo esc_html(get_the_date('', $job->ID)); ?>
+                            </span>
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
@@ -1097,5 +1101,370 @@ class JPM_Frontend
         <?php endif; ?>
         <?php
         return ob_get_clean();
+    }
+
+    /**
+     * Registration form shortcode
+     * Usage: [jpm_register title="Create Account" redirect_url="/login/"]
+     */
+    public function register_shortcode($atts)
+    {
+        // If user is already logged in, show message
+        if (is_user_logged_in()) {
+            $current_user = wp_get_current_user();
+            return '<div class="jpm-register-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to create a new account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+        }
+
+        $atts = shortcode_atts([
+            'title' => __('Create Account', 'job-posting-manager'),
+            'redirect_url' => '',
+        ], $atts);
+
+        ob_start();
+        ?>
+        <div class="jpm-register-form-wrapper">
+            <div class="jpm-register-form-container">
+                <h2 class="jpm-register-title"><?php echo esc_html($atts['title']); ?></h2>
+
+                <div id="jpm-register-message" style="display: none; margin-bottom: 15px;"></div>
+
+                <form id="jpm-register-form" class="jpm-register-form">
+                    <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
+                    <input type="hidden" name="redirect_url" value="<?php echo esc_attr($atts['redirect_url']); ?>" />
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-register-first-name">
+                            <?php _e('First Name', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <input type="text" id="jpm-register-first-name" name="first_name" required class="jpm-input" />
+                    </div>
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-register-last-name">
+                            <?php _e('Last Name', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <input type="text" id="jpm-register-last-name" name="last_name" required class="jpm-input" />
+                    </div>
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-register-email">
+                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <input type="email" id="jpm-register-email" name="email" required class="jpm-input" />
+                    </div>
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-register-password">
+                            <?php _e('Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <input type="password" id="jpm-register-password" name="password" required class="jpm-input"
+                            minlength="8" />
+                        <small class="jpm-field-description"><?php _e('Minimum 8 characters', 'job-posting-manager'); ?></small>
+                    </div>
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-register-password-confirm">
+                            <?php _e('Confirm Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <input type="password" id="jpm-register-password-confirm" name="password_confirm" required
+                            class="jpm-input" />
+                    </div>
+
+                    <div class="jpm-form-field">
+                        <button type="submit" id="jpm-register-submit" class="jpm-btn jpm-btn-primary jpm-btn-block">
+                            <span class="jpm-btn-text"><?php _e('Create Account', 'job-posting-manager'); ?></span>
+                        </button>
+                    </div>
+
+                    <div class="jpm-register-footer">
+                        <p><?php _e('Already have an account?', 'job-posting-manager'); ?>
+                            <a
+                                href="<?php echo esc_url(wp_login_url()); ?>"><?php _e('Login here', 'job-posting-manager'); ?></a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <style>
+            .jpm-register-form-wrapper {
+                max-width: 500px;
+                margin: 30px auto;
+            }
+
+            .jpm-register-form-container {
+                background: #fff;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-register-title {
+                margin-top: 0;
+                margin-bottom: 25px;
+                text-align: center;
+                color: #23282d;
+            }
+
+            .jpm-register-form .jpm-form-field {
+                margin-bottom: 20px;
+            }
+
+            .jpm-register-form label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: #23282d;
+            }
+
+            .jpm-register-form .required {
+                color: #dc3232;
+            }
+
+            .jpm-register-form .jpm-input {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+                box-sizing: border-box;
+            }
+
+            .jpm-register-form .jpm-input:focus {
+                border-color: #2271b1;
+                outline: none;
+                box-shadow: 0 0 0 1px #2271b1;
+            }
+
+            .jpm-field-description {
+                display: block;
+                margin-top: 5px;
+                font-size: 12px;
+                color: #646970;
+            }
+
+            .jpm-register-footer {
+                margin-top: 20px;
+                text-align: center;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+            }
+
+            .jpm-register-footer a {
+                color: #2271b1;
+                text-decoration: none;
+            }
+
+            .jpm-register-footer a:hover {
+                text-decoration: underline;
+            }
+
+            #jpm-register-message .notice {
+                margin: 0;
+            }
+
+            #jpm-register-submit:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+        </style>
+
+        <script>
+            jQuery(document).ready(function ($) {
+                $('#jpm-register-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-register-message');
+                    var $button = $('#jpm-register-submit');
+                    var $btnText = $button.find('.jpm-btn-text');
+
+                    // Get form values
+                    var password = $('#jpm-register-password').val();
+                    var passwordConfirm = $('#jpm-register-password-confirm').val();
+
+                    // Validate passwords match
+                    if (password !== passwordConfirm) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Passwords do not match.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    // Validate password length
+                    if (password.length < 8) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Password must be at least 8 characters long.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    // Disable button and show loading
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo esc_js(__('Creating Account...', 'job-posting-manager')); ?>');
+                    $message.hide();
+
+                    // Send AJAX request
+                    $.ajax({
+                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_register',
+                            first_name: $('#jpm-register-first-name').val(),
+                            last_name: $('#jpm-register-last-name').val(),
+                            email: $('#jpm-register-email').val(),
+                            password: password,
+                            redirect_url: $('input[name="redirect_url"]').val(),
+                            nonce: $('#jpm_register_nonce').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Account created successfully! Redirecting...', 'job-posting-manager')); ?>') + '</p></div>').show();
+
+                                // Redirect after 2 seconds
+                                setTimeout(function () {
+                                    if (response.data.redirect_url) {
+                                        window.location.href = response.data.redirect_url;
+                                    } else {
+                                        window.location.reload();
+                                    }
+                                }, 2000);
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to create account. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                                $button.prop('disabled', false);
+                                $btnText.text('<?php echo esc_js(__('Create Account', 'job-posting-manager')); ?>');
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo esc_js(__('Create Account', 'job-posting-manager')); ?>');
+                        }
+                    });
+                });
+            });
+        </script>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Handle user registration via AJAX
+     */
+    public function handle_registration()
+    {
+        check_ajax_referer('jpm_register', 'nonce');
+
+        // If user is already logged in
+        if (is_user_logged_in()) {
+            wp_send_json_error(['message' => __('You are already logged in.', 'job-posting-manager')]);
+        }
+
+        // Get form data
+        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
+        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
+        $email = sanitize_email($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $redirect_url = esc_url_raw($_POST['redirect_url'] ?? '');
+
+        // Validate required fields
+        if (empty($first_name)) {
+            wp_send_json_error(['message' => __('First name is required.', 'job-posting-manager')]);
+        }
+
+        if (empty($last_name)) {
+            wp_send_json_error(['message' => __('Last name is required.', 'job-posting-manager')]);
+        }
+
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        }
+
+        if (empty($password) || strlen($password) < 8) {
+            wp_send_json_error(['message' => __('Password must be at least 8 characters long.', 'job-posting-manager')]);
+        }
+
+        // Check if email already exists
+        if (email_exists($email)) {
+            wp_send_json_error(['message' => __('An account with this email address already exists. Please login instead.', 'job-posting-manager')]);
+        }
+
+        // Create username from email
+        $username = sanitize_user($email, true);
+        $original_username = $username;
+        $counter = 1;
+        while (username_exists($username)) {
+            $username = $original_username . $counter;
+            $counter++;
+        }
+
+        // Create user
+        $user_id = wp_create_user($username, $password, $email);
+
+        if (is_wp_error($user_id)) {
+            wp_send_json_error(['message' => $user_id->get_error_message()]);
+        }
+
+        // Set user role
+        $user = new WP_User($user_id);
+        if (get_role('customer')) {
+            $user->set_role('customer');
+        } else {
+            $user->set_role('subscriber');
+        }
+
+        // Set user meta
+        update_user_meta($user_id, 'first_name', $first_name);
+        update_user_meta($user_id, 'last_name', $last_name);
+
+        // Update display name
+        wp_update_user([
+            'ID' => $user_id,
+            'display_name' => trim($first_name . ' ' . $last_name),
+            'first_name' => $first_name,
+            'last_name' => $last_name
+        ]);
+
+        // Send account creation email
+        if (class_exists('JPM_Emails')) {
+            try {
+                JPM_Emails::send_account_creation_notification($user_id, $email, $password, $first_name, $last_name);
+            } catch (Exception $e) {
+                error_log('JPM: Failed to send account creation email - ' . $e->getMessage());
+            }
+        }
+
+        // Send new customer notification to admin
+        if (class_exists('JPM_Emails')) {
+            try {
+                $email_settings = get_option('jpm_email_settings', []);
+                $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+                JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email);
+            } catch (Exception $e) {
+                error_log('JPM: Failed to send new customer notification - ' . $e->getMessage());
+            }
+        }
+
+        // Auto-login user
+        wp_set_current_user($user_id);
+        wp_set_auth_cookie($user_id);
+
+        // Determine redirect URL
+        if (!empty($redirect_url)) {
+            $final_redirect = $redirect_url;
+        } else {
+            // Try to find a page with [all_jobs] shortcode
+            $pages = get_pages();
+            foreach ($pages as $page) {
+                if (has_shortcode($page->post_content, 'all_jobs')) {
+                    $final_redirect = get_permalink($page->ID);
+                    break;
+                }
+            }
+            if (empty($final_redirect)) {
+                $final_redirect = home_url();
+            }
+        }
+
+        wp_send_json_success([
+            'message' => __('Account created successfully!', 'job-posting-manager'),
+            'redirect_url' => $final_redirect
+        ]);
     }
 }
