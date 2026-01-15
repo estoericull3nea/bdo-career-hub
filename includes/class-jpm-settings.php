@@ -227,7 +227,8 @@ class JPM_Settings
                                             value="<?php echo esc_attr($smtp_settings['password'] ?? ''); ?>"
                                             class="regular-text" />
                                         <p class="description">
-                                            <?php _e('Your SMTP password or app password', 'job-posting-manager'); ?></p>
+                                            <?php _e('Your SMTP password or app password', 'job-posting-manager'); ?>
+                                        </p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -239,7 +240,8 @@ class JPM_Settings
                                             value="<?php echo esc_attr($smtp_settings['from_email'] ?? get_option('admin_email')); ?>"
                                             class="regular-text" />
                                         <p class="description">
-                                            <?php _e('Email address to send emails from', 'job-posting-manager'); ?></p>
+                                            <?php _e('Email address to send emails from', 'job-posting-manager'); ?>
+                                        </p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -303,22 +305,6 @@ class JPM_Settings
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="jpm-tab-content-wrapper">
-            <?php
-            $first = true;
-            foreach ($shortcodes as $key => $shortcode):
-                ?>
-                <div class="jpm-tab-content <?php echo $first ? 'active' : ''; ?>" id="tab-<?php echo esc_attr($key); ?>">
-                    <?php $this->display_shortcode_info($key, $shortcode); ?>
-                </div>
-                <?php
-                $first = false;
-            endforeach;
-            ?>
-        </div>
-        </div>
         </div>
         <style>
             .jpm-settings-tabs {
