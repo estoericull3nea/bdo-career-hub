@@ -70,7 +70,7 @@ class JPM_Emails
     private static function add_email_recipients($headers)
     {
         $email_settings = get_option('jpm_email_settings', []);
-        
+
         // Add CC headers
         if (!empty($email_settings['cc_emails'])) {
             $cc_emails = array_map('trim', explode(',', $email_settings['cc_emails']));
@@ -79,7 +79,7 @@ class JPM_Emails
                 $headers[] = 'Cc: ' . implode(', ', $cc_emails);
             }
         }
-        
+
         // Add BCC headers
         if (!empty($email_settings['bcc_emails'])) {
             $bcc_emails = array_map('trim', explode(',', $email_settings['bcc_emails']));
@@ -88,7 +88,7 @@ class JPM_Emails
                 $headers[] = 'Bcc: ' . implode(', ', $bcc_emails);
             }
         }
-        
+
         return $headers;
     }
 
@@ -930,7 +930,8 @@ class JPM_Emails
         $body .= '<h3>' . __('Your Account Details', 'job-posting-manager') . '</h3>';
         $body .= '<p><strong>' . __('Email:', 'job-posting-manager') . '</strong> ' . esc_html($email) . '</p>';
         $body .= '<p><strong>' . __('Password:', 'job-posting-manager') . '</strong> ' . esc_html($password) . '</p>';
-        $body .= '<p><strong>' . __('Login URL:', 'job-posting-manager') . '</strong> <a href="' . esc_url(wp_login_url()) . '">' . esc_html(wp_login_url()) . '</a></p>';
+        $login_url = home_url('/sign-in/');
+        $body .= '<p><strong>' . __('Login URL:', 'job-posting-manager') . '</strong> <a href="' . esc_url($login_url) . '">' . esc_html($login_url) . '</a></p>';
         $body .= '<hr>';
         $body .= '<p><strong>' . __('Important:', 'job-posting-manager') . '</strong> ' . __('Please save this email and change your password after your first login for security purposes.', 'job-posting-manager') . '</p>';
         $body .= '<p style="color: #666; font-size: 12px;">' . __('This is an automated email from Job Posting Manager.', 'job-posting-manager') . '</p>';

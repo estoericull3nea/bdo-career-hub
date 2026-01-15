@@ -1246,7 +1246,7 @@ class JPM_Frontend
                     <div class="jpm-register-footer">
                         <p class="jpm-register-footer-text">
                             <?php _e('Already have an account?', 'job-posting-manager'); ?>
-                            <a href="<?php echo esc_url(wp_login_url()); ?>" class="jpm-register-login-link">
+                            <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-register-login-link">
                                 <?php _e('Sign in', 'job-posting-manager'); ?>
                             </a>
                         </p>
@@ -1284,7 +1284,6 @@ class JPM_Frontend
 
             .jpm-logo-image {
                 max-height: 60px;
-                max-width: 200px;
                 width: auto;
                 height: auto;
                 object-fit: contain;
@@ -1321,22 +1320,32 @@ class JPM_Frontend
 
             .jpm-register-message .notice {
                 margin: 0;
-                padding: 12px 16px;
-                border-radius: 6px;
-                border-left: 3px solid;
+                padding: 14px 18px;
+                border-radius: 8px;
+                border: none;
                 font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             }
 
             .jpm-register-message .notice-success {
-                background: #f0fdf4;
-                border-left-color: #22c55e;
-                color: #166534;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: #ffffff;
+            }
+
+            .jpm-register-message .notice-success p {
+                margin: 0;
+                color: #ffffff;
             }
 
             .jpm-register-message .notice-error {
-                background: #fef2f2;
-                border-left-color: #ef4444;
-                color: #991b1b;
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                color: #ffffff;
+            }
+
+            .jpm-register-message .notice-error p {
+                margin: 0;
+                color: #ffffff;
             }
 
             .jpm-form-row {
@@ -1599,7 +1608,6 @@ class JPM_Frontend
 
                 .jpm-logo-image {
                     max-height: 45px;
-                    max-width: 150px;
                 }
 
                 .jpm-logo-text {
@@ -1911,29 +1919,11 @@ class JPM_Frontend
             }
         }
 
-        // Auto-login user
-        wp_set_current_user($user_id);
-        wp_set_auth_cookie($user_id);
-
-        // Determine redirect URL
-        if (!empty($redirect_url)) {
-            $final_redirect = $redirect_url;
-        } else {
-            // Try to find a page with [all_jobs] shortcode
-            $pages = get_pages();
-            foreach ($pages as $page) {
-                if (has_shortcode($page->post_content, 'all_jobs')) {
-                    $final_redirect = get_permalink($page->ID);
-                    break;
-                }
-            }
-            if (empty($final_redirect)) {
-                $final_redirect = home_url();
-            }
-        }
+        // Redirect to login page (do not auto-login)
+        $final_redirect = home_url('/sign-in/');
 
         wp_send_json_success([
-            'message' => __('Account created successfully!', 'job-posting-manager'),
+            'message' => __('Account created successfully! Please login to continue.', 'job-posting-manager'),
             'redirect_url' => $final_redirect
         ]);
     }
@@ -1951,7 +1941,7 @@ class JPM_Frontend
         }
 
         $atts = shortcode_atts([
-            'title' => __('Sign In', 'job-posting-manager'),
+            'title' => __('Welcome Back!', 'job-posting-manager'),
             'redirect_url' => '',
         ], $atts);
 
@@ -1963,7 +1953,7 @@ class JPM_Frontend
                     <div class="jpm-login-logo">
                         <?php
                         $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
-                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" />';
+                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" style="max-height: 60px;"/>';
                         ?>
                     </div>
                     <h2 class="jpm-login-title"><?php echo esc_html($atts['title']); ?></h2>
