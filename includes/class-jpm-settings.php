@@ -93,6 +93,26 @@ class JPM_Settings
                 ],
                 'note' => __('Logged-in users will see a message to logout first. The form automatically validates email uniqueness and password strength.', 'job-posting-manager'),
             ],
+            'jpm_login' => [
+                'title' => __('Login Form', 'job-posting-manager'),
+                'description' => __('Display a user login form with the same design as the registration form.', 'job-posting-manager'),
+                'usage' => '[jpm_login title="Sign In" redirect_url=""]',
+                'parameters' => [
+                    'title' => __('Title for the login form (default: "Sign In")', 'job-posting-manager'),
+                    'redirect_url' => __('URL to redirect after successful login (optional)', 'job-posting-manager'),
+                ],
+                'example' => '[jpm_login title="Sign In" redirect_url="/dashboard/"]',
+                'features' => [
+                    __('Email and password login', 'job-posting-manager'),
+                    __('Password show/hide toggle', 'job-posting-manager'),
+                    __('Remember me checkbox', 'job-posting-manager'),
+                    __('Forgot password link', 'job-posting-manager'),
+                    __('AJAX form submission (no page reload)', 'job-posting-manager'),
+                    __('Auto-redirect after successful login', 'job-posting-manager'),
+                    __('Link to registration page', 'job-posting-manager'),
+                ],
+                'note' => __('Logged-in users will see a message. The form uses secure WordPress authentication and supports "Remember me" functionality.', 'job-posting-manager'),
+            ],
         ];
         // Get current settings
         $smtp_settings = get_option('jpm_smtp_settings', []);
