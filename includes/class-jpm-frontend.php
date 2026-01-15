@@ -1987,11 +1987,11 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-login-email" class="jpm-input-label">
-                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php _e('Username or Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper">
-                            <input type="email" id="jpm-login-email" name="email" required class="jpm-input"
-                                placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
+                            <input type="text" id="jpm-login-email" name="email" required class="jpm-input"
+                                placeholder="<?php esc_attr_e('username or your.email@example.com', 'job-posting-manager'); ?>" />
                         </div>
                     </div>
 
@@ -5630,24 +5630,34 @@ class JPM_Frontend
         }
 
         // Get form data
-        $email = sanitize_email($_POST['email'] ?? '');
+        $login = sanitize_text_field($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $remember = isset($_POST['remember']) && $_POST['remember'] == '1';
         $redirect_url = esc_url_raw($_POST['redirect_url'] ?? '');
 
         // Validate required fields
-        if (empty($email) || !is_email($email)) {
-            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        if (empty($login)) {
+            wp_send_json_error(['message' => __('Please enter your username or email address.', 'job-posting-manager')]);
         }
 
         if (empty($password)) {
             wp_send_json_error(['message' => __('Password is required.', 'job-posting-manager')]);
         }
 
-        // Find user by email
-        $user = get_user_by('email', $email);
+        // Find user by email or username
+        $user = null;
+        if (is_email($login)) {
+            // Try email first if it looks like an email
+            $user = get_user_by('email', $login);
+        }
+        
+        // If not found by email, try username
         if (!$user) {
-            wp_send_json_error(['message' => __('Invalid email or password.', 'job-posting-manager')]);
+            $user = get_user_by('login', $login);
+        }
+        
+        if (!$user) {
+            wp_send_json_error(['message' => __('Invalid username/email or password.', 'job-posting-manager')]);
         }
 
         // Verify password
