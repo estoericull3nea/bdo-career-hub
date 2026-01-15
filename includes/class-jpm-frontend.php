@@ -1127,16 +1127,8 @@ class JPM_Frontend
                 <div class="jpm-register-header">
                     <div class="jpm-register-logo">
                         <?php
-                        // Try to get site logo
-                        $logo_id = get_theme_mod('custom_logo');
-                        if ($logo_id) {
-                            $logo_url = wp_get_attachment_image_url($logo_id, 'full');
-                            echo '<img src="' . esc_url($logo_url) . '" alt="' . esc_attr(get_bloginfo('name')) . '" class="jpm-logo-image" />';
-                        } else {
-                            // Fallback: Use site name or a simple icon
-                            $site_name = get_bloginfo('name');
-                            echo '<div class="jpm-logo-text">' . esc_html(substr($site_name, 0, 2)) . '</div>';
-                        }
+                        $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
+                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" />';
                         ?>
                     </div>
                     <h2 class="jpm-register-title"><?php echo esc_html($atts['title']); ?></h2>
@@ -1286,10 +1278,11 @@ class JPM_Frontend
             }
 
             .jpm-logo-image {
-                max-height: 50px;
-                max-width: 180px;
+                max-height: 60px;
+                max-width: 200px;
                 width: auto;
                 height: auto;
+                object-fit: contain;
             }
 
             .jpm-logo-text {
