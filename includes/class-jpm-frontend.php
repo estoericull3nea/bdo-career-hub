@@ -10,6 +10,7 @@ class JPM_Frontend
         add_shortcode('application_tracker', [$this, 'application_tracker_shortcode']);
         add_shortcode('jpm_register', [$this, 'register_shortcode']);
         add_shortcode('jpm_login', [$this, 'login_shortcode']);
+        add_shortcode('jpm_forgot_password', [$this, 'forgot_password_shortcode']);
         add_action('wp_ajax_jpm_apply', [$this, 'handle_application']);
         add_action('wp_ajax_nopriv_jpm_apply', [$this, 'handle_application']); // But redirect if not logged in
         add_action('wp_ajax_jpm_get_status', [$this, 'get_status']);
@@ -23,6 +24,8 @@ class JPM_Frontend
         add_action('wp_ajax_nopriv_jpm_register', [$this, 'handle_registration']);
         add_action('wp_ajax_jpm_login', [$this, 'handle_login']);
         add_action('wp_ajax_nopriv_jpm_login', [$this, 'handle_login']);
+        add_action('wp_ajax_jpm_forgot_password', [$this, 'handle_forgot_password']);
+        add_action('wp_ajax_nopriv_jpm_forgot_password', [$this, 'handle_forgot_password']);
         add_action('wp_ajax_jpm_find_register_page', [$this, 'find_register_page']);
         add_action('wp_ajax_nopriv_jpm_find_register_page', [$this, 'find_register_page']);
     }
@@ -2005,7 +2008,7 @@ class JPM_Frontend
                             <input type="checkbox" id="jpm-login-remember" name="remember" value="1" />
                             <span><?php _e('Remember me', 'job-posting-manager'); ?></span>
                         </label>
-                        <a href="<?php echo esc_url(wp_lostpassword_url()); ?>" class="jpm-forgot-password-link">
+                        <a href="<?php echo esc_url(home_url('/forgot-password/')); ?>" class="jpm-forgot-password-link">
                             <?php _e('Forgot Password?', 'job-posting-manager'); ?>
                         </a>
                     </div>
@@ -2019,7 +2022,7 @@ class JPM_Frontend
                     <div class="jpm-login-footer">
                         <p class="jpm-login-footer-text">
                             <?php _e('Don\'t have an account?', 'job-posting-manager'); ?>
-                            <a href="#" class="jpm-login-register-link" id="jpm-find-register-page">
+                            <a href="<?php echo esc_url(home_url('/sign-up/')); ?>" class="jpm-login-register-link">
                                 <?php _e('Create Account', 'job-posting-manager'); ?>
                             </a>
                         </p>
@@ -2338,28 +2341,6 @@ class JPM_Frontend
                     }
                 });
 
-                // Find register page link
-                $('#jpm-find-register-page').on('click', function (e) {
-                    e.preventDefault();
-                    $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
-                        type: 'POST',
-                        data: {
-                            action: 'jpm_find_register_page'
-                        },
-                        success: function (response) {
-                            if (response.success && response.data.url) {
-                                window.location.href = response.data.url;
-                            } else {
-                                window.location.href = '<?php echo $register_url; ?>';
-                            }
-                        },
-                        error: function () {
-                            window.location.href = '<?php echo $register_url; ?>';
-                        }
-                    });
-                });
-
                 // Form submission
                 $('#jpm-login-form').on('submit', function (e) {
                     e.preventDefault();
@@ -2404,6 +2385,266 @@ class JPM_Frontend
                             $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
                             $button.prop('disabled', false);
                             $btnText.text('<?php echo $sign_in; ?>');
+                        }
+                    });
+                });
+            });
+        </script>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Forgot password form shortcode
+     * Usage: [jpm_forgot_password title="Reset Password"]
+     */
+    public function forgot_password_shortcode($atts)
+    {
+        // If user is already logged in, show message
+        if (is_user_logged_in()) {
+            $current_user = wp_get_current_user();
+            return '<div class="jpm-forgot-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+        }
+
+        $atts = shortcode_atts([
+            'title' => __('Reset Password', 'job-posting-manager'),
+        ], $atts);
+
+        $ajax_url = admin_url('admin-ajax.php');
+        $sending = esc_js(__('Sending...', 'job-posting-manager'));
+        $send_link = esc_js(__('Send Reset Link', 'job-posting-manager'));
+        $error_occurred = esc_js(__('An error occurred. Please try again.', 'job-posting-manager'));
+
+        ob_start();
+        ?>
+        <div class="jpm-forgot-password-form-wrapper">
+            <div class="jpm-forgot-password-form-container">
+                <div class="jpm-forgot-password-header">
+                    <div class="jpm-forgot-password-logo">
+                        <?php
+                        $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
+                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" style="max-height: 60px;"/>';
+                        ?>
+                    </div>
+                    <h2 class="jpm-forgot-password-title"><?php echo esc_html($atts['title']); ?></h2>
+                </div>
+
+                <div id="jpm-forgot-password-message" class="jpm-forgot-password-message" style="display: none;"></div>
+
+                <form id="jpm-forgot-password-form" class="jpm-forgot-password-form">
+                    <?php wp_nonce_field('jpm_forgot_password', 'jpm_forgot_password_nonce'); ?>
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-forgot-password-email" class="jpm-input-label">
+                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <div class="jpm-input-wrapper">
+                            <input type="email" id="jpm-forgot-password-email" name="email" required class="jpm-input"
+                                placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
+                        </div>
+                        <p class="jpm-forgot-password-description">
+                            <?php _e('Enter your email address and we\'ll send you a link to reset your password.', 'job-posting-manager'); ?>
+                        </p>
+                    </div>
+
+                    <div class="jpm-form-field jpm-forgot-password-button-wrapper">
+                        <button type="submit" id="jpm-forgot-password-submit"
+                            class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
+                            <span class="jpm-btn-text"><?php _e('Send Reset Link', 'job-posting-manager'); ?></span>
+                        </button>
+                    </div>
+
+                    <div class="jpm-forgot-password-footer">
+                        <p class="jpm-forgot-password-footer-text">
+                            <?php _e('Remember your password?', 'job-posting-manager'); ?>
+                            <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-forgot-password-login-link">
+                                <?php _e('Sign In', 'job-posting-manager'); ?>
+                            </a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <style>
+            .jpm-forgot-password-form-wrapper {
+                max-width: 480px;
+                margin: 30px auto;
+                padding: 15px;
+            }
+
+            .jpm-forgot-password-form-container {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-forgot-password-header {
+                padding: 24px 24px 16px;
+                border-bottom: 1px solid #e5e7eb;
+                text-align: center;
+            }
+
+            .jpm-forgot-password-logo {
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .jpm-forgot-password-title {
+                margin: 0;
+                font-size: 20px;
+                font-weight: 600;
+                color: #111827;
+            }
+
+            .jpm-forgot-password-form {
+                padding: 24px;
+            }
+
+            .jpm-forgot-password-message {
+                margin: 0 24px 16px;
+            }
+
+            .jpm-forgot-password-message .notice {
+                margin: 0;
+                padding: 14px 18px;
+                border-radius: 8px;
+                border: none;
+                font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+
+            .jpm-forgot-password-message .notice-success {
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-message .notice-success p {
+                margin: 0;
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-message .notice-error {
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-message .notice-error p {
+                margin: 0;
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-description {
+                margin: 8px 0 0;
+                font-size: 13px;
+                color: #6b7280;
+                line-height: 1.5;
+            }
+
+            .jpm-forgot-password-button-wrapper {
+                text-align: center;
+            }
+
+            #jpm-forgot-password-submit {
+                display: inline-block;
+                margin: 0 auto;
+            }
+
+            .jpm-forgot-password-footer {
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .jpm-forgot-password-footer-text {
+                margin: 0;
+                font-size: 14px;
+                color: #6b7280;
+            }
+
+            .jpm-forgot-password-login-link {
+                color: #2563eb;
+                text-decoration: none;
+                font-weight: 500;
+                margin-left: 4px;
+            }
+
+            .jpm-forgot-password-login-link:hover {
+                text-decoration: underline;
+            }
+
+            @media (max-width: 768px) {
+                .jpm-forgot-password-form-wrapper {
+                    margin: 20px auto;
+                    padding: 10px;
+                }
+
+                .jpm-forgot-password-form-container {
+                    border-radius: 4px;
+                }
+
+                .jpm-forgot-password-header {
+                    padding: 20px 20px 12px;
+                }
+
+                .jpm-forgot-password-form {
+                    padding: 20px;
+                }
+
+                .jpm-forgot-password-message {
+                    margin: 0 20px 12px;
+                }
+
+                .jpm-forgot-password-title {
+                    font-size: 18px;
+                }
+            }
+        </style>
+
+        <script type="text/javascript">
+            jQuery(document).ready(function ($) {
+                // Form submission
+                $('#jpm-forgot-password-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-forgot-password-message');
+                    var $button = $('#jpm-forgot-password-submit');
+                    var $btnText = $button.find('.jpm-btn-text');
+
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo $sending; ?>');
+                    $message.hide();
+
+                    $.ajax({
+                        url: '<?php echo $ajax_url; ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_forgot_password',
+                            email: $('#jpm-forgot-password-email').val(),
+                            nonce: $('#jpm_forgot_password_nonce').val()
+                        },
+                        success: function (response) {
+                            // Reset button to normal state for any response
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $send_link; ?>');
+
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Password reset link has been sent to your email address.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                                $form[0].reset();
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Invalid email address or user not found.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $send_link; ?>');
                         }
                     });
                 });
@@ -2476,6 +2717,48 @@ class JPM_Frontend
             'message' => __('Login successful!', 'job-posting-manager'),
             'redirect_url' => $final_redirect
         ]);
+    }
+
+    /**
+     * Handle forgot password request via AJAX
+     */
+    public function handle_forgot_password()
+    {
+        check_ajax_referer('jpm_forgot_password', 'nonce');
+
+        // If user is already logged in
+        if (is_user_logged_in()) {
+            wp_send_json_error(['message' => __('You are already logged in.', 'job-posting-manager')]);
+        }
+
+        // Get form data
+        $email = sanitize_email($_POST['email'] ?? '');
+
+        // Validate required fields
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        }
+
+        // Find user by email
+        $user = get_user_by('email', $email);
+        if (!$user) {
+            // For security, don't reveal if email exists or not
+            wp_send_json_success([
+                'message' => __('If an account exists with this email address, a password reset link has been sent.', 'job-posting-manager')
+            ]);
+            return;
+        }
+
+        // Use WordPress's built-in password reset function
+        $result = retrieve_password($user->user_login);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success([
+                'message' => __('Password reset link has been sent to your email address. Please check your inbox.', 'job-posting-manager')
+            ]);
+        }
     }
 
     /**

@@ -82,7 +82,7 @@ class JPM_Settings
                     'title' => __('Title for the registration form (default: "Create Account")', 'job-posting-manager'),
                     'redirect_url' => __('URL to redirect after successful registration (optional)', 'job-posting-manager'),
                 ],
-                'example' => '[jpm_register title="Sign Up" redirect_url="/jobs/"]',
+                'example' => '[jpm_register title="Sign Up" redirect_url="/sign-in/"]',
                 'features' => [
                     __('User registration with first name, last name, email, and password', 'job-posting-manager'),
                     __('Password confirmation field', 'job-posting-manager'),
@@ -101,7 +101,7 @@ class JPM_Settings
                     'title' => __('Title for the login form (default: "Sign In")', 'job-posting-manager'),
                     'redirect_url' => __('URL to redirect after successful login (optional)', 'job-posting-manager'),
                 ],
-                'example' => '[jpm_login title="Sign In" redirect_url="/dashboard/"]',
+                'example' => '[jpm_login title="Sign In" redirect_url="/job-posting/"]',
                 'features' => [
                     __('Email and password login', 'job-posting-manager'),
                     __('Password show/hide toggle', 'job-posting-manager'),
@@ -112,6 +112,24 @@ class JPM_Settings
                     __('Link to registration page', 'job-posting-manager'),
                 ],
                 'note' => __('Logged-in users will see a message. The form uses secure WordPress authentication and supports "Remember me" functionality.', 'job-posting-manager'),
+            ],
+            'jpm_forgot_password' => [
+                'title' => __('Forgot Password Form', 'job-posting-manager'),
+                'description' => __('Display a password reset form that allows users to request a password reset link via email.', 'job-posting-manager'),
+                'usage' => '[jpm_forgot_password title="Reset Password"]',
+                'parameters' => [
+                    'title' => __('Title for the forgot password form (default: "Reset Password")', 'job-posting-manager'),
+                ],
+                'example' => '[jpm_forgot_password title="Reset Your Password"]',
+                'features' => [
+                    __('Email-based password reset request', 'job-posting-manager'),
+                    __('AJAX form submission (no page reload)', 'job-posting-manager'),
+                    __('Enhanced message styling with gradient backgrounds', 'job-posting-manager'),
+                    __('Secure password reset using WordPress built-in functionality', 'job-posting-manager'),
+                    __('Link back to login page', 'job-posting-manager'),
+                    __('Security: Does not reveal if email exists in system', 'job-posting-manager'),
+                ],
+                'note' => __('Logged-in users will see a message. The form uses WordPress retrieve_password() function to send password reset emails securely.', 'job-posting-manager'),
             ],
         ];
         // Get current settings
