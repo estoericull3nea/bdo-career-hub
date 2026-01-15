@@ -2072,22 +2072,32 @@ class JPM_Frontend
 
             .jpm-login-message .notice {
                 margin: 0;
-                padding: 12px 16px;
-                border-radius: 6px;
-                border-left: 3px solid;
+                padding: 14px 18px;
+                border-radius: 8px;
+                border: none;
                 font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             }
 
             .jpm-login-message .notice-success {
-                background: #f0fdf4;
-                border-left-color: #22c55e;
-                color: #166534;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: #ffffff;
+            }
+
+            .jpm-login-message .notice-success p {
+                margin: 0;
+                color: #ffffff;
             }
 
             .jpm-login-message .notice-error {
-                background: #fef2f2;
-                border-left-color: #ef4444;
-                color: #991b1b;
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                color: #ffffff;
+            }
+
+            .jpm-login-message .notice-error p {
+                margin: 0;
+                color: #ffffff;
             }
 
             .jpm-login-options {
