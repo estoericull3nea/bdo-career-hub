@@ -2346,98 +2346,98 @@ class JPM_Frontend
         ?>
         <script type="text/javascript">
             jQuery(document).ready(function ($) {
-                                // Clean URL on page load - remov        e any query parameters
-                                if (window.location.search) {
-                                    var cleanUrl = window.location.pathname;
-                                    if (window.history && window.history.replaceState) {
-                                        window.history.replaceState({}, document.title, cleanUrl);
-                                    }
-                                }
+                // Clean URL on page load - remov        eany query parameters
+                if (window.location.search) {
+                    var cleanUrl = window.location.pathname;
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({}, document.title, cleanUrl);
+                    }
+                }
 
-                                // Password toggle functionality
-                                $('#jpm-login-form .jpm-password-toggle').on('click', function () {
-                                    var $button = $(this);
-                                    var $input = $button.closest('.jpm-password-wrapper').find('input');
-                                    var $eyeIcon = $button.find('.jpm-eye-icon');
-                                    var $eyeOffIcon = $button.find('.jpm-eye-off-icon');
+                // Password toggle functionality
+                $('#jpm-login-form .jpm-password-toggle').on('click', function () {
+                    var $button = $(this);
+                    var $input = $button.closest('.jpm-password-wrapper').find('input');
+                    var $eyeIcon = $button.find('.jpm-eye-icon');
+                    var $eyeOffIcon = $button.find('.jpm-eye-off-icon');
 
-                                    if ($input.attr('type') === 'password') {
-                                        $input.attr('type', 'text');
-                                        $eyeIcon.hide();
-                                        $eyeOffIcon.show();
-                                        $button.attr('aria-label', '<?php echo $hide_password; ?>');
-                                    } else {
-                                        $input.attr('type', 'password');
-                                        $eyeIcon.show();
-                                        $eyeOffIcon.hide();
-                                        $button.attr('aria-label', '<?php echo $show_password; ?>');
-                                    }
-                                });
+                    if ($input.attr('type') === 'password') {
+                        $input.attr('type', 'text');
+                        $eyeIcon.hide();
+                        $eyeOffIcon.show();
+                        $button.attr('aria-label', '<?php echo $hide_password; ?>');
+                    } else {
+                        $input.attr('type', 'password');
+                        $eyeIcon.show();
+                        $eyeOffIcon.hide();
+                        $button.attr('aria-label', '<?php echo $show_password; ?>');
+                    }
+                });
 
-                                // Handle Enter key submission
-                                $('#jpm-login-form input').on('keypress', function (e) {
-                                    if (e.which === 13 || e.keyCode === 13) { // Enter key
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        $('#jpm-login-form').trigger('submit');
-                                        return false;
-                                    }
-                                });
+                // Handle Enter key submission
+                $('#jpm-login-form input').on('keypress', function (e) {
+                    if (e.which === 13 || e.keyCode === 13) { // Enter key
+                        e.preventDefault();
+                        e.stopPropagation();
+                        $('#jpm-login-form').trigger('submit');
+                        return false;
+                    }
+                });
 
-                                // Form submission
-                                $('#jpm-login-form').on('submit', function (e) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
+                // Form submission
+                $('#jpm-login-form').on('submit', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
 
-                                    var $form = $(this);
-                                    var $message = $('#jpm-login-message');
-                                    var $button = $('#jpm-login-submit');
-                                    var $btnText = $button.find('.jpm-btn-text');
+                    var $form = $(this);
+                    var $message = $('#jpm-login-message');
+                    var $button = $('#jpm-login-submit');
+                    var $btnText = $button.find('.jpm-btn-text');
 
-                                    $button.prop('disabled', true);
-                                    $btnText.text('<?php echo $signing_in; ?>');
-                                    $message.hide();
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo $signing_in; ?>');
+                    $message.hide();
 
-                                    $.ajax({
-                                        url: '<?php echo $ajax_url; ?>',
-                                        type: 'POST',
-                                        data: {
-                                            action: 'jpm_login',
-                                            email: $('#jpm-login-email').val(),
-                                            password: $('#jpm-login-password').val(),
-                                            remember: $('#jpm-login-remember').is(':checked') ? 1 : 0,
-                                            redirect_url: $('input[name="redirect_url"]').val(),
-                                            nonce: $('#jpm_login_nonce').val()
-                                        },
-                                        success: function (response) {
-                                            if (response.success) {
-                                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo $login_success; ?>') + '</p></div>').show();
-                                                setTimeout(function () {
-                                                    // Clear any query parameters from URL before redirecting
-                                                    var redirectUrl = response.data.redirect_url || window.location.pathname;
-                                                    // Remove query parameters
-                                                    redirectUrl = redirectUrl.split('?')[0];
-                                                    window.location.href = redirectUrl;
-                                                }, 1000);
-                                            } else {
-                                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo $invalid_creds; ?>') + '</p></div>').show();
-                                                $button.prop('disabled', false);
-                                                $btnText.text('<?php echo $sign_in; ?>');
-                                            }
-                                        },
-                                        error: function () {
-                                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
-                                            $button.prop('disabled', false);
-                                            $btnText.text('<?php echo $sign_in; ?>');
-                                        }
-                                    });
+                    $.ajax({
+                        url: '<?php echo $ajax_url; ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_login',
+                            email: $('#jpm-login-email').val(),
+                            password: $('#jpm-login-password').val(),
+                            remember: $('#jpm-login-remember').is(':checked') ? 1 : 0,
+                            redirect_url: $('input[name="redirect_url"]').val(),
+                            nonce: $('#jpm_login_nonce').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo $login_success; ?>') + '</p></div>').show();
+                                setTimeout(function () {
+                                    // Clear any query parameters from URL before redirecting
+                                    var redirectUrl = response.data.redirect_url || window.location.pathname;
+                                    // Remove query parameters
+                                    redirectUrl = redirectUrl.split('?')[0];
+                                    window.location.href = redirectUrl;
+                                }, 1000);
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo $invalid_creds; ?>') + '</p></div>').show();
+                                $button.prop('disabled', false);
+                                $btnText.text('<?php echo $sign_in; ?>');
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $sign_in; ?>');
+                        }
+                    });
 
-                                    return false;
-                                });
-                            });
-                        </script>
-                        <?php
-                        return ob_get_clean();
+                    return false;
+                });
+            });
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
     /**
@@ -2463,327 +2463,327 @@ class JPM_Frontend
 
         ob_start();
         ?>
-                        <div class="jpm-forgot-password-form-wrapper">
-                            <div class="jpm-forgot-password-form-container">
-                                <div class="jpm-forgot-password-header">
-                                    <div class="jpm-forgot-password-logo">
-                                        <?php
-                                        $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
-                                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" style="max-height: 60px;"/>';
-                                        ?>
-                                    </div>
-                                    <h2 class="jpm-forgot-password-title"><?php echo esc_html($atts['title']); ?></h2>
-                                </div>
-
-                                <div id="jpm-forgot-password-message" class="jpm-forgot-password-message" style="display: none;"></div>
-
-                                <form id="jpm-forgot-password-form" class="jpm-forgot-password-form">
-                                    <?php wp_nonce_field('jpm_forgot_password', 'jpm_forgot_password_nonce'); ?>
-
-                                    <div class="jpm-form-field">
-                                        <label for="jpm-forgot-password-email" class="jpm-input-label">
-                                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
-                                        </label>
-                                        <div class="jpm-input-wrapper">
-                                            <input type="email" id="jpm-forgot-password-email" name="email" required class="jpm-input"
-                                                placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
-                                        </div>
-                                        <p class="jpm-forgot-password-description">
-                                            <?php _e('Enter your email address and we\'ll send you a secure link to reset your password. Click the link in the email to set a new password.', 'job-posting-manager'); ?>
-                                        </p>
-                                    </div>
-
-                                    <div class="jpm-form-field">
-                                        <button type="submit" id="jpm-forgot-password-submit"
-                                            class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                                            <span class="jpm-btn-text"><?php _e('Send Reset Link', 'job-posting-manager'); ?></span>
-                                        </button>
-                                    </div>
-
-                                    <div class="jpm-forgot-password-footer">
-                                        <p class="jpm-forgot-password-footer-text">
-                                            <?php _e('Remember your password?', 'job-posting-manager'); ?>
-                                            <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-forgot-password-login-link">
-                                                <?php _e('Sign In', 'job-posting-manager'); ?>
-                                            </a>
-                                        </p>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-
-                        <style>
-                            .jpm-forgot-password-form-wrapper {
-                                max-width: 480px;
-                                margin: 30px auto;
-                                padding: 15px;
-                            }
-
-                            .jpm-forgot-password-form-container {
-                                background: #ffffff;
-                                border: 1px solid #e5e7eb;
-                                border-radius: 6px;
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                            }
-
-                            .jpm-forgot-password-header {
-                                padding: 24px 24px 16px;
-                                border-bottom: 1px solid #e5e7eb;
-                                text-align: center;
-                            }
-
-                            .jpm-forgot-password-logo {
-                                margin-bottom: 12px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                            }
-
-                            .jpm-forgot-password-title {
-                                margin: 0;
-                                font-size: 20px;
-                                font-weight: 600;
-                                color: #111827;
-                            }
-
-                            .jpm-forgot-password-form {
-                                padding: 24px;
-                            }
-
-                            .jpm-forgot-password-message {
-                                margin: 0 24px 16px;
-                            }
-
-                            .jpm-forgot-password-message .notice {
-                                margin: 0;
-                                padding: 14px 18px;
-                                border-radius: 8px;
-                                border: none;
-                                font-size: 14px;
-                                font-weight: 500;
-                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                            }
-
-                            .jpm-forgot-password-message .notice-success {
-                                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                                color: #ffffff;
-                            }
-
-                            .jpm-forgot-password-message .notice-success p {
-                                margin: 0;
-                                color: #ffffff;
-                            }
-
-                            .jpm-forgot-password-message .notice-error {
-                                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                                color: #ffffff;
-                            }
-
-                            .jpm-forgot-password-message .notice-error p {
-                                margin: 0;
-                                color: #ffffff;
-                            }
-
-                            .jpm-forgot-password-description {
-                                margin: 8px 0 0;
-                                font-size: 13px;
-                                color: #6b7280;
-                                line-height: 1.5;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input-label {
-                                display: block;
-                                margin-bottom: 4px;
-                                font-weight: 500;
-                                font-size: 13px;
-                                color: #374151;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input-label .required {
-                                color: #dc2626;
-                                margin-left: 2px;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input-wrapper {
-                                position: relative;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input {
-                                width: 100%;
-                                padding: 8px 12px;
-                                border: none !important;
-                                border-bottom: 2px solid #e5e7eb !important;
-                                border-radius: 0;
-                                border-top: none !important;
-                                border-left: none !important;
-                                border-right: none !important;
-                                font-size: 14px;
-                                color: #111827;
-                                background: transparent;
-                                box-sizing: border-box;
-                                transition: border-color 0.15s ease;
-                                font-family: inherit;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input::placeholder {
-                                color: #9ca3af;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input:focus {
-                                outline: none;
-                                border-bottom-color: #2563eb !important;
-                                border-top: none !important;
-                                border-left: none !important;
-                                border-right: none !important;
-                            }
-
-                            .jpm-forgot-password-form .jpm-input:invalid:not(:placeholder-shown) {
-                                border-bottom-color: #dc2626 !important;
-                                border-top: none !important;
-                                border-left: none !important;
-                                border-right: none !important;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn {
-                                display: inline-block;
-                                padding: 10px 20px;
-                                font-size: 14px;
-                                font-weight: 500;
-                                text-align: center;
-                                text-decoration: none;
-                                border: none;
-                                border-radius: 6px;
-                                cursor: pointer;
-                                transition: background-color 0.15s ease;
-                                font-family: inherit;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn-primary {
-                                background: #2563eb;
-                                color: #ffffff;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn-primary:hover:not(:disabled) {
-                                background: #1d4ed8;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn-primary:active:not(:disabled) {
-                                background: #1e40af;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn-block {
-                                width: 100%;
-                                display: block;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn-large {
-                                padding: 10px 20px;
-                                font-size: 14px;
-                            }
-
-                            .jpm-forgot-password-form .jpm-btn:disabled {
-                                opacity: 0.6;
-                                cursor: not-allowed;
-                            }
-
-                            .jpm-forgot-password-footer {
-                                text-align: center;
-                                margin-top: 20px;
-                                padding-top: 20px;
-                                border-top: 1px solid #e5e7eb;
-                            }
-
-                            .jpm-forgot-password-footer-text {
-                                margin: 0;
-                                font-size: 14px;
-                                color: #6b7280;
-                            }
-
-                            .jpm-forgot-password-login-link {
-                                color: #2563eb;
-                                text-decoration: none;
-                                font-weight: 500;
-                                margin-left: 4px;
-                            }
-
-                            .jpm-forgot-password-login-link:hover {
-                                text-decoration: underline;
-                            }
-
-                            @media (max-width: 768px) {
-                                .jpm-forgot-password-form-wrapper {
-                                    margin: 20px auto;
-                                    padding: 10px;
-                                }
-
-                                .jpm-forgot-password-form-container {
-                                    border-radius: 4px;
-                                }
-
-                                .jpm-forgot-password-header {
-                                    padding: 20px 20px 12px;
-                                }
-
-                                .jpm-forgot-password-form {
-                                    padding: 20px;
-                                }
-
-                                .jpm-forgot-password-message {
-                                    margin: 0 20px 12px;
-                                }
-
-                                .jpm-forgot-password-title {
-                                    font-size: 18px;
-                                }
-                            }
-                        </style>
-
-                        <script type="text/javascript">
-                            jQuery(document).ready(function ($) {
-                                // Form submission
-                                $('#jpm-forgot-password-form').on('submit', function (e) {
-                                    e.preventDefault();
-
-                                    var $form = $(this);
-                                    var $message = $('#jpm-forgot-password-message');
-                                    var $button = $('#jpm-forgot-password-submit');
-                                    var $btnText = $button.find('.jpm-btn-text');
-
-                                    $button.prop('disabled', true);
-                                    $btnText.text('<?php echo $sending; ?>');
-                                    $message.hide();
-
-                                    $.ajax({
-                                        url: '<?php echo $ajax_url; ?>',
-                                        type: 'POST',
-                                        data: {
-                                            action: 'jpm_forgot_password',
-                                            email: $('#jpm-forgot-password-email').val(),
-                                            nonce: $('#jpm_forgot_password_nonce').val()
-                                        },
-                                        success: function (response) {
-                                            // Reset button to normal state for any response
-                                            $button.prop('disabled', false);
-                                            $btnText.text('<?php echo $send_link; ?>');
-                                            if (response.success) {
-                                                var successMessage = response.data.message || '<?php echo esc_js(__('If an account exists with this email address, a password reset link has been sent. Please check your email and click the link to reset your password.', 'job-posting-manager')); ?>';
-                                                $message.html('<div class="notice notice-success"><p>' + successMessage + '</p></div>').show();
-                                                $form[0].reset();
-                                            } else {
-                                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Invalid email address or user not found.', 'job-posting-manager')); ?>') + '</p></div>').show();
-                                            }
-                                        },
-                                        error: function () {
-                                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
-                                            $button.prop('disabled', false);
-                                            $btnText.text('<?php echo $send_link; ?>');
-                                        }
-                                    });
-                                });
-                            });
-                        </script>
+        <div class="jpm-forgot-password-form-wrapper">
+            <div class="jpm-forgot-password-form-container">
+                <div class="jpm-forgot-password-header">
+                    <div class="jpm-forgot-password-logo">
                         <?php
-                        return ob_get_clean();
+                        $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
+                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" style="max-height: 60px;"/>';
+                        ?>
+                    </div>
+                    <h2 class="jpm-forgot-password-title"><?php echo esc_html($atts['title']); ?></h2>
+                </div>
+
+                <div id="jpm-forgot-password-message" class="jpm-forgot-password-message" style="display: none;"></div>
+
+                <form id="jpm-forgot-password-form" class="jpm-forgot-password-form">
+                    <?php wp_nonce_field('jpm_forgot_password', 'jpm_forgot_password_nonce'); ?>
+
+                    <div class="jpm-form-field">
+                        <label for="jpm-forgot-password-email" class="jpm-input-label">
+                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                        </label>
+                        <div class="jpm-input-wrapper">
+                            <input type="email" id="jpm-forgot-password-email" name="email" required class="jpm-input"
+                                placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
+                        </div>
+                        <p class="jpm-forgot-password-description">
+                            <?php _e('Enter your email address and we\'ll send you a secure link to reset your password. Click the link in the email to set a new password.', 'job-posting-manager'); ?>
+                        </p>
+                    </div>
+
+                    <div class="jpm-form-field">
+                        <button type="submit" id="jpm-forgot-password-submit"
+                            class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
+                            <span class="jpm-btn-text"><?php _e('Send Reset Link', 'job-posting-manager'); ?></span>
+                        </button>
+                    </div>
+
+                    <div class="jpm-forgot-password-footer">
+                        <p class="jpm-forgot-password-footer-text">
+                            <?php _e('Remember your password?', 'job-posting-manager'); ?>
+                            <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-forgot-password-login-link">
+                                <?php _e('Sign In', 'job-posting-manager'); ?>
+                            </a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <style>
+            .jpm-forgot-password-form-wrapper {
+                max-width: 480px;
+                margin: 30px auto;
+                padding: 15px;
+            }
+
+            .jpm-forgot-password-form-container {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-forgot-password-header {
+                padding: 24px 24px 16px;
+                border-bottom: 1px solid #e5e7eb;
+                text-align: center;
+            }
+
+            .jpm-forgot-password-logo {
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .jpm-forgot-password-title {
+                margin: 0;
+                font-size: 20px;
+                font-weight: 600;
+                color: #111827;
+            }
+
+            .jpm-forgot-password-form {
+                padding: 24px;
+            }
+
+            .jpm-forgot-password-message {
+                margin: 0 24px 16px;
+            }
+
+            .jpm-forgot-password-message .notice {
+                margin: 0;
+                padding: 14px 18px;
+                border-radius: 8px;
+                border: none;
+                font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+
+            .jpm-forgot-password-message .notice-success {
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-message .notice-success p {
+                margin: 0;
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-message .notice-error {
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-message .notice-error p {
+                margin: 0;
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-description {
+                margin: 8px 0 0;
+                font-size: 13px;
+                color: #6b7280;
+                line-height: 1.5;
+            }
+
+            .jpm-forgot-password-form .jpm-input-label {
+                display: block;
+                margin-bottom: 4px;
+                font-weight: 500;
+                font-size: 13px;
+                color: #374151;
+            }
+
+            .jpm-forgot-password-form .jpm-input-label .required {
+                color: #dc2626;
+                margin-left: 2px;
+            }
+
+            .jpm-forgot-password-form .jpm-input-wrapper {
+                position: relative;
+            }
+
+            .jpm-forgot-password-form .jpm-input {
+                width: 100%;
+                padding: 8px 12px;
+                border: none !important;
+                border-bottom: 2px solid #e5e7eb !important;
+                border-radius: 0;
+                border-top: none !important;
+                border-left: none !important;
+                border-right: none !important;
+                font-size: 14px;
+                color: #111827;
+                background: transparent;
+                box-sizing: border-box;
+                transition: border-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-forgot-password-form .jpm-input::placeholder {
+                color: #9ca3af;
+            }
+
+            .jpm-forgot-password-form .jpm-input:focus {
+                outline: none;
+                border-bottom-color: #2563eb !important;
+                border-top: none !important;
+                border-left: none !important;
+                border-right: none !important;
+            }
+
+            .jpm-forgot-password-form .jpm-input:invalid:not(:placeholder-shown) {
+                border-bottom-color: #dc2626 !important;
+                border-top: none !important;
+                border-left: none !important;
+                border-right: none !important;
+            }
+
+            .jpm-forgot-password-form .jpm-btn {
+                display: inline-block;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 500;
+                text-align: center;
+                text-decoration: none;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-forgot-password-form .jpm-btn-primary {
+                background: #2563eb;
+                color: #ffffff;
+            }
+
+            .jpm-forgot-password-form .jpm-btn-primary:hover:not(:disabled) {
+                background: #1d4ed8;
+            }
+
+            .jpm-forgot-password-form .jpm-btn-primary:active:not(:disabled) {
+                background: #1e40af;
+            }
+
+            .jpm-forgot-password-form .jpm-btn-block {
+                width: 100%;
+                display: block;
+            }
+
+            .jpm-forgot-password-form .jpm-btn-large {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .jpm-forgot-password-form .jpm-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .jpm-forgot-password-footer {
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .jpm-forgot-password-footer-text {
+                margin: 0;
+                font-size: 14px;
+                color: #6b7280;
+            }
+
+            .jpm-forgot-password-login-link {
+                color: #2563eb;
+                text-decoration: none;
+                font-weight: 500;
+                margin-left: 4px;
+            }
+
+            .jpm-forgot-password-login-link:hover {
+                text-decoration: underline;
+            }
+
+            @media (max-width: 768px) {
+                .jpm-forgot-password-form-wrapper {
+                    margin: 20px auto;
+                    padding: 10px;
+                }
+
+                .jpm-forgot-password-form-container {
+                    border-radius: 4px;
+                }
+
+                .jpm-forgot-password-header {
+                    padding: 20px 20px 12px;
+                }
+
+                .jpm-forgot-password-form {
+                    padding: 20px;
+                }
+
+                .jpm-forgot-password-message {
+                    margin: 0 20px 12px;
+                }
+
+                .jpm-forgot-password-title {
+                    font-size: 18px;
+                }
+            }
+        </style>
+
+        <script type="text/javascript">
+            jQuery(document).ready(function ($) {
+                // Form submission
+                $('#jpm-forgot-password-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-forgot-password-message');
+                    var $button = $('#jpm-forgot-password-submit');
+                    var $btnText = $button.find('.jpm-btn-text');
+
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo $sending; ?>');
+                    $message.hide();
+
+                    $.ajax({
+                        url: '<?php echo $ajax_url; ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_forgot_password',
+                            email: $('#jpm-forgot-password-email').val(),
+                            nonce: $('#jpm_forgot_password_nonce').val()
+                        },
+                        success: function (response) {
+                            // Reset button to normal state for any response
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $send_link; ?>');
+                            if (response.success) {
+                                var successMessage = response.data.message || '<?php echo esc_js(__('If an account exists with this email address, a password reset link has been sent. Please check your email and click the link to reset your password.', 'job-posting-manager')); ?>';
+                                $message.html('<div class="notice notice-success"><p>' + successMessage + '</p></div>').show();
+                                $form[0].reset();
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Invalid email address or user not found.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $send_link; ?>');
+                        }
+                    });
+                });
+            });
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
     /**
@@ -2834,674 +2834,674 @@ class JPM_Frontend
 
         ob_start();
         ?>
-                        <div class="jpm-reset-password-form-wrapper">
-                            <div class="jpm-reset-password-form-container">
-                                <div class="jpm-reset-password-header">
-                                    <div class="jpm-reset-password-logo">
-                                        <?php
-                                        $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
-                                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" style="max-height: 60px;"/>';
-                                        ?>
-                                    </div>
-                                    <h2 class="jpm-reset-password-title"><?php echo esc_html($atts['title']); ?></h2>
+        <div class="jpm-reset-password-form-wrapper">
+            <div class="jpm-reset-password-form-container">
+                <div class="jpm-reset-password-header">
+                    <div class="jpm-reset-password-logo">
+                        <?php
+                        $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
+                        echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" style="max-height: 60px;"/>';
+                        ?>
+                    </div>
+                    <h2 class="jpm-reset-password-title"><?php echo esc_html($atts['title']); ?></h2>
+                </div>
+
+                <div id="jpm-reset-password-message" class="jpm-reset-password-message" style="display: none;"></div>
+
+                <?php if (!$is_valid): ?>
+                    <div class="jpm-reset-password-message">
+                        <div class="notice notice-error">
+                            <p><?php echo esc_html($error_message); ?></p>
+                        </div>
+                    </div>
+                    <div class="jpm-reset-password-footer">
+                        <p class="jpm-reset-password-footer-text">
+                            <a href="<?php echo esc_url(home_url('/forgot-password/')); ?>" class="jpm-reset-password-forgot-link">
+                                <?php _e('Request a new password reset link', 'job-posting-manager'); ?>
+                            </a>
+                        </p>
+                    </div>
+                <?php else: ?>
+                    <form id="jpm-reset-password-form" class="jpm-reset-password-form">
+                        <?php wp_nonce_field('jpm_reset_password', 'jpm_reset_password_nonce'); ?>
+                        <input type="hidden" name="key" value="<?php echo esc_attr($key); ?>" />
+                        <input type="hidden" name="login" value="<?php echo esc_attr($login); ?>" />
+
+                        <div class="jpm-form-field">
+                            <label for="jpm-reset-password-new" class="jpm-input-label">
+                                <?php _e('New Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                            </label>
+                            <div class="jpm-input-wrapper jpm-password-wrapper">
+                                <input type="password" id="jpm-reset-password-new" name="password" required class="jpm-input"
+                                    minlength="8"
+                                    placeholder="<?php esc_attr_e('Enter your new password', 'job-posting-manager'); ?>" />
+                                <button type="button" class="jpm-password-toggle"
+                                    aria-label="<?php esc_attr_e('Show password', 'job-posting-manager'); ?>">
+                                    <svg class="jpm-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <svg class="jpm-eye-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" style="display: none;">
+                                        <path
+                                            d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                                        </path>
+                                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="jpm-password-strength" id="jpm-reset-password-strength" style="display: none;">
+                                <div class="jpm-password-strength-bar">
+                                    <div class="jpm-password-strength-fill" id="jpm-reset-password-strength-fill"></div>
                                 </div>
-
-                                <div id="jpm-reset-password-message" class="jpm-reset-password-message" style="display: none;"></div>
-
-                                <?php if (!$is_valid): ?>
-                                            <div class="jpm-reset-password-message">
-                                                <div class="notice notice-error">
-                                                    <p><?php echo esc_html($error_message); ?></p>
-                                                </div>
-                                            </div>
-                                            <div class="jpm-reset-password-footer">
-                                                <p class="jpm-reset-password-footer-text">
-                                                    <a href="<?php echo esc_url(home_url('/forgot-password/')); ?>" class="jpm-reset-password-forgot-link">
-                                                        <?php _e('Request a new password reset link', 'job-posting-manager'); ?>
-                                                    </a>
-                                                </p>
-                                            </div>
-                                <?php else: ?>
-                                            <form id="jpm-reset-password-form" class="jpm-reset-password-form">
-                                                <?php wp_nonce_field('jpm_reset_password', 'jpm_reset_password_nonce'); ?>
-                                                <input type="hidden" name="key" value="<?php echo esc_attr($key); ?>" />
-                                                <input type="hidden" name="login" value="<?php echo esc_attr($login); ?>" />
-
-                                                <div class="jpm-form-field">
-                                                    <label for="jpm-reset-password-new" class="jpm-input-label">
-                                                        <?php _e('New Password', 'job-posting-manager'); ?> <span class="required">*</span>
-                                                    </label>
-                                                    <div class="jpm-input-wrapper jpm-password-wrapper">
-                                                        <input type="password" id="jpm-reset-password-new" name="password" required class="jpm-input"
-                                                            minlength="8"
-                                                            placeholder="<?php esc_attr_e('Enter your new password', 'job-posting-manager'); ?>" />
-                                                        <button type="button" class="jpm-password-toggle"
-                                                            aria-label="<?php esc_attr_e('Show password', 'job-posting-manager'); ?>">
-                                                            <svg class="jpm-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                                                stroke="currentColor" stroke-width="2">
-                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                                <circle cx="12" cy="12" r="3"></circle>
-                                                            </svg>
-                                                            <svg class="jpm-eye-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                                                stroke="currentColor" stroke-width="2" style="display: none;">
-                                                                <path
-                                                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
-                                                                </path>
-                                                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                    <div class="jpm-password-strength" id="jpm-reset-password-strength" style="display: none;">
-                                                        <div class="jpm-password-strength-bar">
-                                                            <div class="jpm-password-strength-fill" id="jpm-reset-password-strength-fill"></div>
-                                                        </div>
-                                                        <div class="jpm-password-strength-text" id="jpm-reset-password-strength-text"></div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="jpm-form-field">
-                                                    <label for="jpm-reset-password-confirm" class="jpm-input-label">
-                                                        <?php _e('Confirm New Password', 'job-posting-manager'); ?> <span class="required">*</span>
-                                                    </label>
-                                                    <div class="jpm-input-wrapper jpm-password-wrapper">
-                                                        <input type="password" id="jpm-reset-password-confirm" name="password_confirm" required
-                                                            class="jpm-input"
-                                                            placeholder="<?php esc_attr_e('Re-enter your new password', 'job-posting-manager'); ?>" />
-                                                        <button type="button" class="jpm-password-toggle"
-                                                            aria-label="<?php esc_attr_e('Show password', 'job-posting-manager'); ?>">
-                                                            <svg class="jpm-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                                                stroke="currentColor" stroke-width="2">
-                                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                                <circle cx="12" cy="12" r="3"></circle>
-                                                            </svg>
-                                                            <svg class="jpm-eye-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                                                stroke="currentColor" stroke-width="2" style="display: none;">
-                                                                <path
-                                                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
-                                                                </path>
-                                                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                    <div id="jpm-reset-password-match" class="jpm-password-match" style="display: none;"></div>
-                                                </div>
-
-                                                <div class="jpm-form-field jpm-reset-password-button-wrapper">
-                                                    <button type="submit" id="jpm-reset-password-submit"
-                                                        class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                                                        <span class="jpm-btn-text"><?php _e('Reset Password', 'job-posting-manager'); ?></span>
-                                                    </button>
-                                                </div>
-
-                                                <div class="jpm-reset-password-footer">
-                                                    <p class="jpm-reset-password-footer-text">
-                                                        <?php _e('Remember your password?', 'job-posting-manager'); ?>
-                                                        <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-reset-password-login-link">
-                                                            <?php _e('Sign In', 'job-posting-manager'); ?>
-                                                        </a>
-                                                    </p>
-                                                </div>
-                                            </form>
-                                <?php endif; ?>
+                                <div class="jpm-password-strength-text" id="jpm-reset-password-strength-text"></div>
                             </div>
                         </div>
 
-                        <style>
-                            .jpm-reset-password-form-wrapper {
-                                max-width: 480px;
-                                margin: 30px auto;
-                                padding: 15px;
-                            }
-
-                            .jpm-reset-password-form-container {
-                                background: #ffffff;
-                                border: 1px solid #e5e7eb;
-                                border-radius: 6px;
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                            }
-
-                            .jpm-reset-password-header {
-                                padding: 24px 24px 16px;
-                                border-bottom: 1px solid #e5e7eb;
-                                text-align: center;
-                            }
-
-                            .jpm-reset-password-logo {
-                                margin-bottom: 12px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                            }
-
-                            .jpm-reset-password-title {
-                                margin: 0;
-                                font-size: 20px;
-                                font-weight: 600;
-                                color: #111827;
-                            }
-
-                            .jpm-reset-password-form {
-                                padding: 24px;
-                            }
-
-                            .jpm-reset-password-message {
-                                margin: 0 24px 16px;
-                            }
-
-                            .jpm-reset-password-message .notice {
-                                margin: 0;
-                                padding: 14px 18px;
-                                border-radius: 8px;
-                                border: none;
-                                font-size: 14px;
-                                font-weight: 500;
-                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                            }
-
-                            .jpm-reset-password-message .notice-success {
-                                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                                color: #ffffff;
-                            }
-
-                            .jpm-reset-password-message .notice-success p {
-                                margin: 0;
-                                color: #ffffff;
-                            }
-
-                            .jpm-reset-password-message .notice-error {
-                                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                                color: #ffffff;
-                            }
-
-                            .jpm-reset-password-message .notice-error p {
-                                margin: 0;
-                                color: #ffffff;
-                            }
-
-                            .jpm-reset-password-form .jpm-input-label {
-                                display: block;
-                                margin-bottom: 4px;
-                                font-weight: 500;
-                                font-size: 13px;
-                                color: #374151;
-                            }
-
-                            .jpm-reset-password-form .jpm-input-label .required {
-                                color: #dc2626;
-                                margin-left: 2px;
-                            }
-
-                            .jpm-reset-password-form .jpm-input-wrapper {
-                                position: relative;
-                            }
-
-                            .jpm-reset-password-form .jpm-input {
-                                width: 100%;
-                                padding: 8px 12px;
-                                border: none;
-                                border-bottom: 2px solid #e5e7eb;
-                                border-radius: 0;
-                                font-size: 14px;
-                                color: #111827;
-                                background: transparent;
-                                box-sizing: border-box;
-                                transition: border-color 0.15s ease;
-                                font-family: inherit;
-                            }
-
-                            .jpm-reset-password-form .jpm-input::placeholder {
-                                color: #9ca3af;
-                            }
-
-                            .jpm-reset-password-form .jpm-input:focus {
-                                outline: none;
-                                border-bottom-color: #2563eb;
-                            }
-
-                            .jpm-reset-password-form .jpm-input:invalid:not(:placeholder-shown) {
-                                border-bottom-color: #dc2626;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-wrapper {
-                                position: relative;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-toggle {
-                                position: absolute;
-                                right: 0;
-                                bottom: 8px;
-                                background: none;
-                                border: none;
-                                cursor: pointer;
-                                padding: 4px;
-                                color: #6b7280;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                transition: color 0.15s ease;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-toggle:hover {
-                                color: #374151;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-toggle:focus {
-                                outline: none;
-                                color: #2563eb;
-                            }
-
-                            .jpm-reset-password-form .jpm-form-field {
-                                margin-bottom: 16px;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn {
-                                display: inline-block;
-                                padding: 10px 20px;
-                                font-size: 14px;
-                                font-weight: 500;
-                                text-align: center;
-                                text-decoration: none;
-                                border: none;
-                                border-radius: 6px;
-                                cursor: pointer;
-                                transition: background-color 0.15s ease;
-                                font-family: inherit;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn-primary {
-                                background: #2563eb;
-                                color: #ffffff;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn-primary:hover:not(:disabled) {
-                                background: #1d4ed8;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn-primary:active:not(:disabled) {
-                                background: #1e40af;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn-block {
-                                width: 100%;
-                                display: block;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength {
-                                margin-top: 6px;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-bar {
-                                height: 3px;
-                                background: #e5e7eb;
-                                border-radius: 2px;
-                                overflow: hidden;
-                                margin-bottom: 6px;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill {
-                                height: 100%;
-                                width: 0%;
-                                background: #e5e7eb;
-                                border-radius: 2px;
-                                transition: width 0.2s ease, background-color 0.2s ease;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill.weak {
-                                width: 33%;
-                                background: #ef4444;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill.medium {
-                                width: 66%;
-                                background: #f59e0b;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill.strong {
-                                width: 100%;
-                                background: #22c55e;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text {
-                                font-size: 12px;
-                                font-weight: 500;
-                                margin-top: 2px;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text.weak {
-                                color: #ef4444;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text.medium {
-                                color: #f59e0b;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text.strong {
-                                color: #22c55e;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn-large {
-                                padding: 10px 20px;
-                                font-size: 14px;
-                            }
-
-                            .jpm-reset-password-form .jpm-btn:disabled {
-                                opacity: 0.6;
-                                cursor: not-allowed;
-                            }
-
-                            .jpm-reset-password-footer {
-                                text-align: center;
-                                margin-top: 20px;
-                                padding-top: 20px;
-                                border-top: 1px solid #e5e7eb;
-                            }
-
-                            .jpm-reset-password-footer-text {
-                                margin: 0;
-                                font-size: 14px;
-                                color: #6b7280;
-                            }
-
-                            .jpm-reset-password-login-link,
-                            .jpm-reset-password-forgot-link {
-                                color: #2563eb;
-                                text-decoration: none;
-                                font-weight: 500;
-                                margin-left: 4px;
-                            }
-
-                            .jpm-reset-password-login-link:hover,
-                            .jpm-reset-password-forgot-link:hover {
-                                text-decoration: underline;
-                            }
-
-                            .jpm-password-match {
-                                margin-top: 4px;
-                                font-size: 13px;
-                                font-weight: 500;
-                            }
-
-                            .jpm-password-match.match {
-                                color: #22c55e;
-                            }
-
-                            .jpm-password-match.no-match {
-                                color: #ef4444;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength {
-                                margin-top: 6px;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-bar {
-                                height: 3px;
-                                background: #e5e7eb;
-                                border-radius: 2px;
-                                overflow: hidden;
-                                margin-bottom: 6px;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill {
-                                height: 100%;
-                                width: 0%;
-                                background: #e5e7eb;
-                                border-radius: 2px;
-                                transition: width 0.2s ease, background-color 0.2s ease;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill.weak {
-                                width: 33%;
-                                background: #ef4444;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill.medium {
-                                width: 66%;
-                                background: #f59e0b;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-fill.strong {
-                                width: 100%;
-                                background: #22c55e;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text {
-                                font-size: 12px;
-                                font-weight: 500;
-                                margin-top: 2px;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text.weak {
-                                color: #ef4444;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text.medium {
-                                color: #f59e0b;
-                            }
-
-                            .jpm-reset-password-form .jpm-password-strength-text.strong {
-                                color: #22c55e;
-                            }
-
-                            @media (max-width: 600px) {
-                                .jpm-reset-password-form-wrapper {
-                                    margin: 15px auto;
-                                    padding: 10px;
-                                }
-
-                                .jpm-reset-password-header {
-                                    padding: 20px 20px 16px;
-                                }
-
-                                .jpm-reset-password-form {
-                                    padding: 20px;
-                                }
-
-                                .jpm-reset-password-message {
-                                    margin: 0 20px 12px;
-                                }
-
-                                .jpm-reset-password-title {
-                                    font-size: 18px;
-                                }
-                            }
-                        </style>
-
-                        <script type="text/javascript">
-                            jQuery(document).ready(function ($) {
-                                // Password toggle functionality
-                                $('#jpm-reset-password-form .jpm-password-toggle').on('click', function () {
-                                    var $button = $(this);
-                                    var $input = $button.closest('.jpm-password-wrapper').find('input');
-                                    var $eyeIcon = $button.find('.jpm-eye-icon');
-                                    var $eyeOffIcon = $button.find('.jpm-eye-off-icon');
-
-                                    if ($input.attr('type') === 'password') {
-                                        $input.attr('type', 'text');
-                                        $eyeIcon.hide();
-                                        $eyeOffIcon.show();
-                                        $button.attr('aria-label', '<?php echo esc_js(__('Hide password', 'job-posting-manager')); ?>');
+                        <div class="jpm-form-field">
+                            <label for="jpm-reset-password-confirm" class="jpm-input-label">
+                                <?php _e('Confirm New Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                            </label>
+                            <div class="jpm-input-wrapper jpm-password-wrapper">
+                                <input type="password" id="jpm-reset-password-confirm" name="password_confirm" required
+                                    class="jpm-input"
+                                    placeholder="<?php esc_attr_e('Re-enter your new password', 'job-posting-manager'); ?>" />
+                                <button type="button" class="jpm-password-toggle"
+                                    aria-label="<?php esc_attr_e('Show password', 'job-posting-manager'); ?>">
+                                    <svg class="jpm-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <svg class="jpm-eye-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" style="display: none;">
+                                        <path
+                                            d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                                        </path>
+                                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="jpm-reset-password-match" class="jpm-password-match" style="display: none;"></div>
+                        </div>
+
+                        <div class="jpm-form-field jpm-reset-password-button-wrapper">
+                            <button type="submit" id="jpm-reset-password-submit"
+                                class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
+                                <span class="jpm-btn-text"><?php _e('Reset Password', 'job-posting-manager'); ?></span>
+                            </button>
+                        </div>
+
+                        <div class="jpm-reset-password-footer">
+                            <p class="jpm-reset-password-footer-text">
+                                <?php _e('Remember your password?', 'job-posting-manager'); ?>
+                                <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-reset-password-login-link">
+                                    <?php _e('Sign In', 'job-posting-manager'); ?>
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <style>
+            .jpm-reset-password-form-wrapper {
+                max-width: 480px;
+                margin: 30px auto;
+                padding: 15px;
+            }
+
+            .jpm-reset-password-form-container {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-reset-password-header {
+                padding: 24px 24px 16px;
+                border-bottom: 1px solid #e5e7eb;
+                text-align: center;
+            }
+
+            .jpm-reset-password-logo {
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .jpm-reset-password-title {
+                margin: 0;
+                font-size: 20px;
+                font-weight: 600;
+                color: #111827;
+            }
+
+            .jpm-reset-password-form {
+                padding: 24px;
+            }
+
+            .jpm-reset-password-message {
+                margin: 0 24px 16px;
+            }
+
+            .jpm-reset-password-message .notice {
+                margin: 0;
+                padding: 14px 18px;
+                border-radius: 8px;
+                border: none;
+                font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+
+            .jpm-reset-password-message .notice-success {
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: #ffffff;
+            }
+
+            .jpm-reset-password-message .notice-success p {
+                margin: 0;
+                color: #ffffff;
+            }
+
+            .jpm-reset-password-message .notice-error {
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                color: #ffffff;
+            }
+
+            .jpm-reset-password-message .notice-error p {
+                margin: 0;
+                color: #ffffff;
+            }
+
+            .jpm-reset-password-form .jpm-input-label {
+                display: block;
+                margin-bottom: 4px;
+                font-weight: 500;
+                font-size: 13px;
+                color: #374151;
+            }
+
+            .jpm-reset-password-form .jpm-input-label .required {
+                color: #dc2626;
+                margin-left: 2px;
+            }
+
+            .jpm-reset-password-form .jpm-input-wrapper {
+                position: relative;
+            }
+
+            .jpm-reset-password-form .jpm-input {
+                width: 100%;
+                padding: 8px 12px;
+                border: none;
+                border-bottom: 2px solid #e5e7eb;
+                border-radius: 0;
+                font-size: 14px;
+                color: #111827;
+                background: transparent;
+                box-sizing: border-box;
+                transition: border-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-reset-password-form .jpm-input::placeholder {
+                color: #9ca3af;
+            }
+
+            .jpm-reset-password-form .jpm-input:focus {
+                outline: none;
+                border-bottom-color: #2563eb;
+            }
+
+            .jpm-reset-password-form .jpm-input:invalid:not(:placeholder-shown) {
+                border-bottom-color: #dc2626;
+            }
+
+            .jpm-reset-password-form .jpm-password-wrapper {
+                position: relative;
+            }
+
+            .jpm-reset-password-form .jpm-password-toggle {
+                position: absolute;
+                right: 0;
+                bottom: 8px;
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                color: #6b7280;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: color 0.15s ease;
+            }
+
+            .jpm-reset-password-form .jpm-password-toggle:hover {
+                color: #374151;
+            }
+
+            .jpm-reset-password-form .jpm-password-toggle:focus {
+                outline: none;
+                color: #2563eb;
+            }
+
+            .jpm-reset-password-form .jpm-form-field {
+                margin-bottom: 16px;
+            }
+
+            .jpm-reset-password-form .jpm-btn {
+                display: inline-block;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 500;
+                text-align: center;
+                text-decoration: none;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-reset-password-form .jpm-btn-primary {
+                background: #2563eb;
+                color: #ffffff;
+            }
+
+            .jpm-reset-password-form .jpm-btn-primary:hover:not(:disabled) {
+                background: #1d4ed8;
+            }
+
+            .jpm-reset-password-form .jpm-btn-primary:active:not(:disabled) {
+                background: #1e40af;
+            }
+
+            .jpm-reset-password-form .jpm-btn-block {
+                width: 100%;
+                display: block;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength {
+                margin-top: 6px;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-bar {
+                height: 3px;
+                background: #e5e7eb;
+                border-radius: 2px;
+                overflow: hidden;
+                margin-bottom: 6px;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill {
+                height: 100%;
+                width: 0%;
+                background: #e5e7eb;
+                border-radius: 2px;
+                transition: width 0.2s ease, background-color 0.2s ease;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill.weak {
+                width: 33%;
+                background: #ef4444;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill.medium {
+                width: 66%;
+                background: #f59e0b;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill.strong {
+                width: 100%;
+                background: #22c55e;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text {
+                font-size: 12px;
+                font-weight: 500;
+                margin-top: 2px;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text.weak {
+                color: #ef4444;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text.medium {
+                color: #f59e0b;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text.strong {
+                color: #22c55e;
+            }
+
+            .jpm-reset-password-form .jpm-btn-large {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .jpm-reset-password-form .jpm-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .jpm-reset-password-footer {
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .jpm-reset-password-footer-text {
+                margin: 0;
+                font-size: 14px;
+                color: #6b7280;
+            }
+
+            .jpm-reset-password-login-link,
+            .jpm-reset-password-forgot-link {
+                color: #2563eb;
+                text-decoration: none;
+                font-weight: 500;
+                margin-left: 4px;
+            }
+
+            .jpm-reset-password-login-link:hover,
+            .jpm-reset-password-forgot-link:hover {
+                text-decoration: underline;
+            }
+
+            .jpm-password-match {
+                margin-top: 4px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+
+            .jpm-password-match.match {
+                color: #22c55e;
+            }
+
+            .jpm-password-match.no-match {
+                color: #ef4444;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength {
+                margin-top: 6px;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-bar {
+                height: 3px;
+                background: #e5e7eb;
+                border-radius: 2px;
+                overflow: hidden;
+                margin-bottom: 6px;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill {
+                height: 100%;
+                width: 0%;
+                background: #e5e7eb;
+                border-radius: 2px;
+                transition: width 0.2s ease, background-color 0.2s ease;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill.weak {
+                width: 33%;
+                background: #ef4444;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill.medium {
+                width: 66%;
+                background: #f59e0b;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-fill.strong {
+                width: 100%;
+                background: #22c55e;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text {
+                font-size: 12px;
+                font-weight: 500;
+                margin-top: 2px;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text.weak {
+                color: #ef4444;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text.medium {
+                color: #f59e0b;
+            }
+
+            .jpm-reset-password-form .jpm-password-strength-text.strong {
+                color: #22c55e;
+            }
+
+            @media (max-width: 600px) {
+                .jpm-reset-password-form-wrapper {
+                    margin: 15px auto;
+                    padding: 10px;
+                }
+
+                .jpm-reset-password-header {
+                    padding: 20px 20px 16px;
+                }
+
+                .jpm-reset-password-form {
+                    padding: 20px;
+                }
+
+                .jpm-reset-password-message {
+                    margin: 0 20px 12px;
+                }
+
+                .jpm-reset-password-title {
+                    font-size: 18px;
+                }
+            }
+        </style>
+
+        <script type="text/javascript">
+            jQuery(document).ready(function ($) {
+                // Password toggle functionality
+                $('#jpm-reset-password-form .jpm-password-toggle').on('click', function () {
+                    var $button = $(this);
+                    var $input = $button.closest('.jpm-password-wrapper').find('input');
+                    var $eyeIcon = $button.find('.jpm-eye-icon');
+                    var $eyeOffIcon = $button.find('.jpm-eye-off-icon');
+
+                    if ($input.attr('type') === 'password') {
+                        $input.attr('type', 'text');
+                        $eyeIcon.hide();
+                        $eyeOffIcon.show();
+                        $button.attr('aria-label', '<?php echo esc_js(__('Hide password', 'job-posting-manager')); ?>');
+                    } else {
+                        $input.attr('type', 'password');
+                        $eyeIcon.show();
+                        $eyeOffIcon.hide();
+                        $button.attr('aria-label', '<?php echo esc_js(__('Show password', 'job-posting-manager')); ?>');
+                    }
+                });
+
+                // Real-time password strength indicator
+                $('#jpm-reset-password-new').on('input', function () {
+                    var password = $(this).val();
+                    var $strengthContainer = $('#jpm-reset-password-strength');
+                    var $strengthFill = $('#jpm-reset-password-strength-fill');
+                    var $strengthText = $('#jpm-reset-password-strength-text');
+
+                    if (password.length === 0) {
+                        $strengthContainer.hide();
+                        return;
+                    }
+
+                    $strengthContainer.show();
+
+                    // Calculate strength score
+                    var score = 0;
+                    var feedback = [];
+
+                    // Length checks
+                    if (password.length >= 8) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('At least 8 characters', 'job-posting-manager')); ?>');
+                    }
+
+                    if (password.length >= 12) {
+                        score += 1;
+                    }
+
+                    // Character variety checks
+                    if (/[a-z]/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Lowercase letter', 'job-posting-manager')); ?>');
+                    }
+
+                    if (/[A-Z]/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Uppercase letter', 'job-posting-manager')); ?>');
+                    }
+
+                    if (/\d/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Number', 'job-posting-manager')); ?>');
+                    }
+
+                    if (/[^a-zA-Z\d]/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Special character', 'job-posting-manager')); ?>');
+                    }
+
+                    // Determine strength level
+                    var strengthLevel = '';
+                    var strengthLabel = '';
+                    var strengthWidth = '0%';
+
+                    if (score <= 2) {
+                        strengthLevel = 'weak';
+                        strengthLabel = '<?php echo esc_js(__('Weak', 'job-posting-manager')); ?>';
+                        strengthWidth = '33%';
+                    } else if (score <= 4) {
+                        strengthLevel = 'medium';
+                        strengthLabel = '<?php echo esc_js(__('Medium', 'job-posting-manager')); ?>';
+                        strengthWidth = '66%';
+                    } else {
+                        strengthLevel = 'strong';
+                        strengthLabel = '<?php echo esc_js(__('Strong', 'job-posting-manager')); ?>';
+                        strengthWidth = '100%';
+                    }
+
+                    // Update visual indicator
+                    $strengthFill.removeClass('weak medium strong').addClass(strengthLevel).css('width', strengthWidth);
+
+                    // Update text feedback
+                    if (feedback.length > 0 && score < 5) {
+                        $strengthText.removeClass('weak medium strong').addClass(strengthLevel)
+                            .html('<span style="font-weight: 600;">' + strengthLabel + '</span> - <?php echo esc_js(__('Add:', 'job-posting-manager')); ?> ' + feedback.slice(0, 2).join(', '));
+                    } else {
+                        $strengthText.removeClass('weak medium strong').addClass(strengthLevel)
+                            .html('<span style="font-weight: 600;">' + strengthLabel + '</span>');
+                    }
+                });
+
+                // Password match indicator
+                $('#jpm-reset-password-confirm').on('input', function () {
+                    var password = $('#jpm-reset-password-new').val();
+                    var confirmPassword = $(this).val();
+                    var $matchIndicator = $('#jpm-reset-password-match');
+
+                    if (confirmPassword.length === 0) {
+                        $matchIndicator.hide();
+                        return;
+                    }
+
+                    if (password === confirmPassword) {
+                        $matchIndicator.html('✓ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
+                    } else {
+                        $matchIndicator.html('✗ <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
+                    }
+                });
+
+                // Form submission
+                $('#jpm-reset-password-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-reset-password-message');
+                    var $button = $('#jpm-reset-password-submit');
+                    var $btnText = $button.find('.jpm-btn-text');
+
+                    // Get form values
+                    var password = $('#jpm-reset-password-new').val();
+                    var passwordConfirm = $('#jpm-reset-password-confirm').val();
+
+                    // Validate passwords match
+                    if (password !== passwordConfirm) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Passwords do not match.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    // Validate password length
+                    if (password.length < 8) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Password must be at least 8 characters long.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo $resetting; ?>');
+                    $message.hide();
+
+                    $.ajax({
+                        url: '<?php echo $ajax_url; ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_reset_password',
+                            key: $('input[name="key"]').val(),
+                            login: $('input[name="login"]').val(),
+                            password: password,
+                            nonce: $('#jpm_reset_password_nonce').val()
+                        },
+                        success: function (response) {
+                            // Reset button to normal state for any response
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $reset_password; ?>');
+
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Password has been reset successfully! Redirecting to login...', 'job-posting-manager')); ?>') + '</p></div>').show();
+
+                                // Redirect to login page after 2 seconds
+                                setTimeout(function () {
+                                    if (response.data.redirect_url) {
+                                        window.location.href = response.data.redirect_url;
                                     } else {
-                                        $input.attr('type', 'password');
-                                        $eyeIcon.show();
-                                        $eyeOffIcon.hide();
-                                        $button.attr('aria-label', '<?php echo esc_js(__('Show password', 'job-posting-manager')); ?>');
+                                        window.location.href = '<?php echo esc_url(home_url('/sign-in/')); ?>';
                                     }
-                                });
-
-                                // Real-time password strength indicator
-                                $('#jpm-reset-password-new').on('input', function () {
-                                    var password = $(this).val();
-                                    var $strengthContainer = $('#jpm-reset-password-strength');
-                                    var $strengthFill = $('#jpm-reset-password-strength-fill');
-                                    var $strengthText = $('#jpm-reset-password-strength-text');
-
-                                    if (password.length === 0) {
-                                        $strengthContainer.hide();
-                                        return;
-                                    }
-
-                                    $strengthContainer.show();
-
-                                    // Calculate strength score
-                                    var score = 0;
-                                    var feedback = [];
-
-                                    // Length checks
-                                    if (password.length >= 8) {
-                                        score += 1;
-                                    } else {
-                                        feedback.push('<?php echo esc_js(__('At least 8 characters', 'job-posting-manager')); ?>');
-                                    }
-
-                                    if (password.length >= 12) {
-                                        score += 1;
-                                    }
-
-                                    // Character variety checks
-                                    if (/[a-z]/.test(password)) {
-                                        score += 1;
-                                    } else {
-                                        feedback.push('<?php echo esc_js(__('Lowercase letter', 'job-posting-manager')); ?>');
-                                    }
-
-                                    if (/[A-Z]/.test(password)) {
-                                        score += 1;
-                                    } else {
-                                        feedback.push('<?php echo esc_js(__('Uppercase letter', 'job-posting-manager')); ?>');
-                                    }
-
-                                    if (/\d/.test(password)) {
-                                        score += 1;
-                                    } else {
-                                        feedback.push('<?php echo esc_js(__('Number', 'job-posting-manager')); ?>');
-                                    }
-
-                                    if (/[^a-zA-Z\d]/.test(password)) {
-                                        score += 1;
-                                    } else {
-                                        feedback.push('<?php echo esc_js(__('Special character', 'job-posting-manager')); ?>');
-                                    }
-
-                                    // Determine strength level
-                                    var strengthLevel = '';
-                                    var strengthLabel = '';
-                                    var strengthWidth = '0%';
-
-                                    if (score <= 2) {
-                                        strengthLevel = 'weak';
-                                        strengthLabel = '<?php echo esc_js(__('Weak', 'job-posting-manager')); ?>';
-                                        strengthWidth = '33%';
-                                    } else if (score <= 4) {
-                                        strengthLevel = 'medium';
-                                        strengthLabel = '<?php echo esc_js(__('Medium', 'job-posting-manager')); ?>';
-                                        strengthWidth = '66%';
-                                    } else {
-                                        strengthLevel = 'strong';
-                                        strengthLabel = '<?php echo esc_js(__('Strong', 'job-posting-manager')); ?>';
-                                        strengthWidth = '100%';
-                                    }
-
-                                    // Update visual indicator
-                                    $strengthFill.removeClass('weak medium strong').addClass(strengthLevel).css('width', strengthWidth);
-
-                                    // Update text feedback
-                                    if (feedback.length > 0 && score < 5) {
-                                        $strengthText.removeClass('weak medium strong').addClass(strengthLevel)
-                                            .html('<span style="font-weight: 600;">' + strengthLabel + '</span> - <?php echo esc_js(__('Add:', 'job-posting-manager')); ?> ' + feedback.slice(0, 2).join(', '));
-                                    } else {
-                                        $strengthText.removeClass('weak medium strong').addClass(strengthLevel)
-                                            .html('<span style="font-weight: 600;">' + strengthLabel + '</span>');
-                                    }
-                                });
-
-                                // Password match indicator
-                                $('#jpm-reset-password-confirm').on('input', function () {
-                                    var password = $('#jpm-reset-password-new').val();
-                                    var confirmPassword = $(this).val();
-                                    var $matchIndicator = $('#jpm-reset-password-match');
-
-                                    if (confirmPassword.length === 0) {
-                                        $matchIndicator.hide();
-                                        return;
-                                    }
-
-                                    if (password === confirmPassword) {
-                                        $matchIndicator.html('✓ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
-                                    } else {
-                                        $matchIndicator.html('✗ <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
-                                    }
-                                });
-
-                                // Form submission
-                                $('#jpm-reset-password-form').on('submit', function (e) {
-                                    e.preventDefault();
-
-                                    var $form = $(this);
-                                    var $message = $('#jpm-reset-password-message');
-                                    var $button = $('#jpm-reset-password-submit');
-                                    var $btnText = $button.find('.jpm-btn-text');
-
-                                    // Get form values
-                                    var password = $('#jpm-reset-password-new').val();
-                                    var passwordConfirm = $('#jpm-reset-password-confirm').val();
-
-                                    // Validate passwords match
-                                    if (password !== passwordConfirm) {
-                                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Passwords do not match.', 'job-posting-manager')); ?></p></div>').show();
-                                        return;
-                                    }
-
-                                    // Validate password length
-                                    if (password.length < 8) {
-                                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Password must be at least 8 characters long.', 'job-posting-manager')); ?></p></div>').show();
-                                        return;
-                                    }
-
-                                    $button.prop('disabled', true);
-                                    $btnText.text('<?php echo $resetting; ?>');
-                                    $message.hide();
-
-                                    $.ajax({
-                                        url: '<?php echo $ajax_url; ?>',
-                                        type: 'POST',
-                                        data: {
-                                            action: 'jpm_reset_password',
-                                            key: $('input[name="key"]').val(),
-                                            login: $('input[name="login"]').val(),
-                                            password: password,
-                                            nonce: $('#jpm_reset_password_nonce').val()
-                                        },
-                                        success: function (response) {
-                                            // Reset button to normal state for any response
-                                            $button.prop('disabled', false);
-                                            $btnText.text('<?php echo $reset_password; ?>');
-
-                                            if (response.success) {
-                                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Password has been reset successfully! Redirecting to login...', 'job-posting-manager')); ?>') + '</p></div>').show();
-
-                                                // Redirect to login page after 2 seconds
-                                                setTimeout(function () {
-                                                    if (response.data.redirect_url) {
-                                                        window.location.href = response.data.redirect_url;
-                                                    } else {
-                                                        window.location.href = '<?php echo esc_url(home_url('/sign-in/')); ?>';
-                                                    }
-                                                }, 2000);
-                                            } else {
-                                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to reset password. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
-                                            }
-                                        },
-                                        error: function () {
-                                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
-                                            $button.prop('disabled', false);
-                                            $btnText.text('<?php echo $reset_password; ?>');
-                                        }
-                                    });
-                                });
-                            });
-                        </script>
-                        <?php
-                        return ob_get_clean();
+                                }, 2000);
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to reset password. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo $reset_password; ?>');
+                        }
+                    });
+                });
+            });
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
     /**
@@ -3539,978 +3539,1319 @@ class JPM_Frontend
 
         ob_start();
         ?>
-                <div class="jpm-user-profile-wrapper">
-                    <div class="jpm-user-profile-layout">
-                        <!-- Sidebar Navigation -->
-                        <aside class="jpm-profile-sidebar">
-                            <div class="jpm-profile-sidebar-header">
-                                <div class="jpm-profile-logo">
-                                    <?php
-                                    $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
-                                    echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" />';
-                                    ?>
-                                </div>
-                                <div class="jpm-profile-user-info">
-                                    <div class="jpm-profile-user-avatar">
-                                        <?php echo get_avatar($user_id, 48); ?>
-                                    </div>
-                                    <div class="jpm-profile-user-name"><?php echo esc_html($current_user->display_name); ?></div>
-                                    <div class="jpm-profile-user-email"><?php echo esc_html($current_user->user_email); ?></div>
-                                </div>
+        <div class="jpm-user-profile-wrapper">
+            <div class="jpm-user-profile-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; width: 100% !important;">
+                <!-- Sidebar Navigation -->
+                <aside class="jpm-profile-sidebar" style="width: 280px !important; min-width: 280px !important; max-width: 280px !important; flex: 0 0 280px !important; flex-shrink: 0 !important; flex-grow: 0 !important; display: flex !important; flex-direction: column !important; float: none !important;">
+                    <div class="jpm-profile-sidebar-header">
+                        <div class="jpm-profile-logo">
+                            <?php
+                            $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
+                            echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" />';
+                            ?>
+                        </div>
+                        <div class="jpm-profile-user-info">
+                            <div class="jpm-profile-user-avatar">
+                                <?php echo get_avatar($user_id, 48); ?>
                             </div>
+                            <div class="jpm-profile-user-name"><?php echo esc_html($current_user->display_name); ?></div>
+                            <div class="jpm-profile-user-email"><?php echo esc_html($current_user->user_email); ?></div>
+                        </div>
+                    </div>
 
-                            <nav class="jpm-profile-nav">
-                                <a href="#" class="jpm-profile-nav-item active" data-tab="dashboard">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="3" width="7" height="7"></rect>
-                                        <rect x="14" y="3" width="7" height="7"></rect>
-                                        <rect x="14" y="14" width="7" height="7"></rect>
-                                        <rect x="3" y="14" width="7" height="7"></rect>
-                                    </svg>
-                                    <span><?php _e('Dashboard', 'job-posting-manager'); ?></span>
-                                </a>
-                                <a href="#" class="jpm-profile-nav-item" data-tab="applications">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <nav class="jpm-profile-nav">
+                        <a href="#" class="jpm-profile-nav-item active" data-tab="dashboard">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                            <span><?php _e('Dashboard', 'job-posting-manager'); ?></span>
+                        </a>
+                        <a href="#" class="jpm-profile-nav-item" data-tab="applications">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            <span><?php _e('Jobs Applied', 'job-posting-manager'); ?></span>
+                            <?php if (count($applications) > 0): ?>
+                                <span class="jpm-nav-badge"><?php echo count($applications); ?></span>
+                            <?php endif; ?>
+                        </a>
+                        <a href="#" class="jpm-profile-nav-item" data-tab="information">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            <span><?php _e('Information', 'job-posting-manager'); ?></span>
+                        </a>
+                        <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="jpm-profile-nav-item jpm-nav-logout">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            <span><?php _e('Logout', 'job-posting-manager'); ?></span>
+                        </a>
+                    </nav>
+                </aside>
+
+                <!-- Main Content Area -->
+                <main class="jpm-profile-main" style="flex: 1 1 auto !important; flex-grow: 1 !important; flex-shrink: 1 !important; min-width: 0 !important; display: block !important; width: auto !important; float: none !important;">
+                    <!-- Dashboard Tab -->
+                    <div class="jpm-profile-tab-content active" id="jpm-tab-dashboard">
+                        <div class="jpm-profile-tab-header">
+                            <h2 class="jpm-profile-tab-title"><?php _e('Dashboard', 'job-posting-manager'); ?></h2>
+                        </div>
+
+                        <div class="jpm-dashboard-stats">
+                            <div class="jpm-stat-card">
+                                <div class="jpm-stat-icon" style="background: #e0f2fe; color: #0369a1;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                         <polyline points="14 2 14 8 20 8"></polyline>
-                                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                                        <polyline points="10 9 9 9 8 9"></polyline>
                                     </svg>
-                                    <span><?php _e('Jobs Applied', 'job-posting-manager'); ?></span>
-                                    <?php if (count($applications) > 0): ?>
-                                            <span class="jpm-nav-badge"><?php echo count($applications); ?></span>
-                                    <?php endif; ?>
-                                </a>
-                                <a href="#" class="jpm-profile-nav-item" data-tab="information">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                        <circle cx="12" cy="7" r="4"></circle>
-                                    </svg>
-                                    <span><?php _e('Information', 'job-posting-manager'); ?></span>
-                                </a>
-                                <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="jpm-profile-nav-item jpm-nav-logout">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                        <polyline points="16 17 21 12 16 7"></polyline>
-                                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                                    </svg>
-                                    <span><?php _e('Logout', 'job-posting-manager'); ?></span>
-                                </a>
-                            </nav>
-                        </aside>
-
-                        <!-- Main Content Area -->
-                        <main class="jpm-profile-main">
-                            <!-- Dashboard Tab -->
-                            <div class="jpm-profile-tab-content active" id="jpm-tab-dashboard">
-                                <div class="jpm-profile-tab-header">
-                                    <h2 class="jpm-profile-tab-title"><?php _e('Dashboard', 'job-posting-manager'); ?></h2>
                                 </div>
+                                <div class="jpm-stat-content">
+                                    <div class="jpm-stat-value"><?php echo count($applications); ?></div>
+                                    <div class="jpm-stat-label"><?php _e('Total Applications', 'job-posting-manager'); ?></div>
+                                </div>
+                            </div>
 
-                                <div class="jpm-dashboard-stats">
-                                    <div class="jpm-stat-card">
-                                        <div class="jpm-stat-icon" style="background: #e0f2fe; color: #0369a1;">
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                <polyline points="14 2 14 8 20 8"></polyline>
-                                            </svg>
-                                        </div>
-                                        <div class="jpm-stat-content">
-                                            <div class="jpm-stat-value"><?php echo count($applications); ?></div>
-                                            <div class="jpm-stat-label"><?php _e('Total Applications', 'job-posting-manager'); ?></div>
-                                        </div>
+                            <div class="jpm-stat-card">
+                                <div class="jpm-stat-icon" style="background: #fef3c7; color: #d97706;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polyline points="12 6 12 12 16 14"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="jpm-stat-content">
+                                    <div class="jpm-stat-value"><?php echo count($all_jobs); ?></div>
+                                    <div class="jpm-stat-label"><?php _e('Available Jobs', 'job-posting-manager'); ?></div>
+                                </div>
+                            </div>
+
+                            <?php
+                            // Count applications by status
+                            $status_counts = [];
+                            foreach ($applications as $application) {
+                                $status = $application->status;
+                                if (!isset($status_counts[$status])) {
+                                    $status_counts[$status] = 0;
+                                }
+                                $status_counts[$status]++;
+                            }
+                            ?>
+
+                            <?php if (!empty($status_counts)): ?>
+                                <div class="jpm-stat-card">
+                                    <div class="jpm-stat-icon" style="background: #dbeafe; color: #1e40af;">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                        </svg>
                                     </div>
-
-                                    <div class="jpm-stat-card">
-                                        <div class="jpm-stat-icon" style="background: #fef3c7; color: #d97706;">
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <polyline points="12 6 12 12 16 14"></polyline>
-                                            </svg>
-                                        </div>
-                                        <div class="jpm-stat-content">
-                                            <div class="jpm-stat-value"><?php echo count($all_jobs); ?></div>
-                                            <div class="jpm-stat-label"><?php _e('Available Jobs', 'job-posting-manager'); ?></div>
-                                        </div>
+                                    <div class="jpm-stat-content">
+                                        <div class="jpm-stat-value"><?php echo count($status_counts); ?></div>
+                                        <div class="jpm-stat-label"><?php _e('Status Types', 'job-posting-manager'); ?></div>
                                     </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
 
-                                    <?php
-                                    // Count applications by status
-                                    $status_counts = [];
-                                    foreach ($applications as $application) {
-                                        $status = $application->status;
-                                        if (!isset($status_counts[$status])) {
-                                            $status_counts[$status] = 0;
+                        <?php if (!empty($status_counts)): ?>
+                            <div class="jpm-dashboard-status-breakdown">
+                                <h3 class="jpm-dashboard-section-title">
+                                    <?php _e('Applications by Status', 'job-posting-manager'); ?></h3>
+                                <div class="jpm-status-breakdown-list">
+                                    <?php foreach ($status_counts as $status_slug => $count):
+                                        $status_info = JPM_DB::get_status_by_slug($status_slug);
+                                        if ($status_info) {
+                                            $status_name = $status_info['name'];
+                                            $status_color = $status_info['color'];
+                                            $status_text_color = $status_info['text_color'];
+                                        } else {
+                                            $status_name = ucfirst($status_slug);
+                                            $status_color = '#ffc107';
+                                            $status_text_color = '#000000';
                                         }
-                                        $status_counts[$status]++;
-                                    }
-                                    ?>
-
-                                    <?php if (!empty($status_counts)): ?>
-                                            <div class="jpm-stat-card">
-                                                <div class="jpm-stat-icon" style="background: #dbeafe; color: #1e40af;">
-                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                                    </svg>
-                                                </div>
-                                                <div class="jpm-stat-content">
-                                                    <div class="jpm-stat-value"><?php echo count($status_counts); ?></div>
-                                                    <div class="jpm-stat-label"><?php _e('Status Types', 'job-posting-manager'); ?></div>
+                                        ?>
+                                        <div class="jpm-status-breakdown-item">
+                                            <div class="jpm-status-breakdown-info">
+                                                <span class="jpm-status-breakdown-badge"
+                                                    style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
+                                                    <?php echo esc_html($status_name); ?>
+                                                </span>
+                                                <span class="jpm-status-breakdown-count"><?php echo $count; ?>
+                                                    <?php echo _n('application', 'applications', $count, 'job-posting-manager'); ?></span>
+                                            </div>
+                                            <div class="jpm-status-breakdown-bar">
+                                                <div class="jpm-status-breakdown-fill"
+                                                    style="width: <?php echo count($applications) > 0 ? round(($count / count($applications)) * 100) : 0; ?>%; background-color: <?php echo esc_attr($status_color); ?>;">
                                                 </div>
                                             </div>
-                                    <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
+                            </div>
+                        <?php endif; ?>
 
-                                <?php if (!empty($applications)): ?>
-                                        <div class="jpm-dashboard-recent">
-                                            <h3 class="jpm-dashboard-section-title"><?php _e('Recent Applications', 'job-posting-manager'); ?></h3>
-                                            <div class="jpm-applications-list">
-                                                <?php
-                                                $recent_applications = array_slice($applications, 0, 5);
-                                                foreach ($recent_applications as $application):
-                                                    $job = get_post($application->job_id);
-                                                    $form_data = json_decode($application->notes, true);
-                                                    if (!is_array($form_data)) {
-                                                        $form_data = [];
-                                                    }
+                        <?php if (!empty($applications)): ?>
+                            <div class="jpm-dashboard-recent">
+                                <div class="jpm-dashboard-section-header">
+                                    <h3 class="jpm-dashboard-section-title">
+                                        <?php _e('Recent Applications', 'job-posting-manager'); ?></h3>
+                                    <a href="#" class="jpm-view-all-link"
+                                        data-tab="applications"><?php _e('View All', 'job-posting-manager'); ?></a>
+                                </div>
+                                <div class="jpm-applications-list">
+                                    <?php
+                                    $recent_applications = array_slice($applications, 0, 5);
+                                    foreach ($recent_applications as $application):
+                                        $job = get_post($application->job_id);
+                                        $form_data = json_decode($application->notes, true);
+                                        if (!is_array($form_data)) {
+                                            $form_data = [];
+                                        }
 
-                                                    // Get status information
-                                                    $status_info = JPM_DB::get_status_by_slug($application->status);
-                                                    if ($status_info) {
-                                                        $status_name = $status_info['name'];
-                                                        $status_color = $status_info['color'];
-                                                        $status_text_color = $status_info['text_color'];
-                                                    } else {
-                                                        $status_name = ucfirst($application->status);
-                                                        $status_color = '#ffc107';
-                                                        $status_text_color = '#000000';
-                                                    }
+                                        // Get status information
+                                        $status_info = JPM_DB::get_status_by_slug($application->status);
+                                        if ($status_info) {
+                                            $status_name = $status_info['name'];
+                                            $status_color = $status_info['color'];
+                                            $status_text_color = $status_info['text_color'];
+                                        } else {
+                                            $status_name = ucfirst($application->status);
+                                            $status_color = '#ffc107';
+                                            $status_text_color = '#000000';
+                                        }
 
-                                                    // Extract application number
-                                                    $application_number = '';
-                                                    $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
-                                                    foreach ($app_number_fields as $field_name) {
-                                                        if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
-                                                            $application_number = sanitize_text_field($form_data[$field_name]);
-                                                            break;
-                                                        }
-                                                    }
-                                                    ?>
-                                                                <div class="jpm-application-card">
-                                                                    <div class="jpm-application-header">
-                                                                        <div class="jpm-application-job-title">
-                                                                            <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
-                                                                            </h4>
-                                                                            <?php if ($application_number): ?>
-                                                                                        <span
-                                                                                            class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
-                                                                            <?php endif; ?>
-                                                                        </div>
-                                                                        <span class="jpm-status-badge"
-                                                                            style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
-                                                                            <?php echo esc_html($status_name); ?>
+                                        // Extract application number
+                                        $application_number = '';
+                                        $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
+                                        foreach ($app_number_fields as $field_name) {
+                                            if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                                                $application_number = sanitize_text_field($form_data[$field_name]);
+                                                break;
+                                            }
+                                        }
+                                        ?>
+                                        <div class="jpm-application-card">
+                                            <div class="jpm-application-header">
+                                                <div class="jpm-application-job-title">
+                                                    <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
+                                                    </h4>
+                                                    <?php if ($application_number): ?>
+                                                        <span
+                                                            class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <span class="jpm-status-badge"
+                                                    style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
+                                                    <?php echo esc_html($status_name); ?>
+                                                </span>
+                                            </div>
+
+                                            <div class="jpm-application-details">
+                                                <div class="jpm-application-detail-item">
+                                                    <span
+                                                        class="jpm-detail-label"><?php _e('Applied Date:', 'job-posting-manager'); ?></span>
+                                                    <span
+                                                        class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
+                                                </div>
+                                                <?php if ($job): ?>
+                                                    <div class="jpm-application-detail-item">
+                                                        <span class="jpm-detail-label"><?php _e('Job ID:', 'job-posting-manager'); ?></span>
+                                                        <span class="jpm-detail-value">#<?php echo esc_html($application->job_id); ?></span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <!-- Application Form Data -->
+                                            <?php if (!empty($form_data)): ?>
+                                                <div class="jpm-application-form-data">
+                                                    <button type="button" class="jpm-toggle-details"
+                                                        data-application-id="<?php echo esc_attr($application->id); ?>">
+                                                        <span
+                                                            class="jpm-toggle-text"><?php _e('View Application Details', 'job-posting-manager'); ?></span>
+                                                        <span class="jpm-toggle-icon">▼</span>
+                                                    </button>
+                                                    <div class="jpm-application-details-content"
+                                                        id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
+                                                        <div class="jpm-form-data-grid">
+                                                            <?php foreach ($form_data as $key => $value):
+                                                                // Skip empty values
+                                                                if (empty($value) && $value !== '0' && $value !== 0)
+                                                                    continue;
+
+                                                                // Skip file uploads (they're usually URLs)
+                                                                if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                    ?>
+                                                                    <div class="jpm-form-data-item">
+                                                                        <span
+                                                                            class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                        <span class="jpm-form-data-value">
+                                                                            <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                                rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
                                                                         </span>
                                                                     </div>
+                                                                    <?php
+                                                                    continue;
+                                                                }
 
-                                                                    <div class="jpm-application-details">
-                                                                        <div class="jpm-application-detail-item">
-                                                                            <span class="jpm-detail-label"><?php _e('Applied Date:', 'job-posting-manager'); ?></span>
-                                                                            <span
-                                                                                class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
-                                                                        </div>
-                                                                        <?php if ($job): ?>
-                                                                                    <div class="jpm-application-detail-item">
-                                                                                        <span class="jpm-detail-label"><?php _e('Job ID:', 'job-posting-manager'); ?></span>
-                                                                                        <span class="jpm-detail-value">#<?php echo esc_html($application->job_id); ?></span>
-                                                                                    </div>
-                                                                        <?php endif; ?>
-                                                                    </div>
-
-                                                                    <!-- Application Form Data -->
-                                                                    <?php if (!empty($form_data)): ?>
-                                                                                <div class="jpm-application-form-data">
-                                                                                    <button type="button" class="jpm-toggle-details"
-                                                                                        data-application-id="<?php echo esc_attr($application->id); ?>">
-                                                                                        <span
-                                                                                            class="jpm-toggle-text"><?php _e('View Application Details', 'job-posting-manager'); ?></span>
-                                                                                        <span class="jpm-toggle-icon">▼</span>
-                                                                                    </button>
-                                                                                    <div class="jpm-application-details-content"
-                                                                                        id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
-                                                                                        <div class="jpm-form-data-grid">
-                                                                                            <?php foreach ($form_data as $key => $value):
-                                                                                                // Skip empty values
-                                                                                                if (empty($value) && $value !== '0' && $value !== 0)
-                                                                                                    continue;
-
-                                                                                                // Skip file uploads (they're usually URLs)
-                                                                                                if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
-                                                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                                                    ?>
-                                                                                                                    <div class="jpm-form-data-item">
-                                                                                                                        <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                                                                        <span class="jpm-form-data-value">
-                                                                                                                            <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                                                                                rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
-                                                                                                                        </span>
-                                                                                                                    </div>
-                                                                                                                    <?php
-                                                                                                                    continue;
-                                                                                                }
-
-                                                                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                                                $field_value = is_array($value) ? implode(', ', $value) : $value;
-                                                                                                ?>
-                                                                                                        <div class="jpm-form-data-item">
-                                                                                                            <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                                                            <span class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
-                                                                                                        </div>
-                                                                                            <?php endforeach; ?>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                    <?php endif; ?>
+                                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                                ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
                                                                 </div>
-                                                    <?php endforeach; ?>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                    <?php else: ?>
-                                            <div class="jpm-no-applications">
-                                                <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
-                                                <a href="<?php echo esc_url(home_url('/all-jobs/')); ?>" class="jpm-btn jpm-btn-primary">
-                                                    <?php _e('Browse Jobs', 'job-posting-manager'); ?>
-                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <div class="jpm-no-applications">
+                                    <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
+                                    <a href="<?php echo esc_url(home_url('/all-jobs/')); ?>" class="jpm-btn jpm-btn-primary">
+                                        <?php _e('Browse Jobs', 'job-posting-manager'); ?>
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Applications Tab -->
+                    <div class="jpm-profile-tab-content" id="jpm-tab-applications">
+                        <div class="jpm-profile-tab-header">
+                            <h2 class="jpm-profile-tab-title">
+                                <?php _e('Jobs Applied', 'job-posting-manager'); ?>
+                                <span class="jpm-applications-count">(<?php echo count($applications); ?>)</span>
+                            </h2>
+                        </div>
+
+                        <?php if (empty($applications)): ?>
+                            <div class="jpm-no-applications">
+                                <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
+                                <a href="<?php echo esc_url(home_url('/all-jobs/')); ?>" class="jpm-btn jpm-btn-primary">
+                                    <?php _e('Browse Jobs', 'job-posting-manager'); ?>
+                                </a>
+                            </div>
+                        <?php else: ?>
+                            <div class="jpm-applications-list">
+                                <?php foreach ($applications as $application):
+                                    $job = get_post($application->job_id);
+                                    $form_data = json_decode($application->notes, true);
+                                    if (!is_array($form_data)) {
+                                        $form_data = [];
+                                    }
+
+                                    // Get status information
+                                    $status_info = JPM_DB::get_status_by_slug($application->status);
+                                    if ($status_info) {
+                                        $status_name = $status_info['name'];
+                                        $status_color = $status_info['color'];
+                                        $status_text_color = $status_info['text_color'];
+                                    } else {
+                                        $status_name = ucfirst($application->status);
+                                        $status_color = '#ffc107';
+                                        $status_text_color = '#000000';
+                                    }
+
+                                    // Extract application number
+                                    $application_number = '';
+                                    $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
+                                    foreach ($app_number_fields as $field_name) {
+                                        if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
+                                            $application_number = sanitize_text_field($form_data[$field_name]);
+                                            break;
+                                        }
+                                    }
+                                    ?>
+                                    <div class="jpm-application-card">
+                                        <div class="jpm-application-header">
+                                            <div class="jpm-application-job-title">
+                                                <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
+                                                </h4>
+                                                <?php if ($application_number): ?>
+                                                    <span
+                                                        class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
+                                                <?php endif; ?>
                                             </div>
+                                            <span class="jpm-status-badge"
+                                                style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
+                                                <?php echo esc_html($status_name); ?>
+                                            </span>
+                                        </div>
+
+                                        <div class="jpm-application-details">
+                                            <div class="jpm-application-detail-item">
+                                                <span
+                                                    class="jpm-detail-label"><?php _e('Applied Date:', 'job-posting-manager'); ?></span>
+                                                <span
+                                                    class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
+                                            </div>
+                                            <?php if ($job): ?>
+                                                <div class="jpm-application-detail-item">
+                                                    <span class="jpm-detail-label"><?php _e('Job ID:', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-detail-value">#<?php echo esc_html($application->job_id); ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- Application Form Data -->
+                                        <?php if (!empty($form_data)): ?>
+                                            <div class="jpm-application-form-data">
+                                                <button type="button" class="jpm-toggle-details"
+                                                    data-application-id="<?php echo esc_attr($application->id); ?>">
+                                                    <span
+                                                        class="jpm-toggle-text"><?php _e('View Application Details', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon">▼</span>
+                                                </button>
+                                                <div class="jpm-application-details-content"
+                                                    id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
+                                                    <div class="jpm-form-data-grid">
+                                                        <?php foreach ($form_data as $key => $value):
+                                                            // Skip empty values
+                                                            if (empty($value) && $value !== '0' && $value !== 0)
+                                                                continue;
+
+                                                            // Skip file uploads (they're usually URLs)
+                                                            if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                    <span class="jpm-form-data-value">
+                                                                        <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                            rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                    </span>
+                                                                </div>
+                                                                <?php
+                                                                continue;
+                                                            }
+
+                                                            $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                            $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                            ?>
+                                                            <div class="jpm-form-data-item">
+                                                                <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                <span class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Information Tab -->
+                    <div class="jpm-profile-tab-content" id="jpm-tab-information">
+                        <div class="jpm-profile-tab-header">
+                            <h2 class="jpm-profile-tab-title"><?php _e('Account Information', 'job-posting-manager'); ?></h2>
+                        </div>
+
+                        <div class="jpm-information-content">
+                            <div class="jpm-info-section">
+                                <h3 class="jpm-info-section-title"><?php _e('Personal Information', 'job-posting-manager'); ?>
+                                </h3>
+                                <div class="jpm-info-grid">
+                                    <div class="jpm-info-item">
+                                        <span class="jpm-info-label"><?php _e('Display Name:', 'job-posting-manager'); ?></span>
+                                        <span class="jpm-info-value"><?php echo esc_html($current_user->display_name); ?></span>
+                                    </div>
+                                    <div class="jpm-info-item">
+                                        <span
+                                            class="jpm-info-label"><?php _e('Email Address:', 'job-posting-manager'); ?></span>
+                                        <span class="jpm-info-value"><?php echo esc_html($current_user->user_email); ?></span>
+                                    </div>
+                                    <?php if (!empty($current_user->first_name)): ?>
+                                        <div class="jpm-info-item">
+                                            <span class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
+                                            <span class="jpm-info-value"><?php echo esc_html($current_user->first_name); ?></span>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($current_user->last_name)): ?>
+                                        <div class="jpm-info-item">
+                                            <span class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
+                                            <span class="jpm-info-value"><?php echo esc_html($current_user->last_name); ?></span>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($current_user->user_registered)): ?>
+                                        <div class="jpm-info-item">
+                                            <span class="jpm-info-label"><?php _e('Member Since:', 'job-posting-manager'); ?></span>
+                                            <span
+                                                class="jpm-info-value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($current_user->user_registered))); ?></span>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Applications Tab -->
-                            <div class="jpm-profile-tab-content" id="jpm-tab-applications">
-                                <div class="jpm-profile-tab-header">
-                                    <h2 class="jpm-profile-tab-title">
-                                        <?php _e('Jobs Applied', 'job-posting-manager'); ?>
-                                        <span class="jpm-applications-count">(<?php echo count($applications); ?>)</span>
-                                    </h2>
-                                </div>
-
-                                <?php if (empty($applications)): ?>
-                                        <div class="jpm-no-applications">
-                                            <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
-                                            <a href="<?php echo esc_url(home_url('/all-jobs/')); ?>" class="jpm-btn jpm-btn-primary">
-                                                <?php _e('Browse Jobs', 'job-posting-manager'); ?>
-                                            </a>
-                                        </div>
-                                <?php else: ?>
-                                        <div class="jpm-applications-list">
-                                            <?php foreach ($applications as $application):
-                                                $job = get_post($application->job_id);
-                                                $form_data = json_decode($application->notes, true);
-                                                if (!is_array($form_data)) {
-                                                    $form_data = [];
-                                                }
-
-                                                // Get status information
-                                                $status_info = JPM_DB::get_status_by_slug($application->status);
-                                                if ($status_info) {
-                                                    $status_name = $status_info['name'];
-                                                    $status_color = $status_info['color'];
-                                                    $status_text_color = $status_info['text_color'];
-                                                } else {
-                                                    $status_name = ucfirst($application->status);
-                                                    $status_color = '#ffc107';
-                                                    $status_text_color = '#000000';
-                                                }
-
-                                                // Extract application number
-                                                $application_number = '';
-                                                $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
-                                                foreach ($app_number_fields as $field_name) {
-                                                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
-                                                        $application_number = sanitize_text_field($form_data[$field_name]);
-                                                        break;
-                                                    }
-                                                }
-                                                ?>
-                                                    <div class="jpm-application-card">
-                                                        <div class="jpm-application-header">
-                                                            <div class="jpm-application-job-title">
-                                                                <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?></h4>
-                                                                <?php if ($application_number): ?>
-                                                                        <span class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                            <span class="jpm-status-badge" style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
-                                                                <?php echo esc_html($status_name); ?>
-                                                            </span>
-                                                        </div>
-
-                                                        <div class="jpm-application-details">
-                                                            <div class="jpm-application-detail-item">
-                                                                <span class="jpm-detail-label"><?php _e('Applied Date:', 'job-posting-manager'); ?></span>
-                                                                <span class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
-                                                            </div>
-                                                            <?php if ($job): ?>
-                                                                    <div class="jpm-application-detail-item">
-                                                                        <span class="jpm-detail-label"><?php _e('Job ID:', 'job-posting-manager'); ?></span>
-                                                                        <span class="jpm-detail-value">#<?php echo esc_html($application->job_id); ?></span>
-                                                                    </div>
-                                                            <?php endif; ?>
-                                                        </div>
-
-                                                        <!-- Application Form Data -->
-                                                        <?php if (!empty($form_data)): ?>
-                                                                <div class="jpm-application-form-data">
-                                                                    <button type="button" class="jpm-toggle-details" data-application-id="<?php echo esc_attr($application->id); ?>">
-                                                                        <span class="jpm-toggle-text"><?php _e('View Application Details', 'job-posting-manager'); ?></span>
-                                                                        <span class="jpm-toggle-icon">▼</span>
-                                                                    </button>
-                                                                    <div class="jpm-application-details-content" id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
-                                                                        <div class="jpm-form-data-grid">
-                                                                            <?php foreach ($form_data as $key => $value):
-                                                                                // Skip empty values
-                                                                                if (empty($value) && $value !== '0' && $value !== 0)
-                                                                                    continue;
-
-                                                                                // Skip file uploads (they're usually URLs)
-                                                                                if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
-                                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                                    ?>
-                                                                                            <div class="jpm-form-data-item">
-                                                                                                <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                                                <span class="jpm-form-data-value">
-                                                                                                    <a href="<?php echo esc_url($value); ?>" target="_blank" rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
-                                                                                                </span>
-                                                                                            </div>
-                                                                                            <?php
-                                                                                            continue;
-                                                                                }
-
-                                                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                                $field_value = is_array($value) ? implode(', ', $value) : $value;
-                                                                                ?>
-                                                                                    <div class="jpm-form-data-item">
-                                                                                        <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                                        <span class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
-                                                                                    </div>
-                                                                            <?php endforeach; ?>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                        <?php endif; ?>
-                                                    </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                <?php endif; ?>
-                            </div>
-
-                            <!-- Information Tab -->
-                            <div class="jpm-profile-tab-content" id="jpm-tab-information">
-                                <div class="jpm-profile-tab-header">
-                                    <h2 class="jpm-profile-tab-title"><?php _e('Account Information', 'job-posting-manager'); ?></h2>
-                                </div>
-
-                                <div class="jpm-information-content">
-                                    <div class="jpm-info-section">
-                                        <h3 class="jpm-info-section-title"><?php _e('Personal Information', 'job-posting-manager'); ?></h3>
-                                        <div class="jpm-info-grid">
-                                            <div class="jpm-info-item">
-                                                <span class="jpm-info-label"><?php _e('Display Name:', 'job-posting-manager'); ?></span>
-                                                <span class="jpm-info-value"><?php echo esc_html($current_user->display_name); ?></span>
-                                            </div>
-                                            <div class="jpm-info-item">
-                                                <span class="jpm-info-label"><?php _e('Email Address:', 'job-posting-manager'); ?></span>
-                                                <span class="jpm-info-value"><?php echo esc_html($current_user->user_email); ?></span>
-                                            </div>
-                                            <?php if (!empty($current_user->first_name)): ?>
-                                                    <div class="jpm-info-item">
-                                                        <span class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
-                                                        <span class="jpm-info-value"><?php echo esc_html($current_user->first_name); ?></span>
-                                                    </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($current_user->last_name)): ?>
-                                                    <div class="jpm-info-item">
-                                                        <span class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
-                                                        <span class="jpm-info-value"><?php echo esc_html($current_user->last_name); ?></span>
-                                                    </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($current_user->user_registered)): ?>
-                                                    <div class="jpm-info-item">
-                                                        <span class="jpm-info-label"><?php _e('Member Since:', 'job-posting-manager'); ?></span>
-                                                        <span class="jpm-info-value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($current_user->user_registered))); ?></span>
-                                                    </div>
-                                            <?php endif; ?>
-                                        </div>
+                            <div class="jpm-info-section">
+                                <h3 class="jpm-info-section-title"><?php _e('Account Statistics', 'job-posting-manager'); ?>
+                                </h3>
+                                <div class="jpm-info-grid">
+                                    <div class="jpm-info-item">
+                                        <span
+                                            class="jpm-info-label"><?php _e('Total Applications:', 'job-posting-manager'); ?></span>
+                                        <span class="jpm-info-value"><?php echo count($applications); ?></span>
                                     </div>
-
-                                    <div class="jpm-info-section">
-                                        <h3 class="jpm-info-section-title"><?php _e('Account Statistics', 'job-posting-manager'); ?></h3>
-                                        <div class="jpm-info-grid">
-                                            <div class="jpm-info-item">
-                                                <span class="jpm-info-label"><?php _e('Total Applications:', 'job-posting-manager'); ?></span>
-                                                <span class="jpm-info-value"><?php echo count($applications); ?></span>
-                                            </div>
-                                            <div class="jpm-info-item">
-                                                <span class="jpm-info-label"><?php _e('User ID:', 'job-posting-manager'); ?></span>
-                                                <span class="jpm-info-value">#<?php echo esc_html($user_id); ?></span>
-                                            </div>
-                                        </div>
+                                    <div class="jpm-info-item">
+                                        <span class="jpm-info-label"><?php _e('User ID:', 'job-posting-manager'); ?></span>
+                                        <span class="jpm-info-value">#<?php echo esc_html($user_id); ?></span>
                                     </div>
                                 </div>
                             </div>
-                        </main>
+                        </div>
                     </div>
-                </div>
-
-                <style>
-                    .jpm-user-profile-wrapper {
-                        max-width: 1400px;
-                        margin: 30px auto;
-                        padding: 15px;
-                    }
-
-                    .jpm-user-profile-layout {
-                        display: flex;
-                        gap: 24px;
-                        background: #ffffff;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                        overflow: hidden;
-                    }
-
-                    /* Sidebar Styles */
-                    .jpm-profile-sidebar {
-                        width: 280px;
-                        min-width: 280px;
-                        background: #f9fafb;
-                        border-right: 1px solid #e5e7eb;
-                        display: flex;
-                        flex-direction: column;
-                    }
-
-                    .jpm-profile-sidebar-header {
-                        padding: 24px 20px;
-                        border-bottom: 1px solid #e5e7eb;
-                        background: #ffffff;
-                    }
-
-                    .jpm-profile-logo {
-                        margin-bottom: 20px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-
-                    .jpm-profile-logo .jpm-logo-image {
-                        max-height: 50px;
-                        width: auto;
-                    }
-
-                    .jpm-profile-user-info {
-                        text-align: center;
-                    }
-
-                    .jpm-profile-user-avatar {
-                        margin-bottom: 12px;
-                    }
-
-                    .jpm-profile-user-avatar img {
-                        border-radius: 50%;
-                        border: 3px solid #e5e7eb;
-                    }
-
-                    .jpm-profile-user-name {
-                        font-size: 16px;
-                        font-weight: 600;
-                        color: #111827;
-                        margin-bottom: 4px;
-                    }
-
-                    .jpm-profile-user-email {
-                        font-size: 13px;
-                        color: #6b7280;
-                    }
-
-                    .jpm-profile-nav {
-                        flex: 1;
-                        padding: 16px 0;
-                        display: flex;
-                        flex-direction: column;
-                    }
-
-                    .jpm-profile-nav-item {
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        padding: 12px 20px;
-                        color: #6b7280;
-                        text-decoration: none;
-                        font-size: 14px;
-                        font-weight: 500;
-                        transition: all 0.15s ease;
-                        border-left: 3px solid transparent;
-                        position: relative;
-                    }
-
-                    .jpm-profile-nav-item:hover {
-                        background: #f3f4f6;
-                        color: #111827;
-                    }
-
-                    .jpm-profile-nav-item.active {
-                        background: #eff6ff;
-                        color: #2563eb;
-                        border-left-color: #2563eb;
-                    }
-
-                    .jpm-profile-nav-item svg {
-                        flex-shrink: 0;
-                    }
-
-                    .jpm-nav-badge {
-                        margin-left: auto;
-                        background: #2563eb;
-                        color: #ffffff;
-                        font-size: 11px;
-                        font-weight: 600;
-                        padding: 2px 8px;
-                        border-radius: 12px;
-                        min-width: 20px;
-                        text-align: center;
-                    }
-
-                    .jpm-profile-nav-item.active .jpm-nav-badge {
-                        background: #1d4ed8;
-                    }
-
-                    .jpm-nav-logout {
-                        margin-top: auto;
-                        border-top: 1px solid #e5e7eb;
-                        color: #dc2626;
-                    }
-
-                    .jpm-nav-logout:hover {
-                        background: #fef2f2;
-                        color: #dc2626;
-                    }
-
-                    /* Main Content Styles */
-                    .jpm-profile-main {
-                        flex: 1;
-                        padding: 32px;
-                        background: #ffffff;
-                        min-height: 600px;
-                    }
-
-                    .jpm-profile-tab-content {
-                        display: none;
-                    }
-
-                    .jpm-profile-tab-content.active {
-                        display: block;
-                    }
-
-                    .jpm-profile-tab-header {
-                        margin-bottom: 24px;
-                        padding-bottom: 16px;
-                        border-bottom: 1px solid #e5e7eb;
-                    }
-
-                    .jpm-profile-tab-title {
-                        margin: 0;
-                        font-size: 24px;
-                        font-weight: 600;
-                        color: #111827;
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
-                    }
-
-                    .jpm-applications-count {
-                        font-size: 16px;
-                        font-weight: 400;
-                        color: #6b7280;
-                    }
-
-                    /* Dashboard Stats */
-                    .jpm-dashboard-stats {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                        gap: 20px;
-                        margin-bottom: 32px;
-                    }
-
-                    .jpm-stat-card {
-                        background: #ffffff;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        padding: 20px;
-                        display: flex;
-                        align-items: center;
-                        gap: 16px;
-                        transition: box-shadow 0.15s ease;
-                    }
-
-                    .jpm-stat-card:hover {
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                    }
-
-                    .jpm-stat-icon {
-                        width: 48px;
-                        height: 48px;
-                        border-radius: 8px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        flex-shrink: 0;
-                    }
-
-                    .jpm-stat-content {
-                        flex: 1;
-                    }
-
-                    .jpm-stat-value {
-                        font-size: 28px;
-                        font-weight: 700;
-                        color: #111827;
-                        line-height: 1;
-                        margin-bottom: 4px;
-                    }
-
-                    .jpm-stat-label {
-                        font-size: 13px;
-                        color: #6b7280;
-                        font-weight: 500;
-                    }
-
-                    .jpm-dashboard-recent {
-                        margin-top: 32px;
-                    }
-
-                    .jpm-dashboard-section-title {
-                        font-size: 18px;
-                        font-weight: 600;
-                        color: #111827;
-                        margin: 0 0 20px 0;
-                    }
-
-                    /* Application Cards */
-                    .jpm-applications-list {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 16px;
-                    }
-
-                    .jpm-application-card {
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        padding: 20px;
-                        background: #ffffff;
-                        transition: box-shadow 0.15s ease;
-                    }
-
-                    .jpm-application-card:hover {
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                    }
-
-                    .jpm-application-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        margin-bottom: 16px;
-                        flex-wrap: wrap;
-                        gap: 12px;
-                    }
-
-                    .jpm-application-job-title h4 {
-                        margin: 0 0 4px 0;
-                        font-size: 16px;
-                        font-weight: 600;
-                        color: #111827;
-                    }
-
-                    .jpm-application-number {
-                        font-size: 12px;
-                        color: #6b7280;
-                    }
-
-                    .jpm-status-badge {
-                        display: inline-block;
-                        padding: 4px 12px;
-                        border-radius: 12px;
-                        font-size: 12px;
-                        font-weight: 500;
-                        white-space: nowrap;
-                    }
-
-                    .jpm-application-details {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                        gap: 12px;
-                        margin-bottom: 16px;
-                    }
-
-                    .jpm-application-detail-item {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 4px;
-                    }
-
-                    .jpm-detail-label {
-                        font-size: 12px;
-                        color: #6b7280;
-                        font-weight: 500;
-                    }
-
-                    .jpm-detail-value {
-                        font-size: 14px;
-                        color: #111827;
-                    }
-
-                    .jpm-toggle-details {
-                        background: none;
-                        border: none;
-                        color: #2563eb;
-                        cursor: pointer;
-                        padding: 8px 0;
-                        font-size: 13px;
-                        font-weight: 500;
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        transition: color 0.15s ease;
-                    }
-
-                    .jpm-toggle-details:hover {
-                        color: #1d4ed8;
-                        text-decoration: underline;
-                    }
-
-                    .jpm-toggle-icon {
-                        font-size: 10px;
-                        transition: transform 0.2s ease;
-                    }
-
-                    .jpm-toggle-details.active .jpm-toggle-icon {
-                        transform: rotate(180deg);
-                    }
-
-                    .jpm-application-details-content {
-                        margin-top: 16px;
-                        padding-top: 16px;
-                        border-top: 1px solid #e5e7eb;
-                    }
-
-                    .jpm-form-data-grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                        gap: 12px;
-                    }
-
-                    .jpm-form-data-item {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 4px;
-                    }
-
-                    .jpm-form-data-label {
-                        font-size: 12px;
-                        color: #6b7280;
-                        font-weight: 500;
-                    }
-
-                    .jpm-form-data-value {
-                        font-size: 14px;
-                        color: #111827;
-                        word-break: break-word;
-                    }
-
-                    .jpm-form-data-value a {
-                        color: #2563eb;
-                        text-decoration: none;
-                    }
-
-                    .jpm-form-data-value a:hover {
-                        text-decoration: underline;
-                    }
-
-                    /* Information Tab */
-                    .jpm-information-content {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 32px;
-                    }
-
-                    .jpm-info-section {
-                        background: #f9fafb;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        padding: 24px;
-                    }
-
-                    .jpm-info-section-title {
-                        margin: 0 0 20px 0;
-                        font-size: 18px;
-                        font-weight: 600;
-                        color: #111827;
-                    }
-
-                    .jpm-info-grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                        gap: 16px;
-                    }
-
-                    .jpm-info-item {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 6px;
-                    }
-
-                    .jpm-info-label {
-                        font-size: 13px;
-                        font-weight: 500;
-                        color: #6b7280;
-                    }
-
-                    .jpm-info-value {
-                        font-size: 15px;
-                        color: #111827;
-                        font-weight: 500;
-                    }
-
-                    .jpm-no-applications {
-                        text-align: center;
-                        padding: 60px 20px;
-                        color: #6b7280;
-                    }
-
-                    .jpm-no-applications p {
-                        margin: 0 0 20px 0;
-                        font-size: 15px;
-                    }
-
-                    .jpm-btn {
-                        display: inline-block;
-                        padding: 10px 20px;
-                        font-size: 14px;
-                        font-weight: 500;
-                        text-align: center;
-                        text-decoration: none;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        transition: background-color 0.15s ease;
-                        font-family: inherit;
-                    }
-
-                    .jpm-btn-primary {
-                        background: #2563eb;
-                        color: #ffffff;
-                    }
-
-                    .jpm-btn-primary:hover {
-                        background: #1d4ed8;
-                    }
-
-                    /* Responsive */
-                    @media (max-width: 1024px) {
-                        .jpm-user-profile-layout {
-                            flex-direction: column;
-                        }
-
-                        .jpm-profile-sidebar {
-                            width: 100%;
-                            min-width: auto;
-                            border-right: none;
-                            border-bottom: 1px solid #e5e7eb;
-                        }
-
-                        .jpm-profile-nav {
-                            flex-direction: row;
-                            overflow-x: auto;
-                            padding: 12px 0;
-                        }
-
-                        .jpm-profile-nav-item {
-                            white-space: nowrap;
-                            border-left: none;
-                            border-bottom: 3px solid transparent;
-                        }
-
-                        .jpm-profile-nav-item.active {
-                            border-left: none;
-                            border-bottom-color: #2563eb;
-                        }
-
-                        .jpm-profile-main {
-                            padding: 24px;
-                        }
-                    }
-
-                    @media (max-width: 768px) {
-                        .jpm-user-profile-wrapper {
-                            margin: 20px auto;
-                            padding: 10px;
-                        }
-
-                        .jpm-profile-main {
-                            padding: 20px;
-                        }
-
-                        .jpm-dashboard-stats {
-                            grid-template-columns: 1fr;
-                        }
-
-                        .jpm-application-header {
-                            flex-direction: column;
-                        }
-
-                        .jpm-application-details,
-                        .jpm-form-data-grid,
-                        .jpm-info-grid {
-                            grid-template-columns: 1fr;
-                        }
-                    }
-                </style>
-
-                <script type="text/javascript">
-                    jQuery(document).ready(function ($) {
-                        // Tab switching
-                        $('.jpm-profile-nav-item').on('click', function (e) {
-                            e.preventDefault();
+                </main>
+            </div>
+        </div>
+
+        <style>
+            .jpm-user-profile-wrapper {
+                max-width: 1400px;
+                margin: 30px auto;
+                padding: 15px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .jpm-user-profile-wrapper * {
+                box-sizing: border-box;
+            }
+
+            .jpm-user-profile-layout {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: flex-start !important;
+                gap: 0 !important;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                overflow: visible !important;
+                width: 100% !important;
+                clear: both !important;
+                position: relative !important;
+                flex-wrap: nowrap !important;
+            }
+
+            .jpm-user-profile-layout::before,
+            .jpm-user-profile-layout::after {
+                display: none !important;
+                content: none !important;
+            }
+
+            .jpm-user-profile-layout > aside {
+                flex-shrink: 0 !important;
+                flex-grow: 0 !important;
+                display: flex !important;
+                width: 280px !important;
+                min-width: 280px !important;
+                max-width: 280px !important;
+            }
+
+            .jpm-user-profile-layout > main {
+                flex-shrink: 1 !important;
+                flex-grow: 1 !important;
+                display: block !important;
+                width: auto !important;
+                min-width: 0 !important;
+            }
+            
+            /* Additional override rules */
+            .jpm-user-profile-wrapper .jpm-user-profile-layout > .jpm-profile-sidebar {
+                width: 280px !important;
+                min-width: 280px !important;
+                max-width: 280px !important;
+                flex: 0 0 280px !important;
+                flex-shrink: 0 !important;
+                flex-grow: 0 !important;
+                display: flex !important;
+                float: none !important;
+            }
+            
+            .jpm-user-profile-wrapper .jpm-user-profile-layout > .jpm-profile-main {
+                flex: 1 1 auto !important;
+                flex-grow: 1 !important;
+                flex-shrink: 1 !important;
+                display: block !important;
+                float: none !important;
+            }
+
+            /* Sidebar Styles */
+            .jpm-profile-sidebar {
+                width: 280px !important;
+                min-width: 280px !important;
+                max-width: 280px !important;
+                flex: 0 0 280px !important;
+                flex-shrink: 0 !important;
+                flex-grow: 0 !important;
+                background: #f9fafb;
+                border-right: 1px solid #e5e7eb;
+                display: flex !important;
+                flex-direction: column !important;
+                float: none !important;
+                position: relative !important;
+                vertical-align: top !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .jpm-profile-sidebar-header {
+                padding: 24px 20px;
+                border-bottom: 1px solid #e5e7eb;
+                background: #ffffff;
+            }
+
+            .jpm-profile-logo {
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .jpm-profile-logo .jpm-logo-image {
+                max-height: 50px;
+                width: auto;
+            }
+
+            .jpm-profile-user-info {
+                text-align: center;
+            }
+
+            .jpm-profile-user-avatar {
+                margin-bottom: 12px;
+            }
+
+            .jpm-profile-user-avatar img {
+                border-radius: 50%;
+                border: 3px solid #e5e7eb;
+            }
+
+            .jpm-profile-user-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: #111827;
+                margin-bottom: 4px;
+            }
+
+            .jpm-profile-user-email {
+                font-size: 13px;
+                color: #6b7280;
+            }
+
+            .jpm-profile-nav {
+                flex: 1;
+                padding: 16px 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .jpm-profile-nav-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 20px;
+                color: #6b7280;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.15s ease;
+                border-left: 3px solid transparent;
+                position: relative;
+            }
+
+            .jpm-profile-nav-item:hover {
+                background: #f3f4f6;
+                color: #111827;
+            }
+
+            .jpm-profile-nav-item.active {
+                background: #eff6ff;
+                color: #2563eb;
+                border-left-color: #2563eb;
+            }
+
+            .jpm-profile-nav-item svg {
+                flex-shrink: 0;
+            }
+
+            .jpm-nav-badge {
+                margin-left: auto;
+                background: #2563eb;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 2px 8px;
+                border-radius: 12px;
+                min-width: 20px;
+                text-align: center;
+            }
+
+            .jpm-profile-nav-item.active .jpm-nav-badge {
+                background: #1d4ed8;
+            }
+
+            .jpm-nav-logout {
+                margin-top: auto;
+                border-top: 1px solid #e5e7eb;
+                color: #dc2626;
+            }
+
+            .jpm-nav-logout:hover {
+                background: #fef2f2;
+                color: #dc2626;
+            }
+
+            /* Main Content Styles */
+            .jpm-profile-main {
+                flex: 1 1 auto !important;
+                flex-grow: 1 !important;
+                flex-shrink: 1 !important;
+                min-width: 0 !important;
+                width: auto !important;
+                padding: 32px;
+                background: #ffffff;
+                min-height: 600px;
+                float: none !important;
+                display: block !important;
+                position: relative !important;
+                overflow: visible !important;
+                vertical-align: top !important;
+                margin: 0 !important;
+            }
+            
+            /* Ensure all tab content stays inside main */
+            .jpm-profile-main .jpm-profile-tab-content {
+                display: none !important;
+                position: relative !important;
+                width: 100% !important;
+                float: none !important;
+                clear: both !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+            }
+            
+            .jpm-profile-main .jpm-profile-tab-content.active {
+                display: block !important;
+                position: relative !important;
+                width: 100% !important;
+                float: none !important;
+                clear: both !important;
+                box-sizing: border-box !important;
+            }
+            
+            /* Prevent tabs from breaking out */
+            .jpm-profile-main {
+                contain: layout style !important;
+            }
+
+            .jpm-profile-tab-content {
+                display: none !important;
+                position: relative !important;
+                width: 100% !important;
+                float: none !important;
+                clear: both !important;
+            }
+
+            .jpm-profile-tab-content.active {
+                display: block !important;
+                position: relative !important;
+                width: 100% !important;
+                float: none !important;
+                clear: both !important;
+            }
+
+            .jpm-profile-tab-header {
+                margin-bottom: 24px;
+                padding-bottom: 16px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .jpm-profile-tab-title {
+                margin: 0;
+                font-size: 24px;
+                font-weight: 600;
+                color: #111827;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .jpm-applications-count {
+                font-size: 16px;
+                font-weight: 400;
+                color: #6b7280;
+            }
+
+            /* Dashboard Stats */
+            .jpm-dashboard-stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 32px;
+            }
+
+            .jpm-stat-card {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 20px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                transition: box-shadow 0.15s ease;
+            }
+
+            .jpm-stat-card:hover {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-stat-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .jpm-stat-content {
+                flex: 1;
+            }
+
+            .jpm-stat-value {
+                font-size: 28px;
+                font-weight: 700;
+                color: #111827;
+                line-height: 1;
+                margin-bottom: 4px;
+            }
+
+            .jpm-stat-label {
+                font-size: 13px;
+                color: #6b7280;
+                font-weight: 500;
+            }
+
+            .jpm-dashboard-status-breakdown {
+                margin-bottom: 32px;
+            }
+
+            .jpm-status-breakdown-list {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .jpm-status-breakdown-item {
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                padding: 16px;
+            }
+
+            .jpm-status-breakdown-info {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+
+            .jpm-status-breakdown-badge {
+                display: inline-block;
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+
+            .jpm-status-breakdown-count {
+                font-size: 14px;
+                color: #6b7280;
+                font-weight: 500;
+            }
+
+            .jpm-status-breakdown-bar {
+                height: 6px;
+                background: #e5e7eb;
+                border-radius: 3px;
+                overflow: hidden;
+            }
+
+            .jpm-status-breakdown-fill {
+                height: 100%;
+                border-radius: 3px;
+                transition: width 0.3s ease;
+            }
+
+            .jpm-dashboard-recent {
+                margin-top: 32px;
+            }
+
+            .jpm-dashboard-section-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
+            .jpm-dashboard-section-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #111827;
+                margin: 0;
+            }
+
+            .jpm-view-all-link {
+                color: #2563eb;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+            }
+
+            .jpm-view-all-link:hover {
+                text-decoration: underline;
+                color: #1d4ed8;
+            }
+
+            /* Application Cards */
+            .jpm-applications-list {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .jpm-application-card {
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 20px;
+                background: #ffffff;
+                transition: box-shadow 0.15s ease;
+            }
+
+            .jpm-application-card:hover {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-application-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .jpm-application-job-title h4 {
+                margin: 0 0 4px 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #111827;
+            }
+
+            .jpm-application-number {
+                font-size: 12px;
+                color: #6b7280;
+            }
+
+            .jpm-status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+                white-space: nowrap;
+            }
+
+            .jpm-application-details {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .jpm-application-detail-item {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .jpm-detail-label {
+                font-size: 12px;
+                color: #6b7280;
+                font-weight: 500;
+            }
+
+            .jpm-detail-value {
+                font-size: 14px;
+                color: #111827;
+            }
+
+            .jpm-toggle-details {
+                background: none;
+                border: none;
+                color: #2563eb;
+                cursor: pointer;
+                padding: 8px 0;
+                font-size: 13px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: color 0.15s ease;
+            }
+
+            .jpm-toggle-details:hover {
+                color: #1d4ed8;
+                text-decoration: underline;
+            }
+
+            .jpm-toggle-icon {
+                font-size: 10px;
+                transition: transform 0.2s ease;
+            }
+
+            .jpm-toggle-details.active .jpm-toggle-icon {
+                transform: rotate(180deg);
+            }
+
+            .jpm-application-details-content {
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .jpm-form-data-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 12px;
+            }
+
+            .jpm-form-data-item {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .jpm-form-data-label {
+                font-size: 12px;
+                color: #6b7280;
+                font-weight: 500;
+            }
+
+            .jpm-form-data-value {
+                font-size: 14px;
+                color: #111827;
+                word-break: break-word;
+            }
+
+            .jpm-form-data-value a {
+                color: #2563eb;
+                text-decoration: none;
+            }
+
+            .jpm-form-data-value a:hover {
+                text-decoration: underline;
+            }
+
+            /* Information Tab */
+            .jpm-information-content {
+                display: flex;
+                flex-direction: column;
+                gap: 32px;
+            }
+
+            .jpm-info-section {
+                background: #f9fafb;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 24px;
+            }
+
+            .jpm-info-section-title {
+                margin: 0 0 20px 0;
+                font-size: 18px;
+                font-weight: 600;
+                color: #111827;
+            }
+
+            .jpm-info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 16px;
+            }
+
+            .jpm-info-item {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .jpm-info-label {
+                font-size: 13px;
+                font-weight: 500;
+                color: #6b7280;
+            }
+
+            .jpm-info-value {
+                font-size: 15px;
+                color: #111827;
+                font-weight: 500;
+            }
+
+            .jpm-no-applications {
+                text-align: center;
+                padding: 60px 20px;
+                color: #6b7280;
+            }
+
+            .jpm-no-applications p {
+                margin: 0 0 20px 0;
+                font-size: 15px;
+            }
+
+            .jpm-btn {
+                display: inline-block;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 500;
+                text-align: center;
+                text-decoration: none;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-btn-primary {
+                background: #2563eb;
+                color: #ffffff;
+            }
+
+            .jpm-btn-primary:hover {
+                background: #1d4ed8;
+            }
+
+            /* Responsive */
+            @media (max-width: 1024px) {
+                .jpm-user-profile-layout {
+                    flex-direction: column;
+                }
+
+                .jpm-profile-sidebar {
+                    width: 100%;
+                    min-width: auto;
+                    border-right: none;
+                    border-bottom: 1px solid #e5e7eb;
+                }
+
+                .jpm-profile-nav {
+                    flex-direction: row;
+                    overflow-x: auto;
+                    padding: 12px 0;
+                }
+
+                .jpm-profile-nav-item {
+                    white-space: nowrap;
+                    border-left: none;
+                    border-bottom: 3px solid transparent;
+                }
+
+                .jpm-profile-nav-item.active {
+                    border-left: none;
+                    border-bottom-color: #2563eb;
+                }
+
+                .jpm-profile-main {
+                    padding: 24px;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .jpm-user-profile-wrapper {
+                    margin: 20px auto;
+                    padding: 10px;
+                }
+
+                .jpm-profile-main {
+                    padding: 20px;
+                }
+
+                .jpm-dashboard-stats {
+                    grid-template-columns: 1fr;
+                }
+
+                .jpm-application-header {
+                    flex-direction: column;
+                }
+
+                .jpm-application-details,
+                .jpm-form-data-grid,
+                .jpm-info-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+
+        <script type="text/javascript">
+            jQuery(document).ready(function ($) {
+                // Force correct layout on load
+                function fixLayout() {
+                    var $layout = $('.jpm-user-profile-layout');
+                    var $sidebar = $('.jpm-profile-sidebar');
+                    var $main = $('.jpm-profile-main');
                     
-                            // Don't handle logout link
-                            if ($(this).hasClass('jpm-nav-logout')) {
-                                return true;
-                            }
-
-                            var tab = $(this).data('tab');
-                    
-                            // Update active nav item
-                            $('.jpm-profile-nav-item').removeClass('active');
-                            $(this).addClass('active');
-                    
-                            // Update active tab content
-                            $('.jpm-profile-tab-content').removeClass('active');
-                            $('#jpm-tab-' + tab).addClass('active');
+                    if ($layout.length && $sidebar.length && $main.length) {
+                        $layout.css({
+                            'display': 'flex',
+                            'flex-direction': 'row',
+                            'align-items': 'flex-start',
+                            'width': '100%'
                         });
-
-                        // Toggle application details
-                        $('.jpm-toggle-details').on('click', function () {
-                            var $button = $(this);
-                            var applicationId = $button.data('application-id');
-                            var $content = $('#jpm-details-' + applicationId);
-                    
-                            $content.slideToggle(300);
-                            $button.toggleClass('active');
+                        $sidebar.css({
+                            'width': '280px',
+                            'min-width': '280px',
+                            'max-width': '280px',
+                            'flex': '0 0 280px',
+                            'flex-shrink': '0',
+                            'flex-grow': '0',
+                            'display': 'flex',
+                            'flex-direction': 'column',
+                            'float': 'none'
+                        });
+                        $main.css({
+                            'flex': '1 1 auto',
+                            'flex-grow': '1',
+                            'flex-shrink': '1',
+                            'display': 'block',
+                            'float': 'none'
+                        });
+                    }
+                }
+                
+                // Fix layout immediately and after delays
+                fixLayout();
+                setTimeout(fixLayout, 100);
+                setTimeout(fixLayout, 500);
+                setTimeout(fixLayout, 1000);
+                
+                // Ensure tab content stays in main container
+                function fixTabContent() {
+                    $('.jpm-profile-tab-content').each(function() {
+                        var $tab = $(this);
+                        var $main = $tab.closest('.jpm-profile-main');
+                        if ($main.length && !$main.is($tab.parent())) {
+                            // Tab is outside main, move it inside
+                            $main.append($tab);
+                        }
+                        $tab.css({
+                            'display': $tab.hasClass('active') ? 'block' : 'none',
+                            'position': 'relative',
+                            'width': '100%',
+                            'float': 'none',
+                            'clear': 'both'
                         });
                     });
-                </script>
-                <?php
-                return ob_get_clean();
+                }
+                
+                fixTabContent();
+                setTimeout(fixTabContent, 100);
+                setTimeout(fixTabContent, 500);
+                
+                // Tab switching
+                $('.jpm-profile-nav-item').on('click', function (e) {
+                    e.preventDefault();
+
+                    // Don't handle logout link
+                    if ($(this).hasClass('jpm-nav-logout')) {
+                        return true;
+                    }
+
+                    var tab = $(this).data('tab');
+                    switchTab(tab);
+                });
+
+                // View All link handler
+                $('.jpm-view-all-link').on('click', function (e) {
+                    e.preventDefault();
+                    var tab = $(this).data('tab');
+                    switchTab(tab);
+                });
+
+                // Tab switching function
+                function switchTab(tab) {
+                    // Update active nav item
+                    $('.jpm-profile-nav-item').removeClass('active');
+                    $('.jpm-profile-nav-item[data-tab="' + tab + '"]').addClass('active');
+
+                    // Update active tab content
+                    $('.jpm-profile-tab-content').removeClass('active');
+                    var $activeTab = $('#jpm-tab-' + tab);
+                    
+                    // Ensure tab is inside main container
+                    var $main = $('.jpm-profile-main');
+                    if ($main.length && !$main.is($activeTab.parent())) {
+                        $main.append($activeTab);
+                    }
+                    
+                    $activeTab.addClass('active');
+                    
+                    // Force correct display
+                    $activeTab.css({
+                        'display': 'block',
+                        'position': 'relative',
+                        'width': '100%',
+                        'float': 'none',
+                        'clear': 'both'
+                    });
+                    
+                    // Hide other tabs
+                    $('.jpm-profile-tab-content').not($activeTab).css('display', 'none');
+
+                    // Scroll to top of main content
+                    $('.jpm-profile-main').scrollTop(0);
+                    
+                    // Re-apply layout fix
+                    fixLayout();
+                }
+
+                // Toggle application details
+                $('.jpm-toggle-details').on('click', function () {
+                    var $button = $(this);
+                    var applicationId = $button.data('application-id');
+                    var $content = $('#jpm-details-' + applicationId);
+
+                    $content.slideToggle(300);
+                    $button.toggleClass('active');
+                });
+            });
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
     /**
