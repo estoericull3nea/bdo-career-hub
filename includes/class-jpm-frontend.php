@@ -3920,7 +3920,106 @@ class JPM_Frontend
                                         </div>
 
                                         <!-- Application Form Data -->
-                                        <?php if (!empty($form_data)): ?>
+                                        <?php if (!empty($form_data)):
+                                            // Get form fields structure from job posting to determine categories
+                                            $job_form_fields = [];
+                                            if ($job) {
+                                                $job_form_fields = get_post_meta($job->ID, '_jpm_form_fields', true);
+                                                if (!is_array($job_form_fields)) {
+                                                    $job_form_fields = [];
+                                                }
+                                            }
+
+                                            // Categorize fields into sections
+                                            $personal_fields = [];
+                                            $education_fields = [];
+                                            $employment_fields = [];
+                                            $additional_fields = [];
+
+                                            foreach ($form_data as $key => $value) {
+                                                // Skip empty values
+                                                if (empty($value) && $value !== '0' && $value !== 0) {
+                                                    continue;
+                                                }
+
+                                                $key_lower = strtolower($key);
+                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+
+                                                // Try to find field in job form structure
+                                                $field_category = 'additional';
+                                                foreach ($job_form_fields as $field) {
+                                                    if (isset($field['name']) && $field['name'] === $key) {
+                                                        // Check if field has category/step info
+                                                        if (isset($field['step']) || isset($field['category'])) {
+                                                            $step = isset($field['step']) ? $field['step'] : (isset($field['category']) ? $field['category'] : '');
+                                                            $step_lower = strtolower($step);
+                                                            if (stripos($step_lower, 'personal') !== false) {
+                                                                $field_category = 'personal';
+                                                            } elseif (stripos($step_lower, 'education') !== false) {
+                                                                $field_category = 'education';
+                                                            } elseif (stripos($step_lower, 'employment') !== false) {
+                                                                $field_category = 'employment';
+                                                            }
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+
+                                                // Auto-categorize based on field name if not found in structure
+                                                if ($field_category === 'additional') {
+                                                    if (
+                                                        stripos($key_lower, 'personal') !== false ||
+                                                        stripos($key_lower, 'name') !== false ||
+                                                        stripos($key_lower, 'email') !== false ||
+                                                        stripos($key_lower, 'phone') !== false ||
+                                                        stripos($key_lower, 'address') !== false ||
+                                                        stripos($key_lower, 'birth') !== false ||
+                                                        stripos($key_lower, 'gender') !== false ||
+                                                        stripos($key_lower, 'civil') !== false ||
+                                                        stripos($key_lower, 'nationality') !== false
+                                                    ) {
+                                                        $field_category = 'personal';
+                                                    } elseif (
+                                                        stripos($key_lower, 'education') !== false ||
+                                                        stripos($key_lower, 'school') !== false ||
+                                                        stripos($key_lower, 'degree') !== false ||
+                                                        stripos($key_lower, 'course') !== false ||
+                                                        stripos($key_lower, 'university') !== false ||
+                                                        stripos($key_lower, 'college') !== false ||
+                                                        stripos($key_lower, 'graduation') !== false
+                                                    ) {
+                                                        $field_category = 'education';
+                                                    } elseif (
+                                                        stripos($key_lower, 'employment') !== false ||
+                                                        stripos($key_lower, 'employer') !== false ||
+                                                        stripos($key_lower, 'company') !== false ||
+                                                        stripos($key_lower, 'position') !== false ||
+                                                        stripos($key_lower, 'job') !== false ||
+                                                        stripos($key_lower, 'work') !== false ||
+                                                        stripos($key_lower, 'experience') !== false ||
+                                                        stripos($key_lower, 'salary') !== false
+                                                    ) {
+                                                        $field_category = 'employment';
+                                                    }
+                                                }
+
+                                                // Add to appropriate category
+                                                switch ($field_category) {
+                                                    case 'personal':
+                                                        $personal_fields[$key] = $value;
+                                                        break;
+                                                    case 'education':
+                                                        $education_fields[$key] = $value;
+                                                        break;
+                                                    case 'employment':
+                                                        $employment_fields[$key] = $value;
+                                                        break;
+                                                    default:
+                                                        $additional_fields[$key] = $value;
+                                                        break;
+                                                }
+                                            }
+                                            ?>
                                             <div class="jpm-application-form-data">
                                                 <button type="button" class="jpm-toggle-details"
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
@@ -3930,36 +4029,138 @@ class JPM_Frontend
                                                 </button>
                                                 <div class="jpm-application-details-content"
                                                     id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
-                                                    <div class="jpm-form-data-grid">
-                                                        <?php foreach ($form_data as $key => $value):
-                                                            // Skip empty values
-                                                            if (empty($value) && $value !== '0' && $value !== 0)
-                                                                continue;
 
-                                                            // Skip file uploads (they're usually URLs)
-                                                            if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
-                                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                ?>
-                                                                <div class="jpm-form-data-item">
-                                                                    <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                    <span class="jpm-form-data-value">
-                                                                        <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                            rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
-                                                                    </span>
-                                                                </div>
-                                                                <?php
-                                                                continue;
-                                                            }
-
-                                                            $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                            $field_value = is_array($value) ? implode(', ', $value) : $value;
-                                                            ?>
-                                                            <div class="jpm-form-data-item">
-                                                                <span class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                <span class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
+                                                    <?php if (!empty($personal_fields)): ?>
+                                                        <div class="jpm-form-data-section">
+                                                            <h4 class="jpm-form-data-section-title">
+                                                                <?php _e('Personal Information', 'job-posting-manager'); ?></h4>
+                                                            <div class="jpm-form-data-grid">
+                                                                <?php foreach ($personal_fields as $key => $value):
+                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                                        ?>
+                                                                        <div class="jpm-form-data-item">
+                                                                            <span
+                                                                                class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                            <span class="jpm-form-data-value">
+                                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                            </span>
+                                                                        </div>
+                                                                        <?php
+                                                                        continue;
+                                                                    }
+                                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                                    ?>
+                                                                    <div class="jpm-form-data-item">
+                                                                        <span
+                                                                            class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                        <span
+                                                                            class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
+                                                                    </div>
+                                                                <?php endforeach; ?>
                                                             </div>
-                                                        <?php endforeach; ?>
-                                                    </div>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if (!empty($education_fields)): ?>
+                                                        <div class="jpm-form-data-section">
+                                                            <h4 class="jpm-form-data-section-title">
+                                                                <?php _e('Education', 'job-posting-manager'); ?></h4>
+                                                            <div class="jpm-form-data-grid">
+                                                                <?php foreach ($education_fields as $key => $value):
+                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                                        ?>
+                                                                        <div class="jpm-form-data-item">
+                                                                            <span
+                                                                                class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                            <span class="jpm-form-data-value">
+                                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                            </span>
+                                                                        </div>
+                                                                        <?php
+                                                                        continue;
+                                                                    }
+                                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                                    ?>
+                                                                    <div class="jpm-form-data-item">
+                                                                        <span
+                                                                            class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                        <span
+                                                                            class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
+                                                                    </div>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if (!empty($employment_fields)): ?>
+                                                        <div class="jpm-form-data-section">
+                                                            <h4 class="jpm-form-data-section-title">
+                                                                <?php _e('Employment', 'job-posting-manager'); ?></h4>
+                                                            <div class="jpm-form-data-grid">
+                                                                <?php foreach ($employment_fields as $key => $value):
+                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                                        ?>
+                                                                        <div class="jpm-form-data-item">
+                                                                            <span
+                                                                                class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                            <span class="jpm-form-data-value">
+                                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                            </span>
+                                                                        </div>
+                                                                        <?php
+                                                                        continue;
+                                                                    }
+                                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                                    ?>
+                                                                    <div class="jpm-form-data-item">
+                                                                        <span
+                                                                            class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                        <span
+                                                                            class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
+                                                                    </div>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if (!empty($additional_fields)): ?>
+                                                        <div class="jpm-form-data-section">
+                                                            <h4 class="jpm-form-data-section-title">
+                                                                <?php _e('Additional Information', 'job-posting-manager'); ?></h4>
+                                                            <div class="jpm-form-data-grid">
+                                                                <?php foreach ($additional_fields as $key => $value):
+                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                                        ?>
+                                                                        <div class="jpm-form-data-item">
+                                                                            <span
+                                                                                class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                            <span class="jpm-form-data-value">
+                                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                            </span>
+                                                                        </div>
+                                                                        <?php
+                                                                        continue;
+                                                                    }
+                                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                                    ?>
+                                                                    <div class="jpm-form-data-item">
+                                                                        <span
+                                                                            class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
+                                                                        <span
+                                                                            class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
+                                                                    </div>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                         <?php endif; ?>
@@ -3981,24 +4182,42 @@ class JPM_Frontend
                                     <h3 class="jpm-info-section-title">
                                         <?php _e('Personal Information', 'job-posting-manager'); ?>
                                     </h3>
-                                    <button type="button" class="jpm-edit-info-btn" id="jpm-edit-personal-info">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                        </svg>
-                                        <span><?php _e('Edit', 'job-posting-manager'); ?></span>
-                                    </button>
+                                    <div class="jpm-edit-buttons">
+                                        <button type="button" class="jpm-edit-info-btn" id="jpm-edit-personal-info">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                            </svg>
+                                            <span><?php _e('Edit', 'job-posting-manager'); ?></span>
+                                        </button>
+                                        <button type="button" class="jpm-edit-info-btn" id="jpm-save-personal-info"
+                                            style="display: none;">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                            <span><?php _e('Save', 'job-posting-manager'); ?></span>
+                                        </button>
+                                        <button type="button" class="jpm-btn jpm-btn-secondary" id="jpm-cancel-edit-info"
+                                            style="display: none;">
+                                            <?php _e('Cancel', 'job-posting-manager'); ?>
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <!-- Display View -->
-                                <div class="jpm-info-display" id="jpm-info-display">
-                                    <div class="jpm-info-grid">
+                                <form id="jpm-update-personal-info-form">
+                                    <?php wp_nonce_field('jpm_update_personal_info', 'jpm_update_info_nonce'); ?>
+                                    <div class="jpm-info-grid" id="jpm-info-display">
                                         <div class="jpm-info-item">
                                             <span
                                                 class="jpm-info-label"><?php _e('Display Name:', 'job-posting-manager'); ?></span>
-                                            <span class="jpm-info-value"
-                                                id="jpm-display-name-value"><?php echo esc_html($current_user->display_name); ?></span>
+                                            <span class="jpm-info-value jpm-editable-value" id="jpm-display-name-value"
+                                                data-field="display_name"><?php echo esc_html($current_user->display_name); ?></span>
+                                            <input type="text" id="jpm-edit-display-name" name="display_name"
+                                                class="jpm-edit-input"
+                                                value="<?php echo esc_attr($current_user->display_name); ?>"
+                                                style="display: none;" required>
                                         </div>
                                         <div class="jpm-info-item">
                                             <span
@@ -4006,22 +4225,24 @@ class JPM_Frontend
                                             <span
                                                 class="jpm-info-value"><?php echo esc_html($current_user->user_email); ?></span>
                                         </div>
-                                        <?php if (!empty($current_user->first_name)): ?>
-                                            <div class="jpm-info-item">
-                                                <span
-                                                    class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
-                                                <span class="jpm-info-value"
-                                                    id="jpm-first-name-value"><?php echo esc_html($current_user->first_name); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($current_user->last_name)): ?>
-                                            <div class="jpm-info-item">
-                                                <span
-                                                    class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
-                                                <span class="jpm-info-value"
-                                                    id="jpm-last-name-value"><?php echo esc_html($current_user->last_name); ?></span>
-                                            </div>
-                                        <?php endif; ?>
+                                        <div class="jpm-info-item">
+                                            <span
+                                                class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
+                                            <span class="jpm-info-value jpm-editable-value" id="jpm-first-name-value"
+                                                data-field="first_name"><?php echo esc_html($current_user->first_name ? $current_user->first_name : ''); ?></span>
+                                            <input type="text" id="jpm-edit-first-name" name="first_name" class="jpm-edit-input"
+                                                value="<?php echo esc_attr($current_user->first_name); ?>"
+                                                style="display: none;">
+                                        </div>
+                                        <div class="jpm-info-item">
+                                            <span
+                                                class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
+                                            <span class="jpm-info-value jpm-editable-value" id="jpm-last-name-value"
+                                                data-field="last_name"><?php echo esc_html($current_user->last_name ? $current_user->last_name : ''); ?></span>
+                                            <input type="text" id="jpm-edit-last-name" name="last_name" class="jpm-edit-input"
+                                                value="<?php echo esc_attr($current_user->last_name); ?>"
+                                                style="display: none;">
+                                        </div>
                                         <?php if (!empty($current_user->user_registered)): ?>
                                             <div class="jpm-info-item">
                                                 <span
@@ -4031,46 +4252,8 @@ class JPM_Frontend
                                             </div>
                                         <?php endif; ?>
                                     </div>
-                                </div>
-
-                                <!-- Edit Form -->
-                                <div class="jpm-info-edit-form" id="jpm-info-edit-form" style="display: none;">
-                                    <form id="jpm-update-personal-info-form">
-                                        <?php wp_nonce_field('jpm_update_personal_info', 'jpm_update_info_nonce'); ?>
-                                        <div class="jpm-edit-form-grid">
-                                            <div class="jpm-edit-form-item">
-                                                <label for="jpm-edit-display-name"
-                                                    class="jpm-edit-label"><?php _e('Display Name:', 'job-posting-manager'); ?></label>
-                                                <input type="text" id="jpm-edit-display-name" name="display_name"
-                                                    class="jpm-edit-input"
-                                                    value="<?php echo esc_attr($current_user->display_name); ?>" required>
-                                            </div>
-                                            <div class="jpm-edit-form-item">
-                                                <label for="jpm-edit-first-name"
-                                                    class="jpm-edit-label"><?php _e('First Name:', 'job-posting-manager'); ?></label>
-                                                <input type="text" id="jpm-edit-first-name" name="first_name"
-                                                    class="jpm-edit-input"
-                                                    value="<?php echo esc_attr($current_user->first_name); ?>">
-                                            </div>
-                                            <div class="jpm-edit-form-item">
-                                                <label for="jpm-edit-last-name"
-                                                    class="jpm-edit-label"><?php _e('Last Name:', 'job-posting-manager'); ?></label>
-                                                <input type="text" id="jpm-edit-last-name" name="last_name"
-                                                    class="jpm-edit-input"
-                                                    value="<?php echo esc_attr($current_user->last_name); ?>">
-                                            </div>
-                                        </div>
-                                        <div class="jpm-edit-form-actions">
-                                            <button type="submit" class="jpm-btn jpm-btn-primary" id="jpm-save-info-btn">
-                                                <?php _e('Save Changes', 'job-posting-manager'); ?>
-                                            </button>
-                                            <button type="button" class="jpm-btn jpm-btn-secondary" id="jpm-cancel-edit-info">
-                                                <?php _e('Cancel', 'job-posting-manager'); ?>
-                                            </button>
-                                        </div>
-                                        <div class="jpm-edit-message" id="jpm-edit-message"></div>
-                                    </form>
-                                </div>
+                                    <div class="jpm-edit-message" id="jpm-edit-message" style="display: none;"></div>
+                                </form>
                             </div>
 
                             <div class="jpm-info-section">
@@ -4088,6 +4271,241 @@ class JPM_Frontend
                                     </div>
                                 </div>
                             </div>
+
+                            <?php
+                            // Collect all form data from all applications and organize by category
+                            $all_personal_fields = [];
+                            $all_education_fields = [];
+                            $all_employment_fields = [];
+                            $all_additional_fields = [];
+
+                            foreach ($applications as $application) {
+                                $job = get_post($application->job_id);
+                                $form_data = json_decode($application->notes, true);
+                                if (!is_array($form_data)) {
+                                    $form_data = [];
+                                }
+
+                                // Get form fields structure from job posting
+                                $job_form_fields = [];
+                                if ($job) {
+                                    $job_form_fields = get_post_meta($job->ID, '_jpm_form_fields', true);
+                                    if (!is_array($job_form_fields)) {
+                                        $job_form_fields = [];
+                                    }
+                                }
+
+                                foreach ($form_data as $key => $value) {
+                                    // Skip empty values
+                                    if (empty($value) && $value !== '0' && $value !== 0) {
+                                        continue;
+                                    }
+
+                                    $key_lower = strtolower($key);
+                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+
+                                    // Try to find field in job form structure
+                                    $field_category = 'additional';
+                                    foreach ($job_form_fields as $field) {
+                                        if (isset($field['name']) && $field['name'] === $key) {
+                                            if (isset($field['step']) || isset($field['category'])) {
+                                                $step = isset($field['step']) ? $field['step'] : (isset($field['category']) ? $field['category'] : '');
+                                                $step_lower = strtolower($step);
+                                                if (stripos($step_lower, 'personal') !== false) {
+                                                    $field_category = 'personal';
+                                                } elseif (stripos($step_lower, 'education') !== false) {
+                                                    $field_category = 'education';
+                                                } elseif (stripos($step_lower, 'employment') !== false) {
+                                                    $field_category = 'employment';
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+
+                                    // Auto-categorize based on field name if not found in structure
+                                    if ($field_category === 'additional') {
+                                        if (
+                                            stripos($key_lower, 'personal') !== false ||
+                                            stripos($key_lower, 'name') !== false ||
+                                            stripos($key_lower, 'email') !== false ||
+                                            stripos($key_lower, 'phone') !== false ||
+                                            stripos($key_lower, 'address') !== false ||
+                                            stripos($key_lower, 'birth') !== false ||
+                                            stripos($key_lower, 'gender') !== false ||
+                                            stripos($key_lower, 'civil') !== false ||
+                                            stripos($key_lower, 'nationality') !== false
+                                        ) {
+                                            $field_category = 'personal';
+                                        } elseif (
+                                            stripos($key_lower, 'education') !== false ||
+                                            stripos($key_lower, 'school') !== false ||
+                                            stripos($key_lower, 'degree') !== false ||
+                                            stripos($key_lower, 'course') !== false ||
+                                            stripos($key_lower, 'university') !== false ||
+                                            stripos($key_lower, 'college') !== false ||
+                                            stripos($key_lower, 'graduation') !== false
+                                        ) {
+                                            $field_category = 'education';
+                                        } elseif (
+                                            stripos($key_lower, 'employment') !== false ||
+                                            stripos($key_lower, 'employer') !== false ||
+                                            stripos($key_lower, 'company') !== false ||
+                                            stripos($key_lower, 'position') !== false ||
+                                            stripos($key_lower, 'job') !== false ||
+                                            stripos($key_lower, 'work') !== false ||
+                                            stripos($key_lower, 'experience') !== false ||
+                                            stripos($key_lower, 'salary') !== false
+                                        ) {
+                                            $field_category = 'employment';
+                                        }
+                                    }
+
+                                    // Store unique fields (keep latest value if duplicate)
+                                    switch ($field_category) {
+                                        case 'personal':
+                                            $all_personal_fields[$key] = $value;
+                                            break;
+                                        case 'education':
+                                            $all_education_fields[$key] = $value;
+                                            break;
+                                        case 'employment':
+                                            $all_employment_fields[$key] = $value;
+                                            break;
+                                        default:
+                                            $all_additional_fields[$key] = $value;
+                                            break;
+                                    }
+                                }
+                            }
+                            ?>
+
+                            <?php if (!empty($all_personal_fields) || !empty($all_education_fields) || !empty($all_employment_fields) || !empty($all_additional_fields)): ?>
+                                <div class="jpm-info-section">
+                                    <h3 class="jpm-info-section-title">
+                                        <?php _e('Application Information', 'job-posting-manager'); ?></h3>
+
+                                    <?php if (!empty($all_personal_fields)): ?>
+                                        <div class="jpm-form-data-section">
+                                            <h4 class="jpm-form-data-section-title">
+                                                <?php _e('Personal Information', 'job-posting-manager'); ?></h4>
+                                            <div class="jpm-info-grid">
+                                                <?php foreach ($all_personal_fields as $key => $value):
+                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                        ?>
+                                                        <div class="jpm-info-item">
+                                                            <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                            <span class="jpm-info-value">
+                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                            </span>
+                                                        </div>
+                                                        <?php
+                                                        continue;
+                                                    }
+                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                    ?>
+                                                    <div class="jpm-info-item">
+                                                        <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                        <span class="jpm-info-value"><?php echo esc_html($field_value); ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($all_education_fields)): ?>
+                                        <div class="jpm-form-data-section">
+                                            <h4 class="jpm-form-data-section-title"><?php _e('Education', 'job-posting-manager'); ?>
+                                            </h4>
+                                            <div class="jpm-info-grid">
+                                                <?php foreach ($all_education_fields as $key => $value):
+                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                        ?>
+                                                        <div class="jpm-info-item">
+                                                            <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                            <span class="jpm-info-value">
+                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                            </span>
+                                                        </div>
+                                                        <?php
+                                                        continue;
+                                                    }
+                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                    ?>
+                                                    <div class="jpm-info-item">
+                                                        <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                        <span class="jpm-info-value"><?php echo esc_html($field_value); ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($all_employment_fields)): ?>
+                                        <div class="jpm-form-data-section">
+                                            <h4 class="jpm-form-data-section-title"><?php _e('Employment', 'job-posting-manager'); ?>
+                                            </h4>
+                                            <div class="jpm-info-grid">
+                                                <?php foreach ($all_employment_fields as $key => $value):
+                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                        ?>
+                                                        <div class="jpm-info-item">
+                                                            <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                            <span class="jpm-info-value">
+                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                            </span>
+                                                        </div>
+                                                        <?php
+                                                        continue;
+                                                    }
+                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                    ?>
+                                                    <div class="jpm-info-item">
+                                                        <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                        <span class="jpm-info-value"><?php echo esc_html($field_value); ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($all_additional_fields)): ?>
+                                        <div class="jpm-form-data-section">
+                                            <h4 class="jpm-form-data-section-title">
+                                                <?php _e('Additional Information', 'job-posting-manager'); ?></h4>
+                                            <div class="jpm-info-grid">
+                                                <?php foreach ($all_additional_fields as $key => $value):
+                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
+                                                    if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
+                                                        ?>
+                                                        <div class="jpm-info-item">
+                                                            <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                            <span class="jpm-info-value">
+                                                                <a href="<?php echo esc_url($value); ?>" target="_blank"
+                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                            </span>
+                                                        </div>
+                                                        <?php
+                                                        continue;
+                                                    }
+                                                    $field_value = is_array($value) ? implode(', ', $value) : $value;
+                                                    ?>
+                                                    <div class="jpm-info-item">
+                                                        <span class="jpm-info-label"><?php echo esc_html($field_label); ?>:</span>
+                                                        <span class="jpm-info-value"><?php echo esc_html($field_value); ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </main>
@@ -4612,6 +5030,23 @@ class JPM_Frontend
                 border-top: 1px solid #e5e7eb;
             }
 
+            .jpm-form-data-section {
+                margin-bottom: 32px;
+            }
+
+            .jpm-form-data-section:last-child {
+                margin-bottom: 0;
+            }
+
+            .jpm-form-data-section-title {
+                font-size: 16px;
+                font-weight: 600;
+                color: #111827;
+                margin: 0 0 16px 0;
+                padding-bottom: 8px;
+                border-bottom: 2px solid #e5e7eb;
+            }
+
             .jpm-form-data-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -4663,7 +5098,36 @@ class JPM_Frontend
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                gap: 12px;
                 margin-bottom: 20px;
+            }
+
+            .jpm-edit-buttons {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .jpm-editable-value {
+                cursor: text;
+            }
+
+            .jpm-edit-input {
+                width: 100%;
+                padding: 0;
+                border: none;
+                border-bottom: 2px solid #2563eb;
+                border-radius: 0;
+                font-size: 15px;
+                color: #111827;
+                background: transparent;
+                font-weight: 500;
+                transition: border-color 0.15s ease;
+                outline: none;
+            }
+
+            .jpm-edit-input:focus {
+                border-bottom-color: #1d4ed8;
             }
 
             .jpm-info-section-title {
@@ -4697,54 +5161,46 @@ class JPM_Frontend
                 height: 16px;
             }
 
-            .jpm-info-edit-form {
-                margin-top: 20px;
-            }
-
-            .jpm-edit-form-grid {
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 20px;
+            .jpm-info-section-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
                 margin-bottom: 20px;
             }
 
-            .jpm-edit-form-item {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .jpm-edit-label {
-                font-size: 14px;
-                font-weight: 500;
-                color: #374151;
+            .jpm-editable-value {
+                cursor: text;
             }
 
             .jpm-edit-input {
-                padding: 10px 14px;
-                border: 1px solid #d1d5db;
-                border-radius: 6px;
-                font-size: 14px;
+                width: 100%;
+                padding: 0;
+                border: none;
+                border-bottom: 2px solid #2563eb;
+                border-radius: 0;
+                font-size: 15px;
                 color: #111827;
-                background: #ffffff;
+                background: transparent;
+                font-weight: 500;
                 transition: border-color 0.15s ease;
+                outline: none;
             }
 
             .jpm-edit-input:focus {
-                outline: none;
-                border-color: #2563eb;
-                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-            }
-
-            .jpm-edit-form-actions {
-                display: flex;
-                gap: 12px;
-                margin-top: 24px;
+                border-bottom-color: #1d4ed8;
             }
 
             .jpm-btn-secondary {
                 background: #6b7280;
                 color: #ffffff;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
             }
 
             .jpm-btn-secondary:hover {
@@ -5024,34 +5480,78 @@ class JPM_Frontend
                     $button.toggleClass('active');
                 });
 
-                // Edit personal information
+                // Edit personal information - toggle to edit mode
                 $('#jpm-edit-personal-info').on('click', function () {
-                    $('#jpm-info-display').hide();
-                    $('#jpm-info-edit-form').show();
+                    // Hide edit button, show save and cancel
+                    $(this).hide();
+                    $('#jpm-save-personal-info').show();
+                    $('#jpm-cancel-edit-info').show();
+
+                    // Switch editable fields to input mode
+                    $('.jpm-editable-value').each(function () {
+                        var $value = $(this);
+                        var fieldName = $value.data('field');
+                        var $input = $('#jpm-edit-' + fieldName);
+
+                        if ($input.length) {
+                            // Set input value from span text
+                            var currentValue = $value.text().trim();
+                            $input.val(currentValue);
+                            // Hide span and show input
+                            $value.hide();
+                            $input.css('display', 'block').show();
+                            // Focus on first input
+                            if ($input.attr('name') === 'display_name') {
+                                setTimeout(function () {
+                                    $input.focus();
+                                }, 100);
+                            }
+                        }
+                    });
+
                     $('#jpm-edit-message').html('').hide();
                 });
 
-                // Cancel edit
+                // Cancel edit - revert to display mode
                 $('#jpm-cancel-edit-info').on('click', function () {
-                    $('#jpm-info-edit-form').hide();
-                    $('#jpm-info-display').show();
+                    // Show edit button, hide save and cancel
+                    $('#jpm-edit-personal-info').show();
+                    $('#jpm-save-personal-info').hide();
+                    $(this).hide();
+
+                    // Switch input fields back to display mode
+                    $('.jpm-edit-input').each(function () {
+                        var $input = $(this);
+                        var fieldName = $input.attr('name');
+                        var $value = $('[data-field="' + fieldName + '"]');
+
+                        if ($value.length) {
+                            // Reset input to original value
+                            $input.val($value.text().trim());
+                            $input.hide();
+                            $value.show();
+                        }
+                    });
+
                     $('#jpm-edit-message').html('').hide();
-                    // Reset form to original values
-                    $('#jpm-update-personal-info-form')[0].reset();
                 });
 
-                // Submit update form
-                $('#jpm-update-personal-info-form').on('submit', function (e) {
-                    e.preventDefault();
-
-                    var $form = $(this);
-                    var $button = $('#jpm-save-info-btn');
+                // Save changes
+                $('#jpm-save-personal-info').on('click', function () {
+                    var $button = $(this);
                     var $message = $('#jpm-edit-message');
-                    var $btnText = $button.html();
+                    var $btnText = $button.find('span').text();
+
+                    // Validate required field
+                    var displayName = $('#jpm-edit-display-name').val().trim();
+                    if (!displayName) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Display name is required.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
 
                     // Disable button
                     $button.prop('disabled', true);
-                    $button.html('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
+                    $button.find('span').text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
                     $message.hide();
 
                     $.ajax({
@@ -5060,58 +5560,54 @@ class JPM_Frontend
                         data: {
                             action: 'jpm_update_personal_info',
                             jpm_update_info_nonce: $('#jpm_update_info_nonce').val(),
-                            display_name: $('#jpm-edit-display-name').val(),
-                            first_name: $('#jpm-edit-first-name').val(),
-                            last_name: $('#jpm-edit-last-name').val()
+                            display_name: displayName,
+                            first_name: $('#jpm-edit-first-name').val().trim(),
+                            last_name: $('#jpm-edit-last-name').val().trim()
                         },
                         success: function (response) {
                             if (response.success) {
                                 // Update displayed values
                                 if (response.data.data && response.data.data.display_name) {
                                     $('#jpm-display-name-value').text(response.data.data.display_name);
+                                    $('#jpm-edit-display-name').val(response.data.data.display_name);
                                 }
-                                if (response.data.data && response.data.data.first_name) {
-                                    var $firstNameItem = $('#jpm-first-name-value').closest('.jpm-info-item');
-                                    if ($firstNameItem.length) {
-                                        $('#jpm-first-name-value').text(response.data.data.first_name);
-                                    } else {
-                                        // Add first name if it doesn't exist
-                                        var $grid = $('.jpm-info-grid').first();
-                                        $grid.append('<div class="jpm-info-item"><span class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span><span class="jpm-info-value" id="jpm-first-name-value">' + response.data.data.first_name + '</span></div>');
-                                    }
+                                if (response.data.data && response.data.data.first_name !== undefined) {
+                                    $('#jpm-first-name-value').text(response.data.data.first_name || '');
+                                    $('#jpm-edit-first-name').val(response.data.data.first_name || '');
                                 }
-                                if (response.data.data && response.data.data.last_name) {
-                                    var $lastNameItem = $('#jpm-last-name-value').closest('.jpm-info-item');
-                                    if ($lastNameItem.length) {
-                                        $('#jpm-last-name-value').text(response.data.data.last_name);
-                                    } else {
-                                        // Add last name if it doesn't exist
-                                        var $grid = $('.jpm-info-grid').first();
-                                        $grid.append('<div class="jpm-info-item"><span class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span><span class="jpm-info-value" id="jpm-last-name-value">' + response.data.data.last_name + '</span></div>');
-                                    }
+                                if (response.data.data && response.data.data.last_name !== undefined) {
+                                    $('#jpm-last-name-value').text(response.data.data.last_name || '');
+                                    $('#jpm-edit-last-name').val(response.data.data.last_name || '');
                                 }
+
+                                // Switch back to display mode
+                                $('.jpm-edit-input').hide();
+                                $('.jpm-editable-value').show();
+
+                                // Show edit button, hide save and cancel
+                                $('#jpm-edit-personal-info').show();
+                                $('#jpm-save-personal-info').hide();
+                                $('#jpm-cancel-edit-info').hide();
 
                                 // Show success message
                                 $message.html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>').show();
 
-                                // Hide form and show display
+                                // Hide message after 3 seconds
                                 setTimeout(function () {
-                                    $('#jpm-info-edit-form').hide();
-                                    $('#jpm-info-display').show();
-                                    $message.hide();
-                                }, 2000);
+                                    $message.fadeOut();
+                                }, 3000);
                             } else {
                                 $message.html('<div class="notice notice-error"><p>' + (response.data && response.data.message ? response.data.message : '<?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
                             }
 
                             // Re-enable button
                             $button.prop('disabled', false);
-                            $button.html($btnText);
+                            $button.find('span').text($btnText);
                         },
                         error: function () {
                             $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $button.html($btnText);
+                            $button.find('span').text($btnText);
                         }
                     });
                 });
