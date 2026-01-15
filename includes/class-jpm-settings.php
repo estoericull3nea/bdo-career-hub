@@ -6,7 +6,7 @@ class JPM_Settings
         // Use higher priority so Settings is added last (after Form Templates, Email Notifications, etc.)
         add_action('admin_menu', [$this, 'add_settings_page'], 99);
         add_action('admin_init', [$this, 'register_settings']);
-        add_action('admin_init', [$this, 'save_smtp_settings']);
+        add_action('wp_ajax_jpm_save_email_settings', [$this, 'ajax_save_email_settings']);
         add_action('wp_ajax_jpm_send_test_email', [$this, 'ajax_send_test_email']);
     }
 
@@ -92,7 +92,6 @@ class JPM_Settings
         <div class="wrap">
             <h1><?php _e('Job Posting Manager Settings', 'job-posting-manager'); ?></h1>
 
-            <?php echo $save_message; ?>
 
             <div class="jpm-settings-tabs" style="margin-top: 20px;">
                 <nav class="jpm-tab-nav">
@@ -152,7 +151,9 @@ class JPM_Settings
                             <?php _e('Configure SMTP settings and email recipients for application notifications.', 'job-posting-manager'); ?>
                         </p>
 
-                        <form method="post" action="" style="margin-top: 20px;">
+                        <div id="jpm-save-settings-message" style="margin-top: 15px; display: none;"></div>
+
+                        <form id="jpm-save-email-settings-form" style="margin-top: 20px;">
                             <?php wp_nonce_field('jpm_save_email_settings', 'jpm_email_settings_nonce'); ?>
 
                             <h3><?php _e('SMTP Configuration', 'job-posting-manager'); ?></h3>
@@ -301,7 +302,15 @@ class JPM_Settings
                                 </tr>
                             </table>
 
-                            <?php submit_button(__('Save Settings', 'job-posting-manager')); ?>
+                            <p class="submit">
+                                <button type="submit" id="jpm-save-settings-btn" class="button button-primary">
+                                    <span class="jpm-btn-text"><?php _e('Save Settings', 'job-posting-manager'); ?></span>
+                                    <span class="jpm-btn-spinner" style="display: none; margin-left: 8px;">
+                                        <span class="spinner is-active"
+                                            style="float: none; margin: 0; visibility: visible;"></span>
+                                    </span>
+                                </button>
+                            </p>
                         </form>
 
                         <hr style="margin: 30px 0;">
@@ -528,6 +537,18 @@ class JPM_Settings
                 cursor: not-allowed;
             }
 
+            #jpm-save-settings-btn,
+            #jpm-send-test-email-btn {
+                position: relative;
+            }
+
+            #jpm-save-settings-btn:disabled,
+            #jpm-send-test-email-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            #jpm-save-settings-btn .jpm-btn-spinner,
             #jpm-send-test-email-btn .jpm-btn-spinner {
                 display: inline-block;
                 vertical-align: middle;
@@ -565,6 +586,49 @@ class JPM_Settings
                     $('#shortcode-tab-' + tabId).addClass('active');
                 });
 
+                // Save settings form AJAX
+                $('#jpm-save-email-settings-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-save-settings-message');
+                    var $button = $('#jpm-save-settings-btn');
+                    var $btnText = $button.find('.jpm-btn-text');
+                    var $btnSpinner = $button.find('.jpm-btn-spinner');
+
+                    // Disable button and show loading
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
+                    $btnSpinner.show();
+                    $message.hide();
+
+                    // Collect form data
+                    var formData = $form.serialize();
+                    formData += '&action=jpm_save_email_settings';
+
+                    // Send AJAX request
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: formData,
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success is-dismissible"><p>' + (response.data.message || '<?php echo esc_js(__('Settings saved successfully!', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            } else {
+                                $message.html('<div class="notice notice-error is-dismissible"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to save settings. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error is-dismissible"><p><?php echo esc_js(__('An error occurred while saving settings. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                        },
+                        complete: function () {
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo esc_js(__('Save Settings', 'job-posting-manager')); ?>');
+                            $btnSpinner.hide();
+                        }
+                    });
+                });
+
                 // Test email form AJAX
                 $('#jpm-test-email-form').on('submit', function (e) {
                     e.preventDefault();
@@ -581,7 +645,12 @@ class JPM_Settings
                     }
 
                     // Disable button and show loading
-                    $button.prop('disabled', true).text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
+                    var $btnText = $button.find('.jpm-btn-text');
+                    var $btnSpinner = $button.find('.jpm-btn-spinner');
+
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
+                    $btnSpinner.show();
                     $message.hide();
 
                     // Send AJAX request
@@ -671,41 +740,47 @@ class JPM_Settings
     }
 
     /**
-     * Save SMTP and email settings
+     * AJAX handler for saving email settings
      */
-    public function save_smtp_settings()
+    public function ajax_save_email_settings()
     {
+        check_ajax_referer('jpm_save_email_settings', 'jpm_email_settings_nonce');
+
         if (!current_user_can('manage_options')) {
-            return;
+            wp_send_json_error(['message' => __('Permission denied.', 'job-posting-manager')]);
         }
 
-        if (isset($_POST['submit']) && check_admin_referer('jpm_save_email_settings', 'jpm_email_settings_nonce')) {
-            // Save SMTP settings
-            $smtp_settings = [
-                'host' => sanitize_text_field($_POST['smtp_host'] ?? 'smtp.gmail.com'),
-                'port' => intval($_POST['smtp_port'] ?? 587),
-                'encryption' => sanitize_text_field($_POST['smtp_encryption'] ?? 'tls'),
-                'auth' => !empty($_POST['smtp_auth']),
-                'username' => sanitize_text_field($_POST['smtp_username'] ?? ''),
-                'password' => sanitize_text_field($_POST['smtp_password'] ?? ''),
-                'from_email' => sanitize_email($_POST['smtp_from_email'] ?? get_option('admin_email')),
-                'from_name' => sanitize_text_field($_POST['smtp_from_name'] ?? get_bloginfo('name')),
-            ];
+        // Save SMTP settings
+        $smtp_settings = [
+            'host' => sanitize_text_field($_POST['smtp_host'] ?? 'smtp.gmail.com'),
+            'port' => intval($_POST['smtp_port'] ?? 587),
+            'encryption' => sanitize_text_field($_POST['smtp_encryption'] ?? 'tls'),
+            'auth' => !empty($_POST['smtp_auth']),
+            'username' => sanitize_text_field($_POST['smtp_username'] ?? ''),
+            'password' => sanitize_text_field($_POST['smtp_password'] ?? ''),
+            'from_email' => sanitize_email($_POST['smtp_from_email'] ?? get_option('admin_email')),
+            'from_name' => sanitize_text_field($_POST['smtp_from_name'] ?? get_bloginfo('name')),
+        ];
 
-            update_option('jpm_smtp_settings', $smtp_settings);
+        $smtp_result = update_option('jpm_smtp_settings', $smtp_settings);
 
-            // Save email recipient settings
-            $email_settings = [
-                'recipient_email' => sanitize_email($_POST['recipient_email'] ?? get_option('admin_email')),
-                'cc_emails' => sanitize_textarea_field($_POST['cc_emails'] ?? ''),
-                'bcc_emails' => sanitize_textarea_field($_POST['bcc_emails'] ?? ''),
-            ];
+        // Save email recipient settings
+        $email_settings = [
+            'recipient_email' => sanitize_email($_POST['recipient_email'] ?? get_option('admin_email')),
+            'cc_emails' => sanitize_textarea_field($_POST['cc_emails'] ?? ''),
+            'bcc_emails' => sanitize_textarea_field($_POST['bcc_emails'] ?? ''),
+        ];
 
-            update_option('jpm_email_settings', $email_settings);
+        $email_result = update_option('jpm_email_settings', $email_settings);
 
-            // Redirect to prevent form resubmission
-            wp_redirect(admin_url('admin.php?page=jpm-settings&settings_saved=1'));
-            exit;
+        if ($smtp_result !== false || $email_result !== false) {
+            wp_send_json_success([
+                'message' => __('Settings saved successfully!', 'job-posting-manager')
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => __('Failed to save settings. Please try again.', 'job-posting-manager')
+            ]);
         }
     }
 
