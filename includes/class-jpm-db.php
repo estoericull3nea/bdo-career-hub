@@ -1147,7 +1147,9 @@ class JPM_Admin
                     closeMedicalModal(true);
                 });
 
-                // View Requirements functionality
+                // View Requirements functionality - Cache for requirements data
+                const requirementsCache = {};
+
                 function closeViewRequirementsModal() {
                     $('#jpm-view-requirements-modal').hide();
                 }
@@ -1169,9 +1171,60 @@ class JPM_Admin
                     return month + ' ' + day + ', ' + year;
                 }
 
+                function renderRequirementsHTML(details) {
+                    let html = '<div class="jpm-view-requirements-details">';
+
+                    if (details.requirements) {
+                        html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
+                        html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Requirements:', 'job-posting-manager')); ?></label>';
+                        html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px; line-height: 1.6; white-space: pre-wrap;">' + $('<div>').text(details.requirements).html().replace(/\n/g, '<br>') + '</div>';
+                        html += '</div>';
+                    }
+
+                    if (details.address) {
+                        html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
+                        html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Medical Address:', 'job-posting-manager')); ?></label>';
+                        html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">' + $('<div>').text(details.address).html() + '</div>';
+                        html += '</div>';
+                    }
+
+                    if (details.date || details.time) {
+                        html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
+                        html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Schedule:', 'job-posting-manager')); ?></label>';
+                        html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">';
+                        if (details.date) {
+                            const formattedDate = formatDate(details.date);
+                            html += '<strong><?php echo esc_js(__('Date:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(formattedDate).html();
+                        }
+                        if (details.time) {
+                            if (details.date) html += '<br>';
+                            html += '<strong><?php echo esc_js(__('Time:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(details.time).html();
+                        }
+                        html += '</div>';
+                        html += '</div>';
+                    }
+
+                    if (!details.requirements && !details.address && !details.date && !details.time) {
+                        html += '<div style="text-align: center; padding: 20px; color: #666;">';
+                        html += '<p><?php echo esc_js(__('No requirements have been set for this application yet.', 'job-posting-manager')); ?></p>';
+                        html += '</div>';
+                    }
+
+                    html += '</div>';
+                    return html;
+                }
+
                 function openViewRequirementsModal(applicationId) {
                     const $modal = $('#jpm-view-requirements-modal');
                     const $content = $('#jpm-view-requirements-content');
+
+                    // Check cache first
+                    if (requirementsCache[applicationId]) {
+                        // Use cached data - no loading needed
+                        $content.html(requirementsCache[applicationId].html);
+                        $modal.show();
+                        return;
+                    }
 
                     // Show loading state
                     $content.html('<div style="text-align: center; padding: 20px;"><span class="spinner is-active" style="float: none; margin: 0;"></span><p><?php echo esc_js(__('Loading requirements...', 'job-posting-manager')); ?></p></div>');
@@ -1189,45 +1242,14 @@ class JPM_Admin
                     }).done(function (response) {
                         if (response.success && response.data && response.data.details) {
                             const details = response.data.details;
-                            let html = '<div class="jpm-view-requirements-details">';
+                            const html = renderRequirementsHTML(details);
 
-                            if (details.requirements) {
-                                html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
-                                html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Requirements:', 'job-posting-manager')); ?></label>';
-                                html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px; line-height: 1.6; white-space: pre-wrap;">' + $('<div>').text(details.requirements).html().replace(/\n/g, '<br>') + '</div>';
-                                html += '</div>';
-                            }
+                            // Cache the rendered HTML
+                            requirementsCache[applicationId] = {
+                                html: html,
+                                details: details
+                            };
 
-                            if (details.address) {
-                                html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
-                                html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Medical Address:', 'job-posting-manager')); ?></label>';
-                                html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">' + $('<div>').text(details.address).html() + '</div>';
-                                html += '</div>';
-                            }
-
-                            if (details.date || details.time) {
-                                html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
-                                html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Schedule:', 'job-posting-manager')); ?></label>';
-                                html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">';
-                                if (details.date) {
-                                    const formattedDate = formatDate(details.date);
-                                    html += '<strong><?php echo esc_js(__('Date:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(formattedDate).html();
-                                }
-                                if (details.time) {
-                                    if (details.date) html += '<br>';
-                                    html += '<strong><?php echo esc_js(__('Time:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(details.time).html();
-                                }
-                                html += '</div>';
-                                html += '</div>';
-                            }
-
-                            if (!details.requirements && !details.address && !details.date && !details.time) {
-                                html += '<div style="text-align: center; padding: 20px; color: #666;">';
-                                html += '<p><?php echo esc_js(__('No requirements have been set for this application yet.', 'job-posting-manager')); ?></p>';
-                                html += '</div>';
-                            }
-
-                            html += '</div>';
                             $content.html(html);
                         } else {
                             $content.html('<div style="text-align: center; padding: 20px; color: #dc3545;"><p><?php echo esc_js(__('Failed to load requirements. Please try again.', 'job-posting-manager')); ?></p></div>');
@@ -1582,7 +1604,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                             });
+                                                     });
         </script>
         <?php
     }
