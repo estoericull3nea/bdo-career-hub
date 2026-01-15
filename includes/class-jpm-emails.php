@@ -62,6 +62,37 @@ class JPM_Emails
     }
 
     /**
+     * Add CC and BCC headers from settings
+     * 
+     * @param array $headers Existing email headers
+     * @return array Headers with CC and BCC added
+     */
+    private static function add_email_recipients($headers)
+    {
+        $email_settings = get_option('jpm_email_settings', []);
+        
+        // Add CC headers
+        if (!empty($email_settings['cc_emails'])) {
+            $cc_emails = array_map('trim', explode(',', $email_settings['cc_emails']));
+            $cc_emails = array_filter($cc_emails, 'is_email');
+            if (!empty($cc_emails)) {
+                $headers[] = 'Cc: ' . implode(', ', $cc_emails);
+            }
+        }
+        
+        // Add BCC headers
+        if (!empty($email_settings['bcc_emails'])) {
+            $bcc_emails = array_map('trim', explode(',', $email_settings['bcc_emails']));
+            $bcc_emails = array_filter($bcc_emails, 'is_email');
+            if (!empty($bcc_emails)) {
+                $headers[] = 'Bcc: ' . implode(', ', $bcc_emails);
+            }
+        }
+        
+        return $headers;
+    }
+
+    /**
      * Send confirmation email to applicant
      * 
      * @param int $app_id Application ID
@@ -540,6 +571,9 @@ class JPM_Emails
             'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
         ];
 
+        // Add CC and BCC from settings
+        $headers = self::add_email_recipients($headers);
+
         // Send email
         $result = wp_mail($customer_email, $subject, $body, $headers);
 
@@ -562,12 +596,18 @@ class JPM_Emails
      * @param string $first_name Customer first name
      * @param string $last_name Customer last name
      */
-    public static function send_admin_notification($application_id, $job_id, $form_data, $admin_email = 'palisocericson87@gmail.com', $customer_email = '', $first_name = '', $last_name = '')
+    public static function send_admin_notification($application_id, $job_id, $form_data, $admin_email = '', $customer_email = '', $first_name = '', $last_name = '')
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
             error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
+        }
+
+        // Get recipient email from settings if not provided
+        if (empty($admin_email)) {
+            $email_settings = get_option('jpm_email_settings', []);
+            $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
         }
 
         // Get job details
@@ -832,6 +872,9 @@ class JPM_Emails
             'X-Mailer: Job Posting Manager'
         ];
 
+        // Add CC and BCC from settings
+        $headers = self::add_email_recipients($headers);
+
         // Set PHP execution time limit for email sending (if possible)
         if (function_exists('set_time_limit')) {
             @set_time_limit(30); // 30 seconds for email sending
@@ -919,12 +962,18 @@ class JPM_Emails
      * @param string $last_name Last name
      * @param string $admin_email Admin email address
      */
-    public static function send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email = 'palisocericson87@gmail.com')
+    public static function send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email = '')
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
             error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
+        }
+
+        // Get recipient email from settings if not provided
+        if (empty($admin_email)) {
+            $email_settings = get_option('jpm_email_settings', []);
+            $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
         }
 
         $full_name = trim($first_name . ' ' . $last_name);
@@ -952,6 +1001,9 @@ class JPM_Emails
             'Content-Type: text/html; charset=UTF-8',
             'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
         ];
+
+        // Add CC and BCC from settings
+        $headers = self::add_email_recipients($headers);
 
         // Send email
         $result = wp_mail($admin_email, $subject, $body, $headers);
