@@ -32,6 +32,7 @@ class JPM_Frontend
         add_action('wp_ajax_nopriv_jpm_reset_password', [$this, 'handle_reset_password']);
         add_action('wp_ajax_jpm_find_register_page', [$this, 'find_register_page']);
         add_action('wp_ajax_nopriv_jpm_find_register_page', [$this, 'find_register_page']);
+        add_action('wp_ajax_jpm_update_personal_info', [$this, 'handle_update_personal_info']);
 
         // Filter password reset email to use custom reset page
         add_filter('retrieve_password_message', [$this, 'customize_password_reset_email'], 10, 4);
@@ -3540,9 +3541,11 @@ class JPM_Frontend
         ob_start();
         ?>
         <div class="jpm-user-profile-wrapper">
-            <div class="jpm-user-profile-layout" style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; width: 100% !important;">
+            <div class="jpm-user-profile-layout"
+                style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; width: 100% !important;">
                 <!-- Sidebar Navigation -->
-                <aside class="jpm-profile-sidebar" style="width: 280px !important; min-width: 280px !important; max-width: 280px !important; flex: 0 0 280px !important; flex-shrink: 0 !important; flex-grow: 0 !important; display: flex !important; flex-direction: column !important; float: none !important;">
+                <aside class="jpm-profile-sidebar"
+                    style="width: 280px !important; min-width: 280px !important; max-width: 280px !important; flex: 0 0 280px !important; flex-shrink: 0 !important; flex-grow: 0 !important; display: flex !important; flex-direction: column !important; float: none !important;">
                     <div class="jpm-profile-sidebar-header">
                         <div class="jpm-profile-logo">
                             <?php
@@ -3601,7 +3604,8 @@ class JPM_Frontend
                 </aside>
 
                 <!-- Main Content Area -->
-                <main class="jpm-profile-main" style="flex: 1 1 auto !important; flex-grow: 1 !important; flex-shrink: 1 !important; min-width: 0 !important; display: block !important; width: auto !important; float: none !important;">
+                <main class="jpm-profile-main"
+                    style="flex: 1 1 auto !important; flex-grow: 1 !important; flex-shrink: 1 !important; min-width: 0 !important; display: block !important; width: auto !important; float: none !important;">
                     <!-- Dashboard Tab -->
                     <div class="jpm-profile-tab-content active" id="jpm-tab-dashboard">
                         <div class="jpm-profile-tab-header">
@@ -3669,7 +3673,8 @@ class JPM_Frontend
                         <?php if (!empty($status_counts)): ?>
                             <div class="jpm-dashboard-status-breakdown">
                                 <h3 class="jpm-dashboard-section-title">
-                                    <?php _e('Applications by Status', 'job-posting-manager'); ?></h3>
+                                    <?php _e('Applications by Status', 'job-posting-manager'); ?>
+                                </h3>
                                 <div class="jpm-status-breakdown-list">
                                     <?php foreach ($status_counts as $status_slug => $count):
                                         $status_info = JPM_DB::get_status_by_slug($status_slug);
@@ -3707,7 +3712,8 @@ class JPM_Frontend
                             <div class="jpm-dashboard-recent">
                                 <div class="jpm-dashboard-section-header">
                                     <h3 class="jpm-dashboard-section-title">
-                                        <?php _e('Recent Applications', 'job-posting-manager'); ?></h3>
+                                        <?php _e('Recent Applications', 'job-posting-manager'); ?>
+                                    </h3>
                                     <a href="#" class="jpm-view-all-link"
                                         data-tab="applications"><?php _e('View All', 'job-posting-manager'); ?></a>
                                 </div>
@@ -3971,37 +3977,99 @@ class JPM_Frontend
 
                         <div class="jpm-information-content">
                             <div class="jpm-info-section">
-                                <h3 class="jpm-info-section-title"><?php _e('Personal Information', 'job-posting-manager'); ?>
-                                </h3>
-                                <div class="jpm-info-grid">
-                                    <div class="jpm-info-item">
-                                        <span class="jpm-info-label"><?php _e('Display Name:', 'job-posting-manager'); ?></span>
-                                        <span class="jpm-info-value"><?php echo esc_html($current_user->display_name); ?></span>
-                                    </div>
-                                    <div class="jpm-info-item">
-                                        <span
-                                            class="jpm-info-label"><?php _e('Email Address:', 'job-posting-manager'); ?></span>
-                                        <span class="jpm-info-value"><?php echo esc_html($current_user->user_email); ?></span>
-                                    </div>
-                                    <?php if (!empty($current_user->first_name)): ?>
+                                <div class="jpm-info-section-header">
+                                    <h3 class="jpm-info-section-title">
+                                        <?php _e('Personal Information', 'job-posting-manager'); ?>
+                                    </h3>
+                                    <button type="button" class="jpm-edit-info-btn" id="jpm-edit-personal-info">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                        <span><?php _e('Edit', 'job-posting-manager'); ?></span>
+                                    </button>
+                                </div>
+
+                                <!-- Display View -->
+                                <div class="jpm-info-display" id="jpm-info-display">
+                                    <div class="jpm-info-grid">
                                         <div class="jpm-info-item">
-                                            <span class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
-                                            <span class="jpm-info-value"><?php echo esc_html($current_user->first_name); ?></span>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($current_user->last_name)): ?>
-                                        <div class="jpm-info-item">
-                                            <span class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
-                                            <span class="jpm-info-value"><?php echo esc_html($current_user->last_name); ?></span>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($current_user->user_registered)): ?>
-                                        <div class="jpm-info-item">
-                                            <span class="jpm-info-label"><?php _e('Member Since:', 'job-posting-manager'); ?></span>
                                             <span
-                                                class="jpm-info-value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($current_user->user_registered))); ?></span>
+                                                class="jpm-info-label"><?php _e('Display Name:', 'job-posting-manager'); ?></span>
+                                            <span class="jpm-info-value"
+                                                id="jpm-display-name-value"><?php echo esc_html($current_user->display_name); ?></span>
                                         </div>
-                                    <?php endif; ?>
+                                        <div class="jpm-info-item">
+                                            <span
+                                                class="jpm-info-label"><?php _e('Email Address:', 'job-posting-manager'); ?></span>
+                                            <span
+                                                class="jpm-info-value"><?php echo esc_html($current_user->user_email); ?></span>
+                                        </div>
+                                        <?php if (!empty($current_user->first_name)): ?>
+                                            <div class="jpm-info-item">
+                                                <span
+                                                    class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
+                                                <span class="jpm-info-value"
+                                                    id="jpm-first-name-value"><?php echo esc_html($current_user->first_name); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($current_user->last_name)): ?>
+                                            <div class="jpm-info-item">
+                                                <span
+                                                    class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
+                                                <span class="jpm-info-value"
+                                                    id="jpm-last-name-value"><?php echo esc_html($current_user->last_name); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($current_user->user_registered)): ?>
+                                            <div class="jpm-info-item">
+                                                <span
+                                                    class="jpm-info-label"><?php _e('Member Since:', 'job-posting-manager'); ?></span>
+                                                <span
+                                                    class="jpm-info-value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($current_user->user_registered))); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <!-- Edit Form -->
+                                <div class="jpm-info-edit-form" id="jpm-info-edit-form" style="display: none;">
+                                    <form id="jpm-update-personal-info-form">
+                                        <?php wp_nonce_field('jpm_update_personal_info', 'jpm_update_info_nonce'); ?>
+                                        <div class="jpm-edit-form-grid">
+                                            <div class="jpm-edit-form-item">
+                                                <label for="jpm-edit-display-name"
+                                                    class="jpm-edit-label"><?php _e('Display Name:', 'job-posting-manager'); ?></label>
+                                                <input type="text" id="jpm-edit-display-name" name="display_name"
+                                                    class="jpm-edit-input"
+                                                    value="<?php echo esc_attr($current_user->display_name); ?>" required>
+                                            </div>
+                                            <div class="jpm-edit-form-item">
+                                                <label for="jpm-edit-first-name"
+                                                    class="jpm-edit-label"><?php _e('First Name:', 'job-posting-manager'); ?></label>
+                                                <input type="text" id="jpm-edit-first-name" name="first_name"
+                                                    class="jpm-edit-input"
+                                                    value="<?php echo esc_attr($current_user->first_name); ?>">
+                                            </div>
+                                            <div class="jpm-edit-form-item">
+                                                <label for="jpm-edit-last-name"
+                                                    class="jpm-edit-label"><?php _e('Last Name:', 'job-posting-manager'); ?></label>
+                                                <input type="text" id="jpm-edit-last-name" name="last_name"
+                                                    class="jpm-edit-input"
+                                                    value="<?php echo esc_attr($current_user->last_name); ?>">
+                                            </div>
+                                        </div>
+                                        <div class="jpm-edit-form-actions">
+                                            <button type="submit" class="jpm-btn jpm-btn-primary" id="jpm-save-info-btn">
+                                                <?php _e('Save Changes', 'job-posting-manager'); ?>
+                                            </button>
+                                            <button type="button" class="jpm-btn jpm-btn-secondary" id="jpm-cancel-edit-info">
+                                                <?php _e('Cancel', 'job-posting-manager'); ?>
+                                            </button>
+                                        </div>
+                                        <div class="jpm-edit-message" id="jpm-edit-message"></div>
+                                    </form>
                                 </div>
                             </div>
 
@@ -4061,7 +4129,7 @@ class JPM_Frontend
                 content: none !important;
             }
 
-            .jpm-user-profile-layout > aside {
+            .jpm-user-profile-layout>aside {
                 flex-shrink: 0 !important;
                 flex-grow: 0 !important;
                 display: flex !important;
@@ -4070,16 +4138,16 @@ class JPM_Frontend
                 max-width: 280px !important;
             }
 
-            .jpm-user-profile-layout > main {
+            .jpm-user-profile-layout>main {
                 flex-shrink: 1 !important;
                 flex-grow: 1 !important;
                 display: block !important;
                 width: auto !important;
                 min-width: 0 !important;
             }
-            
+
             /* Additional override rules */
-            .jpm-user-profile-wrapper .jpm-user-profile-layout > .jpm-profile-sidebar {
+            .jpm-user-profile-wrapper .jpm-user-profile-layout>.jpm-profile-sidebar {
                 width: 280px !important;
                 min-width: 280px !important;
                 max-width: 280px !important;
@@ -4089,8 +4157,8 @@ class JPM_Frontend
                 display: flex !important;
                 float: none !important;
             }
-            
-            .jpm-user-profile-wrapper .jpm-user-profile-layout > .jpm-profile-main {
+
+            .jpm-user-profile-wrapper .jpm-user-profile-layout>.jpm-profile-main {
                 flex: 1 1 auto !important;
                 flex-grow: 1 !important;
                 flex-shrink: 1 !important;
@@ -4240,7 +4308,7 @@ class JPM_Frontend
                 vertical-align: top !important;
                 margin: 0 !important;
             }
-            
+
             /* Ensure all tab content stays inside main */
             .jpm-profile-main .jpm-profile-tab-content {
                 display: none !important;
@@ -4252,7 +4320,7 @@ class JPM_Frontend
                 padding: 0 !important;
                 box-sizing: border-box !important;
             }
-            
+
             .jpm-profile-main .jpm-profile-tab-content.active {
                 display: block !important;
                 position: relative !important;
@@ -4261,7 +4329,7 @@ class JPM_Frontend
                 clear: both !important;
                 box-sizing: border-box !important;
             }
-            
+
             /* Prevent tabs from breaking out */
             .jpm-profile-main {
                 contain: layout style !important;
@@ -4591,11 +4659,118 @@ class JPM_Frontend
                 padding: 24px;
             }
 
+            .jpm-info-section-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
             .jpm-info-section-title {
-                margin: 0 0 20px 0;
+                margin: 0;
                 font-size: 18px;
                 font-weight: 600;
                 color: #111827;
+            }
+
+            .jpm-edit-info-btn {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 16px;
+                background: #2563eb;
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+            }
+
+            .jpm-edit-info-btn:hover {
+                background: #1d4ed8;
+            }
+
+            .jpm-edit-info-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .jpm-info-edit-form {
+                margin-top: 20px;
+            }
+
+            .jpm-edit-form-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+
+            .jpm-edit-form-item {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .jpm-edit-label {
+                font-size: 14px;
+                font-weight: 500;
+                color: #374151;
+            }
+
+            .jpm-edit-input {
+                padding: 10px 14px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 14px;
+                color: #111827;
+                background: #ffffff;
+                transition: border-color 0.15s ease;
+            }
+
+            .jpm-edit-input:focus {
+                outline: none;
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            }
+
+            .jpm-edit-form-actions {
+                display: flex;
+                gap: 12px;
+                margin-top: 24px;
+            }
+
+            .jpm-btn-secondary {
+                background: #6b7280;
+                color: #ffffff;
+            }
+
+            .jpm-btn-secondary:hover {
+                background: #4b5563;
+            }
+
+            .jpm-edit-message {
+                margin-top: 16px;
+            }
+
+            .jpm-edit-message .notice {
+                padding: 12px 16px;
+                border-radius: 6px;
+                margin: 0;
+            }
+
+            .jpm-edit-message .notice-success {
+                background: #d1fae5;
+                color: #065f46;
+                border: 1px solid #6ee7b7;
+            }
+
+            .jpm-edit-message .notice-error {
+                background: #fee2e2;
+                color: #991b1b;
+                border: 1px solid #fca5a5;
             }
 
             .jpm-info-grid {
@@ -4724,7 +4899,7 @@ class JPM_Frontend
                     var $layout = $('.jpm-user-profile-layout');
                     var $sidebar = $('.jpm-profile-sidebar');
                     var $main = $('.jpm-profile-main');
-                    
+
                     if ($layout.length && $sidebar.length && $main.length) {
                         $layout.css({
                             'display': 'flex',
@@ -4752,16 +4927,16 @@ class JPM_Frontend
                         });
                     }
                 }
-                
+
                 // Fix layout immediately and after delays
                 fixLayout();
                 setTimeout(fixLayout, 100);
                 setTimeout(fixLayout, 500);
                 setTimeout(fixLayout, 1000);
-                
+
                 // Ensure tab content stays in main container
                 function fixTabContent() {
-                    $('.jpm-profile-tab-content').each(function() {
+                    $('.jpm-profile-tab-content').each(function () {
                         var $tab = $(this);
                         var $main = $tab.closest('.jpm-profile-main');
                         if ($main.length && !$main.is($tab.parent())) {
@@ -4777,11 +4952,11 @@ class JPM_Frontend
                         });
                     });
                 }
-                
+
                 fixTabContent();
                 setTimeout(fixTabContent, 100);
                 setTimeout(fixTabContent, 500);
-                
+
                 // Tab switching
                 $('.jpm-profile-nav-item').on('click', function (e) {
                     e.preventDefault();
@@ -4811,15 +4986,15 @@ class JPM_Frontend
                     // Update active tab content
                     $('.jpm-profile-tab-content').removeClass('active');
                     var $activeTab = $('#jpm-tab-' + tab);
-                    
+
                     // Ensure tab is inside main container
                     var $main = $('.jpm-profile-main');
                     if ($main.length && !$main.is($activeTab.parent())) {
                         $main.append($activeTab);
                     }
-                    
+
                     $activeTab.addClass('active');
-                    
+
                     // Force correct display
                     $activeTab.css({
                         'display': 'block',
@@ -4828,13 +5003,13 @@ class JPM_Frontend
                         'float': 'none',
                         'clear': 'both'
                     });
-                    
+
                     // Hide other tabs
                     $('.jpm-profile-tab-content').not($activeTab).css('display', 'none');
 
                     // Scroll to top of main content
                     $('.jpm-profile-main').scrollTop(0);
-                    
+
                     // Re-apply layout fix
                     fixLayout();
                 }
@@ -4847,6 +5022,98 @@ class JPM_Frontend
 
                     $content.slideToggle(300);
                     $button.toggleClass('active');
+                });
+
+                // Edit personal information
+                $('#jpm-edit-personal-info').on('click', function () {
+                    $('#jpm-info-display').hide();
+                    $('#jpm-info-edit-form').show();
+                    $('#jpm-edit-message').html('').hide();
+                });
+
+                // Cancel edit
+                $('#jpm-cancel-edit-info').on('click', function () {
+                    $('#jpm-info-edit-form').hide();
+                    $('#jpm-info-display').show();
+                    $('#jpm-edit-message').html('').hide();
+                    // Reset form to original values
+                    $('#jpm-update-personal-info-form')[0].reset();
+                });
+
+                // Submit update form
+                $('#jpm-update-personal-info-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $button = $('#jpm-save-info-btn');
+                    var $message = $('#jpm-edit-message');
+                    var $btnText = $button.html();
+
+                    // Disable button
+                    $button.prop('disabled', true);
+                    $button.html('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
+                    $message.hide();
+
+                    $.ajax({
+                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_update_personal_info',
+                            jpm_update_info_nonce: $('#jpm_update_info_nonce').val(),
+                            display_name: $('#jpm-edit-display-name').val(),
+                            first_name: $('#jpm-edit-first-name').val(),
+                            last_name: $('#jpm-edit-last-name').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                // Update displayed values
+                                if (response.data.data && response.data.data.display_name) {
+                                    $('#jpm-display-name-value').text(response.data.data.display_name);
+                                }
+                                if (response.data.data && response.data.data.first_name) {
+                                    var $firstNameItem = $('#jpm-first-name-value').closest('.jpm-info-item');
+                                    if ($firstNameItem.length) {
+                                        $('#jpm-first-name-value').text(response.data.data.first_name);
+                                    } else {
+                                        // Add first name if it doesn't exist
+                                        var $grid = $('.jpm-info-grid').first();
+                                        $grid.append('<div class="jpm-info-item"><span class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span><span class="jpm-info-value" id="jpm-first-name-value">' + response.data.data.first_name + '</span></div>');
+                                    }
+                                }
+                                if (response.data.data && response.data.data.last_name) {
+                                    var $lastNameItem = $('#jpm-last-name-value').closest('.jpm-info-item');
+                                    if ($lastNameItem.length) {
+                                        $('#jpm-last-name-value').text(response.data.data.last_name);
+                                    } else {
+                                        // Add last name if it doesn't exist
+                                        var $grid = $('.jpm-info-grid').first();
+                                        $grid.append('<div class="jpm-info-item"><span class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span><span class="jpm-info-value" id="jpm-last-name-value">' + response.data.data.last_name + '</span></div>');
+                                    }
+                                }
+
+                                // Show success message
+                                $message.html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>').show();
+
+                                // Hide form and show display
+                                setTimeout(function () {
+                                    $('#jpm-info-edit-form').hide();
+                                    $('#jpm-info-display').show();
+                                    $message.hide();
+                                }, 2000);
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data && response.data.message ? response.data.message : '<?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+
+                            // Re-enable button
+                            $button.prop('disabled', false);
+                            $button.html($btnText);
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $button.html($btnText);
+                        }
+                    });
                 });
             });
         </script>
@@ -5020,6 +5287,62 @@ class JPM_Frontend
         wp_send_json_success([
             'message' => __('Password has been reset successfully! Redirecting to login...', 'job-posting-manager'),
             'redirect_url' => $final_redirect
+        ]);
+    }
+
+    /**
+     * Handle update personal information via AJAX
+     */
+    public function handle_update_personal_info()
+    {
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(['message' => __('You must be logged in to update your information.', 'job-posting-manager')]);
+        }
+
+        check_ajax_referer('jpm_update_personal_info', 'jpm_update_info_nonce');
+
+        $user_id = get_current_user_id();
+        $current_user = wp_get_current_user();
+
+        // Verify user is updating their own information
+        if ($user_id != $current_user->ID) {
+            wp_send_json_error(['message' => __('You can only update your own information.', 'job-posting-manager')]);
+        }
+
+        // Get and sanitize form data
+        $display_name = sanitize_text_field($_POST['display_name'] ?? '');
+        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
+        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
+
+        // Validate required fields
+        if (empty($display_name)) {
+            wp_send_json_error(['message' => __('Display name is required.', 'job-posting-manager')]);
+        }
+
+        // Update user data
+        $user_data = [
+            'ID' => $user_id,
+            'display_name' => $display_name,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+        ];
+
+        $result = wp_update_user($user_data);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        }
+
+        // Return updated data
+        $updated_user = get_userdata($user_id);
+        wp_send_json_success([
+            'message' => __('Your information has been updated successfully.', 'job-posting-manager'),
+            'data' => [
+                'display_name' => $updated_user->display_name,
+                'first_name' => $updated_user->first_name,
+                'last_name' => $updated_user->last_name,
+            ]
         ]);
     }
 
