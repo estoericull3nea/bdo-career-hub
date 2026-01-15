@@ -53,6 +53,7 @@
   border: 2px dashed #ddd;
   border-radius: 4px;
   transition: all 0.3s ease;
+  margin-bottom: 0 !important;
 }
 
 .jpm-form-row.jpm-row-has-columns {

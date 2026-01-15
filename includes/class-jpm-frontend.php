@@ -1124,62 +1124,134 @@ class JPM_Frontend
         ?>
         <div class="jpm-register-form-wrapper">
             <div class="jpm-register-form-container">
-                <h2 class="jpm-register-title"><?php echo esc_html($atts['title']); ?></h2>
+                <div class="jpm-register-header">
+                    <div class="jpm-register-logo">
+                        <?php
+                        // Try to get site logo
+                        $logo_id = get_theme_mod('custom_logo');
+                        if ($logo_id) {
+                            $logo_url = wp_get_attachment_image_url($logo_id, 'full');
+                            echo '<img src="' . esc_url($logo_url) . '" alt="' . esc_attr(get_bloginfo('name')) . '" class="jpm-logo-image" />';
+                        } else {
+                            // Fallback: Use site name or a simple icon
+                            $site_name = get_bloginfo('name');
+                            echo '<div class="jpm-logo-text">' . esc_html(substr($site_name, 0, 2)) . '</div>';
+                        }
+                        ?>
+                    </div>
+                    <h2 class="jpm-register-title"><?php echo esc_html($atts['title']); ?></h2>
+                </div>
 
-                <div id="jpm-register-message" style="display: none; margin-bottom: 15px;"></div>
+                <div id="jpm-register-message" class="jpm-register-message" style="display: none;"></div>
 
                 <form id="jpm-register-form" class="jpm-register-form">
                     <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
                     <input type="hidden" name="redirect_url" value="<?php echo esc_attr($atts['redirect_url']); ?>" />
 
-                    <div class="jpm-form-field">
-                        <label for="jpm-register-first-name">
-                            <?php _e('First Name', 'job-posting-manager'); ?> <span class="required">*</span>
-                        </label>
-                        <input type="text" id="jpm-register-first-name" name="first_name" required class="jpm-input" />
+                    <div class="jpm-form-row">
+                        <div class="jpm-form-field jpm-form-field-half" style="margin-bottom: 0;">
+                            <label for="jpm-register-first-name" class="jpm-input-label">
+                                <?php _e('First Name', 'job-posting-manager'); ?> <span class="required">*</span>
+                            </label>
+                            <div class="jpm-input-wrapper">
+                                <input type="text" id="jpm-register-first-name" name="first_name" required class="jpm-input"
+                                    placeholder="<?php esc_attr_e('Enter your first name', 'job-posting-manager'); ?>" />
+                            </div>
+                        </div>
+
+                        <div class="jpm-form-field jpm-form-field-half" style="margin-bottom: 0;">
+                            <label for="jpm-register-last-name" class="jpm-input-label">
+                                <?php _e('Last Name', 'job-posting-manager'); ?> <span class="required">*</span>
+                            </label>
+                            <div class="jpm-input-wrapper">
+                                <input type="text" id="jpm-register-last-name" name="last_name" required class="jpm-input"
+                                    placeholder="<?php esc_attr_e('Enter your last name', 'job-posting-manager'); ?>" />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="jpm-form-field">
-                        <label for="jpm-register-last-name">
-                            <?php _e('Last Name', 'job-posting-manager'); ?> <span class="required">*</span>
-                        </label>
-                        <input type="text" id="jpm-register-last-name" name="last_name" required class="jpm-input" />
-                    </div>
-
-                    <div class="jpm-form-field">
-                        <label for="jpm-register-email">
+                        <label for="jpm-register-email" class="jpm-input-label">
                             <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
-                        <input type="email" id="jpm-register-email" name="email" required class="jpm-input" />
+                        <div class="jpm-input-wrapper">
+                            <input type="email" id="jpm-register-email" name="email" required class="jpm-input"
+                                placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
+                        </div>
                     </div>
 
                     <div class="jpm-form-field">
-                        <label for="jpm-register-password">
+                        <label for="jpm-register-password" class="jpm-input-label">
                             <?php _e('Password', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
-                        <input type="password" id="jpm-register-password" name="password" required class="jpm-input"
-                            minlength="8" />
-                        <small class="jpm-field-description"><?php _e('Minimum 8 characters', 'job-posting-manager'); ?></small>
+                        <div class="jpm-input-wrapper jpm-password-wrapper">
+                            <input type="password" id="jpm-register-password" name="password" required class="jpm-input"
+                                minlength="8"
+                                placeholder="<?php esc_attr_e('Create a strong password', 'job-posting-manager'); ?>" />
+                            <button type="button" class="jpm-password-toggle"
+                                aria-label="<?php esc_attr_e('Show password', 'job-posting-manager'); ?>">
+                                <svg class="jpm-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="jpm-eye-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" style="display: none;">
+                                    <path
+                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                                    </path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="jpm-password-strength" id="jpm-password-strength" style="display: none;">
+                            <div class="jpm-password-strength-bar">
+                                <div class="jpm-password-strength-fill" id="jpm-password-strength-fill"></div>
+                            </div>
+                            <div class="jpm-password-strength-text" id="jpm-password-strength-text"></div>
+                        </div>
                     </div>
 
                     <div class="jpm-form-field">
-                        <label for="jpm-register-password-confirm">
+                        <label for="jpm-register-password-confirm" class="jpm-input-label">
                             <?php _e('Confirm Password', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
-                        <input type="password" id="jpm-register-password-confirm" name="password_confirm" required
-                            class="jpm-input" />
+                        <div class="jpm-input-wrapper jpm-password-wrapper">
+                            <input type="password" id="jpm-register-password-confirm" name="password_confirm" required
+                                class="jpm-input"
+                                placeholder="<?php esc_attr_e('Re-enter your password', 'job-posting-manager'); ?>" />
+                            <button type="button" class="jpm-password-toggle"
+                                aria-label="<?php esc_attr_e('Show password', 'job-posting-manager'); ?>">
+                                <svg class="jpm-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="jpm-eye-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" style="display: none;">
+                                    <path
+                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                                    </path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="jpm-password-match" class="jpm-password-match" style="display: none;"></div>
                     </div>
 
                     <div class="jpm-form-field">
-                        <button type="submit" id="jpm-register-submit" class="jpm-btn jpm-btn-primary jpm-btn-block">
+                        <button type="submit" id="jpm-register-submit"
+                            class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
                             <span class="jpm-btn-text"><?php _e('Create Account', 'job-posting-manager'); ?></span>
                         </button>
                     </div>
 
                     <div class="jpm-register-footer">
-                        <p><?php _e('Already have an account?', 'job-posting-manager'); ?>
-                            <a
-                                href="<?php echo esc_url(wp_login_url()); ?>"><?php _e('Login here', 'job-posting-manager'); ?></a>
+                        <p class="jpm-register-footer-text">
+                            <?php _e('Already have an account?', 'job-posting-manager'); ?>
+                            <a href="<?php echo esc_url(wp_login_url()); ?>" class="jpm-register-login-link">
+                                <?php _e('Sign in', 'job-posting-manager'); ?>
+                            </a>
                         </p>
                     </div>
                 </form>
@@ -1188,89 +1260,489 @@ class JPM_Frontend
 
         <style>
             .jpm-register-form-wrapper {
-                max-width: 500px;
+                max-width: 480px;
                 margin: 30px auto;
+                padding: 15px;
             }
 
             .jpm-register-form-container {
-                background: #fff;
-                padding: 30px;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+
+            .jpm-register-header {
+                padding: 24px 24px 16px;
+                border-bottom: 1px solid #e5e7eb;
+                text-align: center;
+            }
+
+            .jpm-register-logo {
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .jpm-logo-image {
+                max-height: 50px;
+                max-width: 180px;
+                width: auto;
+                height: auto;
+            }
+
+            .jpm-logo-text {
+                width: 50px;
+                height: 50px;
+                border-radius: 6px;
+                background: #2563eb;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                font-weight: 700;
+                letter-spacing: 1px;
             }
 
             .jpm-register-title {
-                margin-top: 0;
-                margin-bottom: 25px;
-                text-align: center;
-                color: #23282d;
-            }
-
-            .jpm-register-form .jpm-form-field {
-                margin-bottom: 20px;
-            }
-
-            .jpm-register-form label {
-                display: block;
-                margin-bottom: 8px;
+                margin: 0;
+                font-size: 20px;
                 font-weight: 600;
-                color: #23282d;
+                color: #111827;
             }
 
-            .jpm-register-form .required {
-                color: #dc3232;
+            .jpm-register-form {
+                padding: 24px;
             }
 
-            .jpm-register-form .jpm-input {
-                width: 100%;
-                padding: 10px 12px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
+            .jpm-register-message {
+                margin: 0 24px 16px;
+            }
+
+            .jpm-register-message .notice {
+                margin: 0;
+                padding: 12px 16px;
+                border-radius: 6px;
+                border-left: 3px solid;
                 font-size: 14px;
-                box-sizing: border-box;
             }
 
-            .jpm-register-form .jpm-input:focus {
-                border-color: #2271b1;
+            .jpm-register-message .notice-success {
+                background: #f0fdf4;
+                border-left-color: #22c55e;
+                color: #166534;
+            }
+
+            .jpm-register-message .notice-error {
+                background: #fef2f2;
+                border-left-color: #ef4444;
+                color: #991b1b;
+            }
+
+            .jpm-form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                padding-inline: 10px;
+            }
+
+            .jpm-form-field {
+                margin-bottom: 16px;
+            }
+
+            .jpm-form-field-half {
+                margin-bottom: 16px;
+            }
+
+            .jpm-input-label {
+                display: block;
+                margin-bottom: 4px;
+                font-weight: 500;
+                font-size: 13px;
+                color: #374151;
+            }
+
+            .jpm-input-label .required {
+                color: #dc2626;
+                margin-left: 2px;
+            }
+
+            .jpm-input-wrapper {
+                position: relative;
+            }
+
+            .jpm-input {
+                width: 100%;
+                padding: 8px 12px;
+                border: none;
+                border-bottom: 2px solid #e5e7eb;
+                border-radius: 0;
+                font-size: 14px;
+                color: #111827;
+                background: transparent;
+                box-sizing: border-box;
+                transition: border-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-input::placeholder {
+                color: #9ca3af;
+            }
+
+            .jpm-input:focus {
                 outline: none;
-                box-shadow: 0 0 0 1px #2271b1;
+                border-bottom-color: #2563eb;
+            }
+
+            .jpm-input:invalid:not(:placeholder-shown) {
+                border-bottom-color: #dc2626;
+            }
+
+            .jpm-password-wrapper {
+                position: relative;
+            }
+
+            .jpm-password-toggle {
+                position: absolute;
+                right: 0;
+                bottom: 8px;
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                color: #6b7280;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: color 0.15s ease;
+            }
+
+            .jpm-password-toggle:hover {
+                color: #374151;
+            }
+
+            .jpm-password-toggle:focus {
+                outline: none;
+                color: #2563eb;
+            }
+
+            .jpm-password-strength {
+                margin-top: 6px;
+            }
+
+            .jpm-password-strength-bar {
+                height: 3px;
+                background: #e5e7eb;
+                border-radius: 2px;
+                overflow: hidden;
+                margin-bottom: 6px;
+            }
+
+            .jpm-password-strength-fill {
+                height: 100%;
+                width: 0%;
+                background: #e5e7eb;
+                border-radius: 2px;
+                transition: width 0.2s ease, background-color 0.2s ease;
+            }
+
+            .jpm-password-strength-fill.weak {
+                width: 33%;
+                background: #ef4444;
+            }
+
+            .jpm-password-strength-fill.medium {
+                width: 66%;
+                background: #f59e0b;
+            }
+
+            .jpm-password-strength-fill.strong {
+                width: 100%;
+                background: #22c55e;
+            }
+
+            .jpm-password-strength-text {
+                font-size: 12px;
+                font-weight: 500;
+                margin-top: 2px;
+            }
+
+            .jpm-password-strength-text.weak {
+                color: #ef4444;
+            }
+
+            .jpm-password-strength-text.medium {
+                color: #f59e0b;
+            }
+
+            .jpm-password-strength-text.strong {
+                color: #22c55e;
+            }
+
+            .jpm-password-match {
+                margin-top: 4px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+
+            .jpm-password-match.match {
+                color: #22c55e;
+            }
+
+            .jpm-password-match.no-match {
+                color: #dc2626;
             }
 
             .jpm-field-description {
                 display: block;
-                margin-top: 5px;
-                font-size: 12px;
-                color: #646970;
+                font-size: 13px;
+                color: #6b7280;
+                margin-top: 4px;
+            }
+
+            .jpm-btn {
+                display: inline-block;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 500;
+                text-align: center;
+                text-decoration: none;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+                font-family: inherit;
+            }
+
+            .jpm-btn-primary {
+                background: #2563eb;
+                color: #ffffff;
+            }
+
+            .jpm-btn-primary:hover:not(:disabled) {
+                background: #1d4ed8;
+            }
+
+            .jpm-btn-primary:active:not(:disabled) {
+                background: #1e40af;
+            }
+
+            .jpm-btn-block {
+                width: 100%;
+                display: block;
+            }
+
+            .jpm-btn-large {
+                padding: 12px 24px;
+                font-size: 15px;
+            }
+
+            .jpm-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
             }
 
             .jpm-register-footer {
-                margin-top: 20px;
                 text-align: center;
+                margin-top: 20px;
                 padding-top: 20px;
-                border-top: 1px solid #e0e0e0;
+                border-top: 1px solid #e5e7eb;
             }
 
-            .jpm-register-footer a {
-                color: #2271b1;
+            .jpm-register-footer-text {
+                margin: 0;
+                font-size: 14px;
+                color: #6b7280;
+            }
+
+            .jpm-register-login-link {
+                color: #2563eb;
                 text-decoration: none;
+                font-weight: 500;
+                margin-left: 4px;
             }
 
-            .jpm-register-footer a:hover {
+            .jpm-register-login-link:hover {
                 text-decoration: underline;
             }
 
-            #jpm-register-message .notice {
-                margin: 0;
-            }
+            @media (max-width: 600px) {
+                .jpm-register-form-wrapper {
+                    margin: 15px auto;
+                    padding: 10px;
+                }
 
-            #jpm-register-submit:disabled {
-                opacity: 0.6;
-                cursor: not-allowed;
+                .jpm-register-header {
+                    padding: 20px 20px 16px;
+                }
+
+                .jpm-register-form {
+                    padding: 20px;
+                }
+
+                .jpm-register-message {
+                    margin: 0 20px 12px;
+                }
+
+                .jpm-form-row {
+                    grid-template-columns: 1fr;
+                    gap: 0;
+                }
+
+                .jpm-form-field-half {
+                    margin-bottom: 16px;
+                }
+
+                .jpm-register-title {
+                    font-size: 18px;
+                }
+
+                .jpm-logo-image {
+                    max-height: 45px;
+                    max-width: 150px;
+                }
+
+                .jpm-logo-text {
+                    width: 45px;
+                    height: 45px;
+                    font-size: 18px;
+                }
+
+                .jpm-form-field {
+                    margin-bottom: 14px;
+                }
             }
         </style>
 
         <script>
             jQuery(document).ready(function ($) {
+                // Password toggle functionality
+                $('.jpm-password-toggle').on('click', function () {
+                    var $button = $(this);
+                    var $input = $button.closest('.jpm-password-wrapper').find('input');
+                    var $eyeIcon = $button.find('.jpm-eye-icon');
+                    var $eyeOffIcon = $button.find('.jpm-eye-off-icon');
+
+                    if ($input.attr('type') === 'password') {
+                        $input.attr('type', 'text');
+                        $eyeIcon.hide();
+                        $eyeOffIcon.show();
+                        $button.attr('aria-label', '<?php echo esc_js(__('Hide password', 'job-posting-manager')); ?>');
+                    } else {
+                        $input.attr('type', 'password');
+                        $eyeIcon.show();
+                        $eyeOffIcon.hide();
+                        $button.attr('aria-label', '<?php echo esc_js(__('Show password', 'job-posting-manager')); ?>');
+                    }
+                });
+
+                // Real-time password strength indicator
+                $('#jpm-register-password').on('input', function () {
+                    var password = $(this).val();
+                    var $strengthContainer = $('#jpm-password-strength');
+                    var $strengthFill = $('#jpm-password-strength-fill');
+                    var $strengthText = $('#jpm-password-strength-text');
+
+                    if (password.length === 0) {
+                        $strengthContainer.hide();
+                        return;
+                    }
+
+                    $strengthContainer.show();
+
+                    // Calculate strength score
+                    var score = 0;
+                    var feedback = [];
+
+                    // Length checks
+                    if (password.length >= 8) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('At least 8 characters', 'job-posting-manager')); ?>');
+                    }
+
+                    if (password.length >= 12) {
+                        score += 1;
+                    }
+
+                    // Character variety checks
+                    if (/[a-z]/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Lowercase letter', 'job-posting-manager')); ?>');
+                    }
+
+                    if (/[A-Z]/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Uppercase letter', 'job-posting-manager')); ?>');
+                    }
+
+                    if (/\d/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Number', 'job-posting-manager')); ?>');
+                    }
+
+                    if (/[^a-zA-Z\d]/.test(password)) {
+                        score += 1;
+                    } else {
+                        feedback.push('<?php echo esc_js(__('Special character', 'job-posting-manager')); ?>');
+                    }
+
+                    // Determine strength level
+                    var strengthLevel = '';
+                    var strengthLabel = '';
+                    var strengthWidth = '0%';
+
+                    if (score <= 2) {
+                        strengthLevel = 'weak';
+                        strengthLabel = '<?php echo esc_js(__('Weak', 'job-posting-manager')); ?>';
+                        strengthWidth = '33%';
+                    } else if (score <= 4) {
+                        strengthLevel = 'medium';
+                        strengthLabel = '<?php echo esc_js(__('Medium', 'job-posting-manager')); ?>';
+                        strengthWidth = '66%';
+                    } else {
+                        strengthLevel = 'strong';
+                        strengthLabel = '<?php echo esc_js(__('Strong', 'job-posting-manager')); ?>';
+                        strengthWidth = '100%';
+                    }
+
+                    // Update visual indicator
+                    $strengthFill.removeClass('weak medium strong').addClass(strengthLevel).css('width', strengthWidth);
+
+                    // Update text feedback
+                    if (feedback.length > 0 && score < 5) {
+                        $strengthText.removeClass('weak medium strong').addClass(strengthLevel)
+                            .html('<span style="font-weight: 600;">' + strengthLabel + '</span> - <?php echo esc_js(__('Add:', 'job-posting-manager')); ?> ' + feedback.slice(0, 2).join(', '));
+                    } else {
+                        $strengthText.removeClass('weak medium strong').addClass(strengthLevel)
+                            .html('<span style="font-weight: 600;">' + strengthLabel + '</span>');
+                    }
+                });
+
+                // Password match indicator
+                $('#jpm-register-password-confirm').on('input', function () {
+                    var password = $('#jpm-register-password').val();
+                    var confirmPassword = $(this).val();
+                    var $matchIndicator = $('#jpm-password-match');
+
+                    if (confirmPassword.length === 0) {
+                        $matchIndicator.hide();
+                        return;
+                    }
+
+                    if (password === confirmPassword) {
+                        $matchIndicator.html('✓ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
+                    } else {
+                        $matchIndicator.html('✗ <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
+                    }
+                });
+
+                // Form submission
                 $('#jpm-register-form').on('submit', function (e) {
                     e.preventDefault();
 
