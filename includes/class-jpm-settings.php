@@ -305,10 +305,6 @@ class JPM_Settings
                             <p class="submit">
                                 <button type="submit" id="jpm-save-settings-btn" class="button button-primary">
                                     <span class="jpm-btn-text"><?php _e('Save Settings', 'job-posting-manager'); ?></span>
-                                    <span class="jpm-btn-spinner" style="display: none; margin-left: 8px;">
-                                        <span class="spinner is-active"
-                                            style="float: none; margin: 0; visibility: visible;"></span>
-                                    </span>
                                 </button>
                             </p>
                         </form>
@@ -345,10 +341,6 @@ class JPM_Settings
                             <p class="submit">
                                 <button type="submit" id="jpm-send-test-email-btn" class="button button-secondary">
                                     <span class="jpm-btn-text"><?php _e('Send Test Email', 'job-posting-manager'); ?></span>
-                                    <span class="jpm-btn-spinner" style="display: none; margin-left: 8px;">
-                                        <span class="spinner is-active"
-                                            style="float: none; margin: 0; visibility: visible;"></span>
-                                    </span>
                                 </button>
                             </p>
                         </form>
@@ -594,12 +586,11 @@ class JPM_Settings
                     var $message = $('#jpm-save-settings-message');
                     var $button = $('#jpm-save-settings-btn');
                     var $btnText = $button.find('.jpm-btn-text');
-                    var $btnSpinner = $button.find('.jpm-btn-spinner');
+                    var originalText = $btnText.text();
 
                     // Disable button and show loading
                     $button.prop('disabled', true);
                     $btnText.text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
-                    $btnSpinner.show();
                     $message.hide();
 
                     // Collect form data
@@ -624,7 +615,6 @@ class JPM_Settings
                         complete: function () {
                             $button.prop('disabled', false);
                             $btnText.text('<?php echo esc_js(__('Save Settings', 'job-posting-manager')); ?>');
-                            $btnSpinner.hide();
                         }
                     });
                 });
@@ -646,11 +636,10 @@ class JPM_Settings
 
                     // Disable button and show loading
                     var $btnText = $button.find('.jpm-btn-text');
-                    var $btnSpinner = $button.find('.jpm-btn-spinner');
+                    var originalText = $btnText.text();
 
                     $button.prop('disabled', true);
                     $btnText.text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
-                    $btnSpinner.show();
                     $message.hide();
 
                     // Send AJAX request
@@ -675,7 +664,6 @@ class JPM_Settings
                         complete: function () {
                             $button.prop('disabled', false);
                             $button.find('.jpm-btn-text').text('<?php echo esc_js(__('Send Test Email', 'job-posting-manager')); ?>');
-                            $button.find('.jpm-btn-spinner').hide();
                         }
                     });
                 });
