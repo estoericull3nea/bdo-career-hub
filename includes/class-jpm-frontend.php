@@ -10,6 +10,7 @@ class JPM_Frontend
         add_shortcode('application_tracker', [$this, 'application_tracker_shortcode']);
         add_shortcode('jpm_register', [$this, 'register_shortcode']);
         add_shortcode('jpm_login', [$this, 'login_shortcode']);
+        add_shortcode('jpm_logout', [$this, 'logout_shortcode']);
         add_shortcode('jpm_forgot_password', [$this, 'forgot_password_shortcode']);
         add_shortcode('jpm_reset_password', [$this, 'reset_password_shortcode']);
         add_shortcode('jpm_user_profile', [$this, 'user_profile_shortcode']);
@@ -5692,6 +5693,36 @@ class JPM_Frontend
             'message' => __('Login successful!', 'job-posting-manager'),
             'redirect_url' => $final_redirect
         ]);
+    }
+
+    /**
+     * Logout shortcode
+     * Usage: [jpm_logout text="Logout" redirect_url="/sign-in/"]
+     */
+    public function logout_shortcode($atts)
+    {
+        // If user is not logged in, show message
+        if (!is_user_logged_in()) {
+            return '<div class="jpm-logout-message"><p>' . __('You are not logged in.', 'job-posting-manager') . '</p></div>';
+        }
+
+        $atts = shortcode_atts([
+            'text' => __('Logout', 'job-posting-manager'),
+            'redirect_url' => home_url('/sign-in/'),
+        ], $atts);
+
+        $redirect_url = esc_url_raw($atts['redirect_url']);
+        $logout_url = wp_logout_url($redirect_url);
+
+        ob_start();
+        ?>
+        <div class="jpm-logout-wrapper">
+            <a href="<?php echo esc_url($logout_url); ?>" class="jpm-logout-link jpm-btn jpm-btn-primary">
+                <?php echo esc_html($atts['text']); ?>
+            </a>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 
     /**

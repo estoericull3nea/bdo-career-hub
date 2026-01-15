@@ -113,6 +113,25 @@ class JPM_Settings
                 ],
                 'note' => __('Logged-in users will see a message. The form uses secure WordPress authentication and supports "Remember me" functionality.', 'job-posting-manager'),
             ],
+            'jpm_logout' => [
+                'title' => __('Logout Link', 'job-posting-manager'),
+                'description' => __('Display a logout button/link that logs out the current user and redirects to the sign-in page.', 'job-posting-manager'),
+                'usage' => '[jpm_logout text="Logout" redirect_url="/sign-in/"]',
+                'parameters' => [
+                    'text' => __('Text to display on the logout button/link (default: "Logout")', 'job-posting-manager'),
+                    'redirect_url' => __('URL to redirect after logout (default: "/sign-in/")', 'job-posting-manager'),
+                ],
+                'example' => '[jpm_logout text="Sign Out" redirect_url="/sign-in/"]',
+                'features' => [
+                    __('Logs out the current user', 'job-posting-manager'),
+                    __('Redirects to /sign-in/ page after logout', 'job-posting-manager'),
+                    __('Customizable button text', 'job-posting-manager'),
+                    __('Customizable redirect URL', 'job-posting-manager'),
+                    __('Shows message if user is not logged in', 'job-posting-manager'),
+                    __('Uses WordPress secure logout functionality', 'job-posting-manager'),
+                ],
+                'note' => __('If the user is not logged in, a message will be displayed. The logout link uses WordPress wp_logout_url() function for secure logout and redirects to the specified URL (default: /sign-in/).', 'job-posting-manager'),
+            ],
             'jpm_forgot_password' => [
                 'title' => __('Forgot Password Form', 'job-posting-manager'),
                 'description' => __('Display a password reset form that allows users to request a password reset link via email. Users will receive an email with a link to the reset password page where they can set a new password.', 'job-posting-manager'),
