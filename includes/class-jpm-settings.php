@@ -152,6 +152,26 @@ class JPM_Settings
                 ],
                 'note' => __('This form requires valid key and login parameters from the password reset email. Invalid or expired links will show an error message. The form validates password strength and ensures passwords match before submission.', 'job-posting-manager'),
             ],
+            'jpm_user_profile' => [
+                'title' => __('User Profile', 'job-posting-manager'),
+                'description' => __('Display a comprehensive user profile page showing account information and all job applications submitted by the logged-in user.', 'job-posting-manager'),
+                'usage' => '[jpm_user_profile title="My Profile"]',
+                'parameters' => [
+                    'title' => __('Title for the profile page (default: "My Profile")', 'job-posting-manager'),
+                ],
+                'example' => '[jpm_user_profile title="My Account"]',
+                'features' => [
+                    __('User account information display', 'job-posting-manager'),
+                    __('Complete list of all job applications', 'job-posting-manager'),
+                    __('Application details with status badges', 'job-posting-manager'),
+                    __('Expandable application form data', 'job-posting-manager'),
+                    __('Application number and date tracking', 'job-posting-manager'),
+                    __('Color-coded status indicators', 'job-posting-manager'),
+                    __('Responsive card-based layout', 'job-posting-manager'),
+                    __('Link to browse jobs if no applications', 'job-posting-manager'),
+                ],
+                'note' => __('This shortcode requires users to be logged in. Non-logged-in users will see a message prompting them to login. The profile displays all applications with expandable details showing the complete form data submitted with each application.', 'job-posting-manager'),
+            ],
         ];
         // Get current settings
         $smtp_settings = get_option('jpm_smtp_settings', []);
