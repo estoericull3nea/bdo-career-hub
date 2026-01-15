@@ -1152,6 +1152,23 @@ class JPM_Admin
                     $('#jpm-view-requirements-modal').hide();
                 }
 
+                function formatDate(dateString) {
+                    if (!dateString) return '';
+
+                    // Parse the date (assuming format YYYY-MM-DD)
+                    const date = new Date(dateString + 'T00:00:00');
+                    if (isNaN(date.getTime())) return dateString; // Return original if invalid
+
+                    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+
+                    const month = months[date.getMonth()];
+                    const day = date.getDate();
+                    const year = date.getFullYear();
+
+                    return month + ' ' + day + ', ' + year;
+                }
+
                 function openViewRequirementsModal(applicationId) {
                     const $modal = $('#jpm-view-requirements-modal');
                     const $content = $('#jpm-view-requirements-content');
@@ -1193,7 +1210,8 @@ class JPM_Admin
                                 html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Schedule:', 'job-posting-manager')); ?></label>';
                                 html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">';
                                 if (details.date) {
-                                    html += '<strong><?php echo esc_js(__('Date:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(details.date).html();
+                                    const formattedDate = formatDate(details.date);
+                                    html += '<strong><?php echo esc_js(__('Date:', 'job-posting-manager')); ?></strong> ' + $('<div>').text(formattedDate).html();
                                 }
                                 if (details.time) {
                                     if (details.date) html += '<br>';
@@ -1564,7 +1582,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                     });
+                                             });
         </script>
         <?php
     }
