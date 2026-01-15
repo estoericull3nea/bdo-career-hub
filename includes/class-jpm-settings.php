@@ -115,7 +115,7 @@ class JPM_Settings
             ],
             'jpm_forgot_password' => [
                 'title' => __('Forgot Password Form', 'job-posting-manager'),
-                'description' => __('Display a password reset form that allows users to request a password reset link via email.', 'job-posting-manager'),
+                'description' => __('Display a password reset form that allows users to request a password reset link via email. Users will receive an email with a link to the reset password page where they can set a new password.', 'job-posting-manager'),
                 'usage' => '[jpm_forgot_password title="Reset Password"]',
                 'parameters' => [
                     'title' => __('Title for the forgot password form (default: "Reset Password")', 'job-posting-manager'),
@@ -123,13 +123,34 @@ class JPM_Settings
                 'example' => '[jpm_forgot_password title="Reset Your Password"]',
                 'features' => [
                     __('Email-based password reset request', 'job-posting-manager'),
+                    __('Sends email with link to reset password page (/reset-password/)', 'job-posting-manager'),
                     __('AJAX form submission (no page reload)', 'job-posting-manager'),
                     __('Enhanced message styling with gradient backgrounds', 'job-posting-manager'),
                     __('Secure password reset using WordPress built-in functionality', 'job-posting-manager'),
                     __('Link back to login page', 'job-posting-manager'),
                     __('Security: Does not reveal if email exists in system', 'job-posting-manager'),
                 ],
-                'note' => __('Logged-in users will see a message. The form uses WordPress retrieve_password() function to send password reset emails securely.', 'job-posting-manager'),
+                'note' => __('Logged-in users will see a message. The form uses WordPress retrieve_password() function to send password reset emails securely. The email link automatically points to /reset-password/ page where users can set their new password using the jpm_reset_password shortcode.', 'job-posting-manager'),
+            ],
+            'jpm_reset_password' => [
+                'title' => __('Reset Password Form', 'job-posting-manager'),
+                'description' => __('Display a form for users to set a new password after clicking the reset link from their email. This shortcode should be placed on a page with URL /reset-password/', 'job-posting-manager'),
+                'usage' => '[jpm_reset_password title="Set New Password"]',
+                'parameters' => [
+                    'title' => __('Title for the reset password form (default: "Set New Password")', 'job-posting-manager'),
+                ],
+                'example' => '[jpm_reset_password title="Set Your New Password"]',
+                'features' => [
+                    __('Validates password reset key from email link', 'job-posting-manager'),
+                    __('New password and confirm password fields', 'job-posting-manager'),
+                    __('Password show/hide toggle', 'job-posting-manager'),
+                    __('Real-time password match indicator', 'job-posting-manager'),
+                    __('AJAX form submission (no page reload)', 'job-posting-manager'),
+                    __('Enhanced message styling with gradient backgrounds', 'job-posting-manager'),
+                    __('Auto-redirect to login page after successful reset', 'job-posting-manager'),
+                    __('Link back to login page', 'job-posting-manager'),
+                ],
+                'note' => __('This form requires valid key and login parameters from the password reset email. Invalid or expired links will show an error message. The form validates password strength and ensures passwords match before submission.', 'job-posting-manager'),
             ],
         ];
         // Get current settings
