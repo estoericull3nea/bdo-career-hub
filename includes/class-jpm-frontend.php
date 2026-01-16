@@ -5717,10 +5717,29 @@ class JPM_Frontend
         ob_start();
         ?>
         <div class="jpm-logout-wrapper">
-            <a href="<?php echo esc_url($logout_url); ?>" class="jpm-logout-link jpm-btn jpm-btn-primary">
+            <a href="<?php echo esc_url($logout_url); ?>" class="jpm-logout-button">
                 <?php echo esc_html($atts['text']); ?>
             </a>
         </div>
+        <style>
+            .jpm-logout-button {
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: transparent;
+                border: 2px solid #FFD700;
+                color: #333;
+                text-decoration: none;
+                border-radius: 4px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }
+            .jpm-logout-button:hover {
+                background-color: #FFD700;
+                border: 2px solid transparent;
+                color: #333;
+            }
+        </style>
         <?php
         return ob_get_clean();
     }
