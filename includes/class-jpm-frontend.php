@@ -5735,6 +5735,7 @@ class JPM_Frontend
             }
             .jpm-logout-button {
                 display: block;
+                width: 100%;
                 padding: 10px 20px;
                 background-color: transparent;
                 border: 2px solid #FFD700;
@@ -5745,6 +5746,7 @@ class JPM_Frontend
                 transition: all 0.3s ease;
                 cursor: pointer;
                 text-align: center;
+                white-space: nowrap;
                 animation: jpm-logout-pulse 2s infinite;
             }
             .jpm-logout-button:hover {
