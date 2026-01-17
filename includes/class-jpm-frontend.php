@@ -5717,10 +5717,31 @@ class JPM_Frontend
         ob_start();
         ?>
         <div class="jpm-logout-wrapper">
-            <a href="<?php echo esc_url($logout_url); ?>" class="jpm-logout-button">
+            <button type="button" class="jpm-logout-button" data-logout-url="<?php echo esc_url($logout_url); ?>">
                 <?php echo esc_html($atts['text']); ?>
-            </a>
+            </button>
         </div>
+
+        <!-- Logout Confirmation Modal -->
+        <div id="jpm-logout-modal" class="jpm-logout-modal">
+            <div class="jpm-logout-modal-overlay"></div>
+            <div class="jpm-logout-modal-content">
+                <div class="jpm-logout-modal-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </div>
+                <h3 class="jpm-logout-modal-title"><?php _e('Confirm Logout', 'job-posting-manager'); ?></h3>
+                <p class="jpm-logout-modal-message"><?php _e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?></p>
+                <div class="jpm-logout-modal-actions">
+                    <button type="button" class="jpm-logout-modal-cancel"><?php _e('Cancel', 'job-posting-manager'); ?></button>
+                    <button type="button" class="jpm-logout-modal-confirm"><?php _e('Logout', 'job-posting-manager'); ?></button>
+                </div>
+            </div>
+        </div>
+
         <style>
             @keyframes jpm-logout-pulse {
                 0% {
@@ -5731,6 +5752,24 @@ class JPM_Frontend
                 }
                 100% {
                     box-shadow: 0 0 0 0 rgba(255, 197, 39, 0);
+                }
+            }
+            @keyframes jpm-modal-fade-in {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+            @keyframes jpm-modal-slide-up {
+                from {
+                    opacity: 0;
+                    transform: translate(-50%, -40px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translate(-50%, -50%);
                 }
             }
             .jpm-logout-wrapper {
@@ -5754,6 +5793,8 @@ class JPM_Frontend
                 overflow: hidden;
                 text-overflow: ellipsis;
                 animation: jpm-logout-pulse 2s infinite;
+                font-family: inherit;
+                font-size: inherit;
             }
             .jpm-logout-button:hover {
                 background-color: #ffc527;
@@ -5762,7 +5803,156 @@ class JPM_Frontend
                 animation: none;
                 transform: scale(1.05);
             }
+            .jpm-logout-modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 999999;
+            }
+            .jpm-logout-modal.active {
+                display: block;
+                animation: jpm-modal-fade-in 0.3s ease;
+            }
+            .jpm-logout-modal-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(4px);
+            }
+            .jpm-logout-modal-content {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #1a1a1a;
+                border: 2px solid #ffc527;
+                border-radius: 16px;
+                padding: 40px;
+                max-width: 420px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(255, 197, 39, 0.3);
+                animation: jpm-modal-slide-up 0.4s ease;
+                text-align: center;
+            }
+            .jpm-logout-modal-icon {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 20px;
+                background: linear-gradient(135deg, rgba(255, 197, 39, 0.2), rgba(255, 197, 39, 0.1));
+                border: 2px solid #ffc527;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #ffc527;
+            }
+            .jpm-logout-modal-icon svg {
+                width: 40px;
+                height: 40px;
+            }
+            .jpm-logout-modal-title {
+                color: #ffffff;
+                font-size: 24px;
+                font-weight: 600;
+                margin: 0 0 16px;
+            }
+            .jpm-logout-modal-message {
+                color: #cccccc;
+                font-size: 15px;
+                line-height: 1.6;
+                margin: 0 0 32px;
+            }
+            .jpm-logout-modal-actions {
+                display: flex;
+                gap: 12px;
+                justify-content: center;
+            }
+            .jpm-logout-modal-cancel,
+            .jpm-logout-modal-confirm {
+                padding: 12px 32px;
+                border-radius: 8px;
+                font-weight: 500;
+                font-size: 15px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                border: 2px solid transparent;
+                font-family: inherit;
+            }
+            .jpm-logout-modal-cancel {
+                background-color: transparent;
+                border-color: #666;
+                color: #ffffff;
+            }
+            .jpm-logout-modal-cancel:hover {
+                background-color: #333;
+                border-color: #888;
+                transform: translateY(-2px);
+            }
+            .jpm-logout-modal-confirm {
+                background-color: transparent;
+                border-color: #ffc527;
+                color: #ffffff;
+            }
+            .jpm-logout-modal-confirm:hover {
+                background-color: #ffc527;
+                color: #000000;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(255, 197, 39, 0.4);
+            }
         </style>
+
+        <script>
+        (function() {
+            document.addEventListener('DOMContentLoaded', function() {
+                const logoutButton = document.querySelector('.jpm-logout-button');
+                const modal = document.getElementById('jpm-logout-modal');
+                const cancelButton = document.querySelector('.jpm-logout-modal-cancel');
+                const confirmButton = document.querySelector('.jpm-logout-modal-confirm');
+                const overlay = document.querySelector('.jpm-logout-modal-overlay');
+
+                if (!logoutButton || !modal) return;
+
+                function openModal() {
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+
+                function closeModal() {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+
+                function proceedLogout() {
+                    const logoutUrl = logoutButton.getAttribute('data-logout-url');
+                    if (logoutUrl) {
+                        window.location.href = logoutUrl;
+                    }
+                }
+
+                logoutButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    openModal();
+                });
+
+                cancelButton.addEventListener('click', closeModal);
+                confirmButton.addEventListener('click', proceedLogout);
+                overlay.addEventListener('click', closeModal);
+
+                // Close on Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && modal.classList.contains('active')) {
+                        closeModal();
+                    }
+                });
+            });
+        })();
+        </script>
         <?php
         return ob_get_clean();
     }
