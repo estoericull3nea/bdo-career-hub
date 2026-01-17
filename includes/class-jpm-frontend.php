@@ -5770,8 +5770,8 @@ class JPM_Frontend
                 box-sizing: border-box;
                 padding: 10px 20px;
                 background-color: transparent;
-                border: 2px solid #ffc527 !important;
-                color: #ffffff;
+                border: 2px solid #2563eb !important;
+                color: #2563eb;
                 text-decoration: none;
                 border-radius: 4px;
                 font-weight: 500;
@@ -5785,9 +5785,9 @@ class JPM_Frontend
                 font-size: inherit;
             }
             .jpm-logout-button:hover {
-                background-color: #ffc527;
+                background-color: #2563eb;
                 border: 2px solid transparent !important;
-                color: #000000;
+                color: #ffffff;
             }
             .jpm-logout-modal {
                 display: none;
@@ -5816,13 +5816,13 @@ class JPM_Frontend
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: #1a1a1a;
-                border: 2px solid #ffc527;
-                border-radius: 16px;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
                 padding: 40px;
                 max-width: 420px;
                 width: 90%;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
                 animation: jpm-modal-slide-up 0.4s ease;
                 text-align: center;
             }
@@ -5830,26 +5830,26 @@ class JPM_Frontend
                 width: 80px;
                 height: 80px;
                 margin: 0 auto 20px;
-                background: linear-gradient(135deg, rgba(255, 197, 39, 0.2), rgba(255, 197, 39, 0.1));
-                border: 2px solid #ffc527;
+                background: rgba(37, 99, 235, 0.1);
+                border: 2px solid #2563eb;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: #ffc527;
+                color: #2563eb;
             }
             .jpm-logout-modal-icon svg {
                 width: 40px;
                 height: 40px;
             }
             .jpm-logout-modal-title {
-                color: #ffffff;
+                color: #111827;
                 font-size: 24px;
                 font-weight: 600;
                 margin: 0 0 16px;
             }
             .jpm-logout-modal-message {
-                color: #cccccc;
+                color: #6b7280;
                 font-size: 15px;
                 line-height: 1.6;
                 margin: 0 0 32px;
@@ -5872,22 +5872,22 @@ class JPM_Frontend
             }
             .jpm-logout-modal-cancel {
                 background-color: transparent;
-                border-color: #666;
-                color: #ffffff;
+                border-color: #e5e7eb;
+                color: #374151;
             }
             .jpm-logout-modal-cancel:hover {
-                background-color: #333;
-                border-color: #888;
+                background-color: #f9fafb;
+                border-color: #d1d5db;
                 transform: translateY(-2px);
             }
             .jpm-logout-modal-confirm {
                 background-color: transparent;
-                border-color: #ffc527;
-                color: #ffffff;
+                border-color: #2563eb;
+                color: #2563eb;
             }
             .jpm-logout-modal-confirm:hover {
-                background-color: #ffc527;
-                color: #000000;
+                background-color: #2563eb;
+                color: #ffffff;
                 transform: translateY(-2px);
             }
         </style>
