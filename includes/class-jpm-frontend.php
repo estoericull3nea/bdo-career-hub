@@ -5733,12 +5733,16 @@ class JPM_Frontend
                     box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
                 }
             }
+            .jpm-logout-wrapper {
+                width: 100%;
+            }
             .jpm-logout-button {
                 display: block;
                 width: 100%;
+                box-sizing: border-box;
                 padding: 10px 20px;
                 background-color: transparent;
-                border: 2px solid #FFD700;
+                border: 2px solid #FFD700 !important;
                 color: #ffffff;
                 text-decoration: none;
                 border-radius: 4px;
@@ -5747,11 +5751,13 @@ class JPM_Frontend
                 cursor: pointer;
                 text-align: center;
                 white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
                 animation: jpm-logout-pulse 2s infinite;
             }
             .jpm-logout-button:hover {
                 background-color: #FFD700;
-                border: 2px solid transparent;
+                border: 2px solid transparent !important;
                 color: #ffffff;
                 animation: none;
                 transform: scale(1.05);
