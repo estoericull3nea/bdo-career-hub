@@ -5722,22 +5722,37 @@ class JPM_Frontend
             </a>
         </div>
         <style>
+            @keyframes jpm-logout-pulse {
+                0% {
+                    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+                }
+                70% {
+                    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+                }
+                100% {
+                    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+                }
+            }
             .jpm-logout-button {
-                display: inline-block;
+                display: block;
                 padding: 10px 20px;
                 background-color: transparent;
                 border: 2px solid #FFD700;
-                color: #333;
+                color: #ffffff;
                 text-decoration: none;
                 border-radius: 4px;
                 font-weight: 500;
                 transition: all 0.3s ease;
                 cursor: pointer;
+                text-align: center;
+                animation: jpm-logout-pulse 2s infinite;
             }
             .jpm-logout-button:hover {
                 background-color: #FFD700;
                 border: 2px solid transparent;
-                color: #333;
+                color: #ffffff;
+                animation: none;
+                transform: scale(1.05);
             }
         </style>
         <?php
