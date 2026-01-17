@@ -3544,17 +3544,11 @@ class JPM_Frontend
         ?>
         <div class="jpm-user-profile-wrapper">
             <div class="jpm-user-profile-layout"
-                style="display: flex !important; flex-direction: row !important; align-items: flex-start !important; width: 100% !important;">
+                style="display: flex !important; flex-direction: row !important; align-items: stretch !important; width: 100% !important; min-height: 100% !important;">
                 <!-- Sidebar Navigation -->
                 <aside class="jpm-profile-sidebar"
-                    style="width: 280px !important; min-width: 280px !important; max-width: 280px !important; flex: 0 0 280px !important; flex-shrink: 0 !important; flex-grow: 0 !important; display: flex !important; flex-direction: column !important; float: none !important;">
+                    style="width: 280px !important; min-width: 280px !important; max-width: 280px !important; flex: 0 0 280px !important; flex-shrink: 0 !important; flex-grow: 0 !important; display: flex !important; flex-direction: column !important; float: none !important; align-self: stretch !important; min-height: 100% !important;">
                     <div class="jpm-profile-sidebar-header">
-                        <div class="jpm-profile-logo">
-                            <?php
-                            $bdo_logo_url = JPM_PLUGIN_URL . 'assets/images/BDO-Favicon.png';
-                            echo '<img src="' . esc_url($bdo_logo_url) . '" alt="BDO" class="jpm-logo-image" />';
-                            ?>
-                        </div>
                         <div class="jpm-profile-user-info">
                             <div class="jpm-profile-user-avatar">
                                 <?php echo get_avatar($user_id, 48); ?>
@@ -4530,7 +4524,7 @@ class JPM_Frontend
             .jpm-user-profile-layout {
                 display: flex !important;
                 flex-direction: row !important;
-                align-items: flex-start !important;
+                align-items: stretch !important;
                 gap: 0 !important;
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
@@ -4541,6 +4535,7 @@ class JPM_Frontend
                 clear: both !important;
                 position: relative !important;
                 flex-wrap: nowrap !important;
+                min-height: 100%;
             }
 
             .jpm-user-profile-layout::before,
@@ -4603,28 +4598,22 @@ class JPM_Frontend
                 vertical-align: top !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                align-self: stretch !important;
+                min-height: 100% !important;
             }
 
             .jpm-profile-sidebar-header {
                 padding: 24px 20px;
                 border-bottom: 1px solid #e5e7eb;
                 background: #ffffff;
-            }
-
-            .jpm-profile-logo {
-                margin-bottom: 20px;
                 display: flex;
-                align-items: center;
                 justify-content: center;
-            }
-
-            .jpm-profile-logo .jpm-logo-image {
-                max-height: 50px;
-                width: auto;
+                align-items: center;
             }
 
             .jpm-profile-user-info {
                 text-align: center;
+                width: 100%;
             }
 
             .jpm-profile-user-avatar {
