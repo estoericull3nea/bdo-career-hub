@@ -5724,13 +5724,13 @@ class JPM_Frontend
         <style>
             @keyframes jpm-logout-pulse {
                 0% {
-                    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+                    box-shadow: 0 0 0 0 rgba(255, 197, 39, 0.4);
                 }
                 70% {
-                    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+                    box-shadow: 0 0 0 10px rgba(255, 197, 39, 0);
                 }
                 100% {
-                    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+                    box-shadow: 0 0 0 0 rgba(255, 197, 39, 0);
                 }
             }
             .jpm-logout-wrapper {
@@ -5742,7 +5742,7 @@ class JPM_Frontend
                 box-sizing: border-box;
                 padding: 10px 20px;
                 background-color: transparent;
-                border: 2px solid #FFD700 !important;
+                border: 2px solid #ffc527 !important;
                 color: #ffffff;
                 text-decoration: none;
                 border-radius: 4px;
@@ -5756,9 +5756,9 @@ class JPM_Frontend
                 animation: jpm-logout-pulse 2s infinite;
             }
             .jpm-logout-button:hover {
-                background-color: #FFD700;
+                background-color: #ffc527;
                 border: 2px solid transparent !important;
-                color: #ffffff;
+                color: #000000;
                 animation: none;
                 transform: scale(1.05);
             }
