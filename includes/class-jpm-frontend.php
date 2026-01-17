@@ -3551,7 +3551,7 @@ class JPM_Frontend
                     <div class="jpm-profile-sidebar-header">
                         <div class="jpm-profile-user-info">
                             <div class="jpm-profile-user-avatar">
-                                <?php echo get_avatar($user_id, 48); ?>
+                                <?php echo get_avatar($user_id, 80); ?>
                             </div>
                             <div class="jpm-profile-user-name"><?php echo esc_html($current_user->display_name); ?></div>
                             <div class="jpm-profile-user-email"><?php echo esc_html($current_user->user_email); ?></div>
@@ -4618,11 +4618,18 @@ class JPM_Frontend
 
             .jpm-profile-user-avatar {
                 margin-bottom: 12px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
             }
 
             .jpm-profile-user-avatar img {
                 border-radius: 50%;
                 border: 3px solid #e5e7eb;
+                width: 80px !important;
+                height: 80px !important;
+                display: block;
+                margin: 0 auto;
             }
 
             .jpm-profile-user-name {
