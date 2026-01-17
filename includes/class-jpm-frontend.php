@@ -27,6 +27,7 @@ class JPM_Frontend
         add_action('wp_ajax_nopriv_jpm_register', [$this, 'handle_registration']);
         add_action('wp_ajax_jpm_login', [$this, 'handle_login']);
         add_action('wp_ajax_nopriv_jpm_login', [$this, 'handle_login']);
+        add_action('wp_ajax_jpm_logout', [$this, 'handle_logout']);
         add_action('wp_ajax_jpm_forgot_password', [$this, 'handle_forgot_password']);
         add_action('wp_ajax_nopriv_jpm_forgot_password', [$this, 'handle_forgot_password']);
         add_action('wp_ajax_jpm_reset_password', [$this, 'handle_reset_password']);
@@ -5696,6 +5697,30 @@ class JPM_Frontend
     }
 
     /**
+     * Handle logout via AJAX
+     */
+    public function handle_logout()
+    {
+        check_ajax_referer('jpm_logout', 'nonce');
+
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(['message' => __('You are not logged in.', 'job-posting-manager')]);
+        }
+
+        // Get redirect URL
+        $redirect_url = esc_url_raw($_POST['redirect_url'] ?? home_url('/sign-in/'));
+
+        // Logout user
+        wp_logout();
+
+        wp_send_json_success([
+            'message' => __('Logout successful!', 'job-posting-manager'),
+            'redirect_url' => $redirect_url
+        ]);
+    }
+
+    /**
      * Logout shortcode
      * Usage: [jpm_logout text="Logout" redirect_url="/sign-in/"]
      */
@@ -5712,12 +5737,11 @@ class JPM_Frontend
         ], $atts);
 
         $redirect_url = esc_url_raw($atts['redirect_url']);
-        $logout_url = wp_logout_url($redirect_url);
 
         ob_start();
         ?>
         <div class="jpm-logout-wrapper">
-            <button type="button" class="jpm-logout-button" data-logout-url="<?php echo esc_url($logout_url); ?>">
+            <button type="button" class="jpm-logout-button" data-redirect-url="<?php echo esc_url($redirect_url); ?>">
                 <?php echo esc_html($atts['text']); ?>
             </button>
         </div>
@@ -5726,6 +5750,8 @@ class JPM_Frontend
         <div id="jpm-logout-modal" class="jpm-logout-modal">
             <div class="jpm-logout-modal-overlay"></div>
             <div class="jpm-logout-modal-content">
+                <?php wp_nonce_field('jpm_logout', 'jpm_logout_nonce'); ?>
+                <input type="hidden" id="jpm-logout-redirect-url" value="<?php echo esc_attr($redirect_url); ?>" />
                 <div class="jpm-logout-modal-icon">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -5737,7 +5763,10 @@ class JPM_Frontend
                 <p class="jpm-logout-modal-message"><?php _e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?></p>
                 <div class="jpm-logout-modal-actions">
                     <button type="button" class="jpm-logout-modal-cancel"><?php _e('No, stay logged in', 'job-posting-manager'); ?></button>
-                    <button type="button" class="jpm-logout-modal-confirm"><?php _e('Yes, log out', 'job-posting-manager'); ?></button>
+                    <button type="button" class="jpm-logout-modal-confirm">
+                        <span class="jpm-logout-confirm-text"><?php _e('Yes, log out', 'job-posting-manager'); ?></span>
+                        <span class="jpm-logout-loading-text" style="display: none;"><?php _e('Logging out...', 'job-posting-manager'); ?></span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -5892,6 +5921,11 @@ class JPM_Frontend
                 color: #2563eb;
                 transform: translateY(-2px);
             }
+            .jpm-logout-modal-confirm:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
         </style>
 
         <script>
@@ -5902,24 +5936,74 @@ class JPM_Frontend
                 const cancelButton = document.querySelector('.jpm-logout-modal-cancel');
                 const confirmButton = document.querySelector('.jpm-logout-modal-confirm');
                 const overlay = document.querySelector('.jpm-logout-modal-overlay');
+                const confirmText = document.querySelector('.jpm-logout-confirm-text');
+                const loadingText = document.querySelector('.jpm-logout-loading-text');
 
                 if (!logoutButton || !modal) return;
 
                 function openModal() {
                     modal.classList.add('active');
                     document.body.style.overflow = 'hidden';
+                    // Reset button state
+                    if (confirmButton) {
+                        confirmButton.disabled = false;
+                        if (confirmText) confirmText.style.display = 'inline';
+                        if (loadingText) loadingText.style.display = 'none';
+                    }
                 }
 
                 function closeModal() {
                     modal.classList.remove('active');
                     document.body.style.overflow = '';
+                    // Reset button state
+                    if (confirmButton) {
+                        confirmButton.disabled = false;
+                        if (confirmText) confirmText.style.display = 'inline';
+                        if (loadingText) loadingText.style.display = 'none';
+                    }
                 }
 
                 function proceedLogout() {
-                    const logoutUrl = logoutButton.getAttribute('data-logout-url');
-                    if (logoutUrl) {
-                        window.location.href = logoutUrl;
-                    }
+                    if (!confirmButton || confirmButton.disabled) return;
+
+                    // Show loading state
+                    confirmButton.disabled = true;
+                    if (confirmText) confirmText.style.display = 'none';
+                    if (loadingText) loadingText.style.display = 'inline';
+
+                    const nonce = document.getElementById('jpm_logout_nonce')?.value || '';
+                    const redirectUrl = document.getElementById('jpm-logout-redirect-url')?.value || '<?php echo esc_js(home_url('/sign-in/')); ?>';
+
+                    // Make AJAX request
+                    const formData = new FormData();
+                    formData.append('action', 'jpm_logout');
+                    formData.append('nonce', nonce);
+                    formData.append('redirect_url', redirectUrl);
+
+                    fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Redirect to sign-in page
+                            window.location.href = data.data.redirect_url || redirectUrl;
+                        } else {
+                            // Show error and reset button
+                            alert(data.data?.message || 'Logout failed. Please try again.');
+                            confirmButton.disabled = false;
+                            if (confirmText) confirmText.style.display = 'inline';
+                            if (loadingText) loadingText.style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Logout error:', error);
+                        alert('An error occurred. Please try again.');
+                        confirmButton.disabled = false;
+                        if (confirmText) confirmText.style.display = 'inline';
+                        if (loadingText) loadingText.style.display = 'none';
+                    });
                 }
 
                 logoutButton.addEventListener('click', function(e) {
@@ -5927,9 +6011,15 @@ class JPM_Frontend
                     openModal();
                 });
 
-                cancelButton.addEventListener('click', closeModal);
-                confirmButton.addEventListener('click', proceedLogout);
-                overlay.addEventListener('click', closeModal);
+                if (cancelButton) {
+                    cancelButton.addEventListener('click', closeModal);
+                }
+                if (confirmButton) {
+                    confirmButton.addEventListener('click', proceedLogout);
+                }
+                if (overlay) {
+                    overlay.addEventListener('click', closeModal);
+                }
 
                 // Close on Escape key
                 document.addEventListener('keydown', function(e) {
