@@ -5743,17 +5743,6 @@ class JPM_Frontend
         </div>
 
         <style>
-            @keyframes jpm-logout-pulse {
-                0% {
-                    box-shadow: 0 0 0 0 rgba(255, 197, 39, 0.4);
-                }
-                70% {
-                    box-shadow: 0 0 0 10px rgba(255, 197, 39, 0);
-                }
-                100% {
-                    box-shadow: 0 0 0 0 rgba(255, 197, 39, 0);
-                }
-            }
             @keyframes jpm-modal-fade-in {
                 from {
                     opacity: 0;
@@ -5792,7 +5781,6 @@ class JPM_Frontend
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                animation: jpm-logout-pulse 2s infinite;
                 font-family: inherit;
                 font-size: inherit;
             }
@@ -5800,8 +5788,6 @@ class JPM_Frontend
                 background-color: #ffc527;
                 border: 2px solid transparent !important;
                 color: #000000;
-                animation: none;
-                transform: scale(1.05);
             }
             .jpm-logout-modal {
                 display: none;
@@ -5836,7 +5822,7 @@ class JPM_Frontend
                 padding: 40px;
                 max-width: 420px;
                 width: 90%;
-                box-shadow: 0 20px 60px rgba(255, 197, 39, 0.3);
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
                 animation: jpm-modal-slide-up 0.4s ease;
                 text-align: center;
             }
@@ -5903,7 +5889,6 @@ class JPM_Frontend
                 background-color: #ffc527;
                 color: #000000;
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(255, 197, 39, 0.4);
             }
         </style>
 
