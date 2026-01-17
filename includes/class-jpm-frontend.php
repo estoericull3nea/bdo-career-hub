@@ -5770,8 +5770,8 @@ class JPM_Frontend
                 box-sizing: border-box;
                 padding: 10px 20px;
                 background-color: transparent;
-                border: 2px solid #2563eb !important;
-                color: #2563eb;
+                border: 2px solid #ffc527 !important;
+                color: #ffffff;
                 text-decoration: none;
                 border-radius: 4px;
                 font-weight: 500;
@@ -5785,9 +5785,9 @@ class JPM_Frontend
                 font-size: inherit;
             }
             .jpm-logout-button:hover {
-                background-color: #2563eb;
+                background-color: #ffc527;
                 border: 2px solid transparent !important;
-                color: #ffffff;
+                color: #000000;
             }
             .jpm-logout-modal {
                 display: none;
@@ -5877,7 +5877,8 @@ class JPM_Frontend
             }
             .jpm-logout-modal-cancel:hover {
                 background-color: #f9fafb;
-                border-color: #d1d5db;
+                border-color: #2563eb;
+                color: #2563eb;
                 transform: translateY(-2px);
             }
             .jpm-logout-modal-confirm {
@@ -5886,8 +5887,9 @@ class JPM_Frontend
                 color: #2563eb;
             }
             .jpm-logout-modal-confirm:hover {
-                background-color: #2563eb;
-                color: #ffffff;
+                background-color: transparent;
+                border-color: #2563eb;
+                color: #2563eb;
                 transform: translateY(-2px);
             }
         </style>
