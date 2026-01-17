@@ -5736,8 +5736,8 @@ class JPM_Frontend
                 <h3 class="jpm-logout-modal-title"><?php _e('Confirm Logout', 'job-posting-manager'); ?></h3>
                 <p class="jpm-logout-modal-message"><?php _e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?></p>
                 <div class="jpm-logout-modal-actions">
-                    <button type="button" class="jpm-logout-modal-cancel"><?php _e('Cancel', 'job-posting-manager'); ?></button>
-                    <button type="button" class="jpm-logout-modal-confirm"><?php _e('Logout', 'job-posting-manager'); ?></button>
+                    <button type="button" class="jpm-logout-modal-cancel"><?php _e('No, stay logged in', 'job-posting-manager'); ?></button>
+                    <button type="button" class="jpm-logout-modal-confirm"><?php _e('Yes, log out', 'job-posting-manager'); ?></button>
                 </div>
             </div>
         </div>
