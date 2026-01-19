@@ -3829,7 +3829,7 @@ class JPM_Frontend
                             <?php else: ?>
                                 <div class="jpm-no-applications">
                                     <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
-                                    <a href="<?php echo esc_url(home_url('/all-jobs/')); ?>" class="jpm-btn jpm-btn-primary">
+                                    <a href="<?php echo esc_url(home_url('/job-postings/')); ?>" class="jpm-btn jpm-btn-primary">
                                         <?php _e('Browse Jobs', 'job-posting-manager'); ?>
                                     </a>
                                 </div>
@@ -5283,6 +5283,7 @@ class JPM_Frontend
 
             .jpm-btn-primary:hover {
                 background: #1d4ed8;
+                color: #000000;
             }
 
             /* Responsive */
