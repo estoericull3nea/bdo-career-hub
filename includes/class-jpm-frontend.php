@@ -5283,7 +5283,7 @@ class JPM_Frontend
 
             .jpm-btn-primary:hover {
                 background: #1d4ed8;
-                color: #000000;
+                color: #ffffff;
             }
 
             /* Responsive */
