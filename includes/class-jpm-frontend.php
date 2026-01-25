@@ -4044,7 +4044,15 @@ class JPM_Frontend
                                 </h3>
                                 <div class="jpm-status-breakdown-list">
                                     <?php foreach ($status_counts as $status_slug => $count):
-                                        $status_info = JPM_DB::get_status_by_slug($status_slug);
+                                        // Get status information using fallback method
+                                        $status_info = null;
+                                        $all_statuses = JPM_DB::get_all_statuses_info();
+                                        foreach ($all_statuses as $status) {
+                                            if ($status['slug'] === $status_slug) {
+                                                $status_info = $status;
+                                                break;
+                                            }
+                                        }
                                         if ($status_info) {
                                             $status_name = $status_info['name'];
                                             $status_color = $status_info['color'];
@@ -4094,8 +4102,15 @@ class JPM_Frontend
                                             $form_data = [];
                                         }
 
-                                        // Get status information
-                                        $status_info = JPM_DB::get_status_by_slug($application->status);
+                                        // Get status information using fallback method
+                                        $status_info = null;
+                                        $all_statuses = JPM_DB::get_all_statuses_info();
+                                        foreach ($all_statuses as $status) {
+                                            if ($status['slug'] === $application->status) {
+                                                $status_info = $status;
+                                                break;
+                                            }
+                                        }
                                         if ($status_info) {
                                             $status_name = $status_info['name'];
                                             $status_color = $status_info['color'];
@@ -4233,8 +4248,15 @@ class JPM_Frontend
                                         $form_data = [];
                                     }
 
-                                    // Get status information
-                                    $status_info = JPM_DB::get_status_by_slug($application->status);
+                                    // Get status information using fallback method
+                                    $status_info = null;
+                                    $all_statuses = JPM_DB::get_all_statuses_info();
+                                    foreach ($all_statuses as $status) {
+                                        if ($status['slug'] === $application->status) {
+                                            $status_info = $status;
+                                            break;
+                                        }
+                                    }
                                     if ($status_info) {
                                         $status_name = $status_info['name'];
                                         $status_color = $status_info['color'];
