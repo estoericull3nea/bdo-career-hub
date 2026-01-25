@@ -574,16 +574,50 @@ class JPM_Form_Builder
                     // Generate date of registration: mm/dd/yyyy
                     $date_of_registration = date('m/d/Y'); // Current date in mm/dd/yyyy format
 
-                    // Get current user data for auto-fill
+                    // Get current user data and saved profile data for auto-fill
                     $user_data = [];
+                    $saved_application_data = [];
+                    
                     if (is_user_logged_in()) {
                         $current_user = wp_get_current_user();
+                        $user_id = $current_user->ID;
+                        
+                        // Get basic user info
                         $user_data = [
-                            'first_name' => get_user_meta($current_user->ID, 'first_name', true) ?: '',
-                            'last_name' => get_user_meta($current_user->ID, 'last_name', true) ?: '',
-                            'middle_name' => get_user_meta($current_user->ID, 'middle_name', true) ?: '',
+                            'first_name' => get_user_meta($user_id, 'first_name', true) ?: '',
+                            'last_name' => get_user_meta($user_id, 'last_name', true) ?: '',
+                            'middle_name' => get_user_meta($user_id, 'middle_name', true) ?: '',
                             'email' => $current_user->user_email ?: '',
                         ];
+                        
+                        // Get saved application data from user profile (prioritized)
+                        $saved_profile_data = get_user_meta($user_id, 'jpm_saved_application_data', true);
+                        
+                        if (is_array($saved_profile_data) && !empty($saved_profile_data)) {
+                            // Use saved profile data (most recent and complete)
+                            $saved_application_data = $saved_profile_data;
+                        } else {
+                            // Fallback: Get user's most recent application data
+                            global $wpdb;
+                            $table = $wpdb->prefix . 'job_applications';
+                            $latest_application = $wpdb->get_row($wpdb->prepare(
+                                "SELECT * FROM $table WHERE user_id = %d ORDER BY application_date DESC LIMIT 1",
+                                $user_id
+                            ));
+                            
+                            if ($latest_application && !empty($latest_application->notes)) {
+                                $form_data = json_decode($latest_application->notes, true);
+                                if (is_array($form_data) && !empty($form_data)) {
+                                    // Remove job-specific fields
+                                    unset($form_data['application_number']);
+                                    unset($form_data['date_of_registration']);
+                                    unset($form_data['position_1st_choice']);
+                                    unset($form_data['position_2nd_choice']);
+                                    unset($form_data['position_3rd_choice']);
+                                    $saved_application_data = $form_data;
+                                }
+                            }
+                        }
                     }
                     ?>
 
@@ -741,9 +775,10 @@ class JPM_Form_Builder
                 </form>
             </div>
         </div>
-        <?php if (!empty($user_data)): ?>
+        <?php if (!empty($user_data) || !empty($saved_application_data)): ?>
         <script type="text/javascript">
             window.jpmUserData = <?php echo json_encode($user_data); ?>;
+            window.jpmSavedApplicationData = <?php echo json_encode($saved_application_data); ?>;
         </script>
         <?php endif; ?>
         <?php
@@ -1357,6 +1392,46 @@ class JPM_Form_Builder
         // Get application ID from database insert
         global $wpdb;
         $application_id = $wpdb->insert_id;
+
+        // Save form data to user profile for future auto-fill (if user is logged in)
+        if ($user_id > 0) {
+            // Create a copy of form data without job-specific fields
+            $profile_data = [];
+            
+            // Get form field definitions to identify file fields
+            $form_fields = get_post_meta($job_id, '_jpm_form_fields', true);
+            $file_field_names = [];
+            if (is_array($form_fields)) {
+                foreach ($form_fields as $field) {
+                    if (isset($field['type']) && $field['type'] === 'file') {
+                        $file_field_names[] = $field['name'];
+                    }
+                }
+            }
+            
+            // Copy all form data except job-specific and file fields
+            foreach ($form_data as $key => $value) {
+                // Skip job-specific fields
+                if (in_array($key, ['application_number', 'date_of_registration', 'position_1st_choice', 'position_2nd_choice', 'position_3rd_choice'])) {
+                    continue;
+                }
+                
+                // Skip file fields (they're job-specific uploads)
+                if (in_array($key, $file_field_names)) {
+                    continue;
+                }
+                
+                // Only save non-empty values
+                if (!empty($value) && $value !== null && $value !== '') {
+                    $profile_data[$key] = $value;
+                }
+            }
+            
+            // Save to user meta (only if we have data to save)
+            if (!empty($profile_data)) {
+                update_user_meta($user_id, 'jpm_saved_application_data', $profile_data);
+            }
+        }
 
         $email_errors = [];
 

@@ -437,102 +437,202 @@ jQuery(document).ready(function ($) {
   // Initialize stepper on page load
   initStepperForm();
 
-  // Auto-fill form fields for logged-in users
+  // Auto-fill form fields for logged-in users from saved application data
   function autoFillUserData() {
-    if (typeof window.jpmUserData === 'undefined' || !window.jpmUserData) {
-      return;
-    }
-
-    const userData = window.jpmUserData;
+    const savedData = typeof window.jpmSavedApplicationData !== 'undefined' ? window.jpmSavedApplicationData : {};
+    const userData = typeof window.jpmUserData !== 'undefined' ? window.jpmUserData : {};
     
     // Helper function to normalize field names for matching
     function normalizeFieldName(name) {
+      if (!name) return '';
       return name.toLowerCase().replace(/[_\s-]/g, '');
     }
 
-    // Field name variations for matching (normalized)
-    const firstNameVariations = ['firstname', 'fname', 'givenname', 'given'];
-    const lastNameVariations = ['lastname', 'lname', 'surname', 'familyname', 'family'];
-    const middleNameVariations = ['middlename', 'mname'];
-    const emailVariations = ['email', 'emailaddress'];
-
-    // Find and fill first name fields
-    if (userData.first_name) {
-      $('input[type="text"]').each(function() {
-        const fieldName = normalizeFieldName($(this).attr('name') || '');
-        const fieldId = normalizeFieldName($(this).attr('id') || '');
-        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
-        
-        if (firstNameVariations.some(variation => 
-          fieldName.includes(variation) || 
-          fieldId.includes(variation) || 
-          fieldLabel.includes('first') || 
-          fieldLabel.includes('given')
-        )) {
-          if (!$(this).val()) {
-            $(this).val(userData.first_name);
+    // Helper function to get field value from saved data (only if value exists and is not empty)
+    function getSavedValue(fieldName) {
+      if (!fieldName) return null;
+      
+      // Helper to check if value is valid (not empty, null, or undefined)
+      function isValidValue(value) {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string' && value.trim() === '') return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+      }
+      
+      // Try exact match first
+      if (savedData[fieldName] !== undefined && isValidValue(savedData[fieldName])) {
+        return savedData[fieldName];
+      }
+      
+      // Try normalized match
+      const normalizedFieldName = normalizeFieldName(fieldName);
+      for (const key in savedData) {
+        if (normalizeFieldName(key) === normalizedFieldName) {
+          if (isValidValue(savedData[key])) {
+            return savedData[key];
           }
+        }
+      }
+      
+      return null;
+    }
+
+    // First, fill all fields from saved application data (if exists)
+    if (savedData && Object.keys(savedData).length > 0) {
+      // Fill all input fields (excluding file inputs)
+      $('input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"]').each(function() {
+        const $field = $(this);
+        const fieldName = $field.attr('name');
+        
+        // Skip if field already has a value
+        if ($field.val()) {
+          return;
+        }
+        
+        // Skip application_number and date_of_registration (these are auto-generated)
+        if (fieldName === 'application_number' || fieldName === 'date_of_registration') {
+          return;
+        }
+        
+        // Skip file input fields (they're job-specific)
+        if ($field.closest('.jpm-file-upload-wrapper').length > 0 || 
+            $field.attr('type') === 'file' || 
+            fieldName && (fieldName.toLowerCase().includes('resume') || 
+                         fieldName.toLowerCase().includes('picture') || 
+                         fieldName.toLowerCase().includes('photo') ||
+                         fieldName.toLowerCase().includes('file'))) {
+          return;
+        }
+        
+        const savedValue = getSavedValue(fieldName);
+        if (savedValue !== null) {
+          $field.val(savedValue);
+        }
+      });
+      
+      // Fill textarea fields
+      $('textarea').each(function() {
+        const $field = $(this);
+        const fieldName = $field.attr('name');
+        
+        // Skip if field already has a value
+        if ($field.val()) {
+          return;
+        }
+        
+        const savedValue = getSavedValue(fieldName);
+        if (savedValue !== null) {
+          $field.val(savedValue);
+        }
+      });
+      
+      // Fill select fields
+      $('select').each(function() {
+        const $field = $(this);
+        const fieldName = $field.attr('name');
+        
+        // Skip if field already has a value
+        if ($field.val()) {
+          return;
+        }
+        
+        const savedValue = getSavedValue(fieldName);
+        if (savedValue !== null) {
+          $field.val(savedValue).trigger('change');
         }
       });
     }
+    
+    // Fallback: Fill basic user info if not in saved data
+    if (userData && Object.keys(userData).length > 0) {
+      const firstNameVariations = ['firstname', 'fname', 'givenname', 'given'];
+      const lastNameVariations = ['lastname', 'lname', 'surname', 'familyname', 'family'];
+      const middleNameVariations = ['middlename', 'mname'];
+      const emailVariations = ['email', 'emailaddress'];
 
-    // Find and fill last name/surname fields
-    if (userData.last_name) {
-      $('input[type="text"]').each(function() {
-        const fieldName = normalizeFieldName($(this).attr('name') || '');
-        const fieldId = normalizeFieldName($(this).attr('id') || '');
-        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
-        
-        if (lastNameVariations.some(variation => 
-          fieldName.includes(variation) || 
-          fieldId.includes(variation) || 
-          fieldLabel.includes('last') || 
-          fieldLabel.includes('surname') ||
-          fieldLabel.includes('family')
-        )) {
-          if (!$(this).val()) {
-            $(this).val(userData.last_name);
+      // Fill first name if not already filled
+      if (userData.first_name) {
+        $('input[type="text"]').each(function() {
+          const $field = $(this);
+          if ($field.val()) return;
+          
+          const fieldName = normalizeFieldName($field.attr('name') || '');
+          const fieldId = normalizeFieldName($field.attr('id') || '');
+          const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          if (firstNameVariations.some(variation => 
+            fieldName.includes(variation) || 
+            fieldId.includes(variation) || 
+            fieldLabel.includes('first') || 
+            fieldLabel.includes('given')
+          )) {
+            $field.val(userData.first_name);
           }
-        }
-      });
-    }
+        });
+      }
 
-    // Find and fill middle name fields
-    if (userData.middle_name) {
-      $('input[type="text"]').each(function() {
-        const fieldName = normalizeFieldName($(this).attr('name') || '');
-        const fieldId = normalizeFieldName($(this).attr('id') || '');
-        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
-        
-        if (middleNameVariations.some(variation => 
-          fieldName.includes(variation) || 
-          fieldId.includes(variation) || 
-          fieldLabel.includes('middle')
-        )) {
-          if (!$(this).val()) {
-            $(this).val(userData.middle_name);
+      // Fill last name if not already filled
+      if (userData.last_name) {
+        $('input[type="text"]').each(function() {
+          const $field = $(this);
+          if ($field.val()) return;
+          
+          const fieldName = normalizeFieldName($field.attr('name') || '');
+          const fieldId = normalizeFieldName($field.attr('id') || '');
+          const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          if (lastNameVariations.some(variation => 
+            fieldName.includes(variation) || 
+            fieldId.includes(variation) || 
+            fieldLabel.includes('last') || 
+            fieldLabel.includes('surname') ||
+            fieldLabel.includes('family')
+          )) {
+            $field.val(userData.last_name);
           }
-        }
-      });
-    }
+        });
+      }
 
-    // Find and fill email fields
-    if (userData.email) {
-      $('input[type="email"]').each(function() {
-        const fieldName = normalizeFieldName($(this).attr('name') || '');
-        const fieldId = normalizeFieldName($(this).attr('id') || '');
-        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
-        
-        if (emailVariations.some(variation => 
-          fieldName.includes(variation) || 
-          fieldId.includes(variation) || 
-          fieldLabel.includes('email')
-        )) {
-          if (!$(this).val()) {
-            $(this).val(userData.email);
+      // Fill middle name if not already filled
+      if (userData.middle_name) {
+        $('input[type="text"]').each(function() {
+          const $field = $(this);
+          if ($field.val()) return;
+          
+          const fieldName = normalizeFieldName($field.attr('name') || '');
+          const fieldId = normalizeFieldName($field.attr('id') || '');
+          const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          if (middleNameVariations.some(variation => 
+            fieldName.includes(variation) || 
+            fieldId.includes(variation) || 
+            fieldLabel.includes('middle')
+          )) {
+            $field.val(userData.middle_name);
           }
-        }
-      });
+        });
+      }
+
+      // Fill email if not already filled
+      if (userData.email) {
+        $('input[type="email"]').each(function() {
+          const $field = $(this);
+          if ($field.val()) return;
+          
+          const fieldName = normalizeFieldName($field.attr('name') || '');
+          const fieldId = normalizeFieldName($field.attr('id') || '');
+          const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          if (emailVariations.some(variation => 
+            fieldName.includes(variation) || 
+            fieldId.includes(variation) || 
+            fieldLabel.includes('email')
+          )) {
+            $field.val(userData.email);
+          }
+        });
+      }
     }
   }
 
