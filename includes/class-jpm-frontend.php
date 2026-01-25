@@ -4548,7 +4548,18 @@ class JPM_Frontend
                                                                     <span
                                                                         class="jpm-form-data-label"><?php _e('Date:', 'job-posting-manager'); ?></span>
                                                                     <span
-                                                                        class="jpm-form-data-value"><?php echo esc_html($medical_details['date']); ?></span>
+                                                                        class="jpm-form-data-value">
+                                                                        <?php
+                                                                        // Format date to "January 13, 2003" format
+                                                                        $date_value = $medical_details['date'];
+                                                                        $timestamp = strtotime($date_value);
+                                                                        if ($timestamp !== false) {
+                                                                            echo esc_html(date('F j, Y', $timestamp));
+                                                                        } else {
+                                                                            echo esc_html($date_value);
+                                                                        }
+                                                                        ?>
+                                                                    </span>
                                                                 </div>
                                                             <?php endif; ?>
                                                             <?php if ($medical_details && !empty($medical_details['time'])): ?>
