@@ -36,6 +36,11 @@ jQuery(document).ready(function ($) {
       const $currentStepEl = $steps.filter('[data-step="' + stepIndex + '"]');
       $currentStepEl.addClass("active").show();
 
+      // Auto-fill user data when step is shown
+      setTimeout(function() {
+        autoFillUserData();
+      }, 100);
+
       // Update stepper navigation (map to form steps: 0-based index for nav, 1-based for form steps)
       $stepperNav.removeClass("active completed");
       $stepperNav.each(function (index) {
@@ -431,6 +436,113 @@ jQuery(document).ready(function ($) {
 
   // Initialize stepper on page load
   initStepperForm();
+
+  // Auto-fill form fields for logged-in users
+  function autoFillUserData() {
+    if (typeof window.jpmUserData === 'undefined' || !window.jpmUserData) {
+      return;
+    }
+
+    const userData = window.jpmUserData;
+    
+    // Helper function to normalize field names for matching
+    function normalizeFieldName(name) {
+      return name.toLowerCase().replace(/[_\s-]/g, '');
+    }
+
+    // Field name variations for matching (normalized)
+    const firstNameVariations = ['firstname', 'fname', 'givenname', 'given'];
+    const lastNameVariations = ['lastname', 'lname', 'surname', 'familyname', 'family'];
+    const middleNameVariations = ['middlename', 'mname'];
+    const emailVariations = ['email', 'emailaddress'];
+
+    // Find and fill first name fields
+    if (userData.first_name) {
+      $('input[type="text"]').each(function() {
+        const fieldName = normalizeFieldName($(this).attr('name') || '');
+        const fieldId = normalizeFieldName($(this).attr('id') || '');
+        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
+        
+        if (firstNameVariations.some(variation => 
+          fieldName.includes(variation) || 
+          fieldId.includes(variation) || 
+          fieldLabel.includes('first') || 
+          fieldLabel.includes('given')
+        )) {
+          if (!$(this).val()) {
+            $(this).val(userData.first_name);
+          }
+        }
+      });
+    }
+
+    // Find and fill last name/surname fields
+    if (userData.last_name) {
+      $('input[type="text"]').each(function() {
+        const fieldName = normalizeFieldName($(this).attr('name') || '');
+        const fieldId = normalizeFieldName($(this).attr('id') || '');
+        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
+        
+        if (lastNameVariations.some(variation => 
+          fieldName.includes(variation) || 
+          fieldId.includes(variation) || 
+          fieldLabel.includes('last') || 
+          fieldLabel.includes('surname') ||
+          fieldLabel.includes('family')
+        )) {
+          if (!$(this).val()) {
+            $(this).val(userData.last_name);
+          }
+        }
+      });
+    }
+
+    // Find and fill middle name fields
+    if (userData.middle_name) {
+      $('input[type="text"]').each(function() {
+        const fieldName = normalizeFieldName($(this).attr('name') || '');
+        const fieldId = normalizeFieldName($(this).attr('id') || '');
+        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
+        
+        if (middleNameVariations.some(variation => 
+          fieldName.includes(variation) || 
+          fieldId.includes(variation) || 
+          fieldLabel.includes('middle')
+        )) {
+          if (!$(this).val()) {
+            $(this).val(userData.middle_name);
+          }
+        }
+      });
+    }
+
+    // Find and fill email fields
+    if (userData.email) {
+      $('input[type="email"]').each(function() {
+        const fieldName = normalizeFieldName($(this).attr('name') || '');
+        const fieldId = normalizeFieldName($(this).attr('id') || '');
+        const fieldLabel = normalizeFieldName($(this).closest('.jpm-form-field-group').find('label').text() || '');
+        
+        if (emailVariations.some(variation => 
+          fieldName.includes(variation) || 
+          fieldId.includes(variation) || 
+          fieldLabel.includes('email')
+        )) {
+          if (!$(this).val()) {
+            $(this).val(userData.email);
+          }
+        }
+      });
+    }
+  }
+
+  // Run auto-fill when form is ready
+  $(document).ready(function() {
+    // Wait a bit for form to be fully rendered
+    setTimeout(function() {
+      autoFillUserData();
+    }, 500);
+  });
 
   // File Upload Preview Functionality
   function initFileUploads() {

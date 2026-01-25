@@ -573,6 +573,18 @@ class JPM_Form_Builder
 
                     // Generate date of registration: mm/dd/yyyy
                     $date_of_registration = date('m/d/Y'); // Current date in mm/dd/yyyy format
+
+                    // Get current user data for auto-fill
+                    $user_data = [];
+                    if (is_user_logged_in()) {
+                        $current_user = wp_get_current_user();
+                        $user_data = [
+                            'first_name' => get_user_meta($current_user->ID, 'first_name', true) ?: '',
+                            'last_name' => get_user_meta($current_user->ID, 'last_name', true) ?: '',
+                            'middle_name' => get_user_meta($current_user->ID, 'middle_name', true) ?: '',
+                            'email' => $current_user->user_email ?: '',
+                        ];
+                    }
                     ?>
 
                     <!-- Step 0: Application Info (always visible) -->
@@ -729,6 +741,11 @@ class JPM_Form_Builder
                 </form>
             </div>
         </div>
+        <?php if (!empty($user_data)): ?>
+        <script type="text/javascript">
+            window.jpmUserData = <?php echo json_encode($user_data); ?>;
+        </script>
+        <?php endif; ?>
         <?php
         $form_html = ob_get_clean();
 
