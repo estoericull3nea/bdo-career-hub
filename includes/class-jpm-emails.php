@@ -901,6 +901,65 @@ class JPM_Emails
     }
 
     /**
+     * Send OTP email for email verification
+     * 
+     * @param string $email User email address
+     * @param string $otp 6-digit OTP code
+     * @return bool True if email sent successfully, false otherwise
+     */
+    public static function send_otp_email($email, $otp)
+    {
+        // Check if SMTP is available
+        if (!self::is_smtp_available()) {
+            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            return false;
+        }
+
+        // Build email subject
+        $subject = sprintf(__('Your Verification Code for %s', 'job-posting-manager'), get_bloginfo('name'));
+
+        // Build email body with modern styling
+        $body = '<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">';
+        $body .= '<div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">';
+        $body .= '<h1 style="color: #ffffff; margin: 0; font-size: 24px;">' . __('Email Verification', 'job-posting-manager') . '</h1>';
+        $body .= '</div>';
+        
+        $body .= '<div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">';
+        $body .= '<p style="font-size: 16px; margin: 0 0 20px 0;">' . __('Hello,', 'job-posting-manager') . '</p>';
+        $body .= '<p style="font-size: 16px; margin: 0 0 20px 0;">' . __('Thank you for registering with us. Please use the verification code below to verify your email address:', 'job-posting-manager') . '</p>';
+        
+        // OTP display box
+        $body .= '<div style="background: #f3f4f6; border: 2px dashed #2563eb; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">';
+        $body .= '<div style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; font-family: monospace;">' . esc_html($otp) . '</div>';
+        $body .= '</div>';
+        
+        $body .= '<p style="font-size: 14px; color: #6b7280; margin: 20px 0 0 0;">' . __('This code will expire in 10 minutes.', 'job-posting-manager') . '</p>';
+        $body .= '<p style="font-size: 14px; color: #6b7280; margin: 10px 0 0 0;">' . __('If you did not request this code, please ignore this email.', 'job-posting-manager') . '</p>';
+        $body .= '</div>';
+        
+        $body .= '<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">';
+        $body .= '<p style="font-size: 12px; color: #9ca3af; margin: 0;">' . sprintf(__('This is an automated email from %s.', 'job-posting-manager'), get_bloginfo('name')) . '</p>';
+        $body .= '</div>';
+        $body .= '</body></html>';
+
+        // Email headers
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . get_option('admin_email') . '>'
+        ];
+
+        // Send email
+        $result = wp_mail($email, $subject, $body, $headers);
+
+        // Log email sending attempt
+        if (!$result) {
+            error_log('JPM: Failed to send OTP email to ' . $email);
+        }
+
+        return $result;
+    }
+
+    /**
      * Send account creation notification to customer
      * 
      * @param int $user_id User ID

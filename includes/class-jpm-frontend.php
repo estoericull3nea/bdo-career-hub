@@ -25,6 +25,10 @@ class JPM_Frontend
         add_action('wp_ajax_nopriv_jpm_track_application', [$this, 'track_application_ajax']);
         add_action('wp_ajax_jpm_register', [$this, 'handle_registration']);
         add_action('wp_ajax_nopriv_jpm_register', [$this, 'handle_registration']);
+        add_action('wp_ajax_jpm_send_otp', [$this, 'handle_send_otp']);
+        add_action('wp_ajax_nopriv_jpm_send_otp', [$this, 'handle_send_otp']);
+        add_action('wp_ajax_jpm_verify_otp', [$this, 'handle_verify_otp']);
+        add_action('wp_ajax_nopriv_jpm_verify_otp', [$this, 'handle_verify_otp']);
         add_action('wp_ajax_jpm_login', [$this, 'handle_login']);
         add_action('wp_ajax_nopriv_jpm_login', [$this, 'handle_login']);
         add_action('wp_ajax_jpm_logout', [$this, 'handle_logout']);
@@ -1154,9 +1158,98 @@ class JPM_Frontend
 
                 <div id="jpm-register-message" class="jpm-register-message" style="display: none;"></div>
 
-                <form id="jpm-register-form" class="jpm-register-form">
+                <!-- Step 1: Email Verification -->
+                <div id="jpm-otp-step-1" class="jpm-otp-step">
+                    <form id="jpm-send-otp-form" class="jpm-register-form">
+                        <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
+                        <div class="jpm-form-field">
+                            <label for="jpm-register-email" class="jpm-input-label">
+                                <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                            </label>
+                            <div class="jpm-input-wrapper">
+                                <input type="email" id="jpm-register-email" name="email" required class="jpm-input"
+                                    placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
+                            </div>
+                            <p class="jpm-field-description">
+                                <?php _e('We will send a verification code to this email address.', 'job-posting-manager'); ?>
+                            </p>
+                        </div>
+
+                        <div class="jpm-form-field">
+                            <button type="submit" id="jpm-send-otp-btn"
+                                class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
+                                <span class="jpm-btn-text"><?php _e('Send Verification Code', 'job-posting-manager'); ?></span>
+                            </button>
+                        </div>
+
+                        <div class="jpm-register-footer">
+                            <p class="jpm-register-footer-text">
+                                <?php _e('Already have an account?', 'job-posting-manager'); ?>
+                                <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-register-login-link">
+                                    <?php _e('Sign in', 'job-posting-manager'); ?>
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 2: OTP Verification -->
+                <div id="jpm-otp-step-2" class="jpm-otp-step" style="display: none;">
+                    <form id="jpm-verify-otp-form" class="jpm-register-form">
+                        <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
+                        <div class="jpm-form-field">
+                            <label for="jpm-register-email-display" class="jpm-input-label">
+                                <?php _e('Email Address', 'job-posting-manager'); ?>
+                            </label>
+                            <div class="jpm-input-wrapper">
+                                <input type="email" id="jpm-register-email-display" class="jpm-input" readonly
+                                    style="background-color: #f3f4f6; cursor: not-allowed;" />
+                            </div>
+                        </div>
+
+                        <div class="jpm-form-field">
+                            <label for="jpm-register-otp" class="jpm-input-label">
+                                <?php _e('Verification Code', 'job-posting-manager'); ?> <span class="required">*</span>
+                            </label>
+                            <div class="jpm-input-wrapper">
+                                <input type="text" id="jpm-register-otp" name="otp" required class="jpm-input"
+                                    maxlength="6" pattern="[0-9]{6}"
+                                    placeholder="<?php esc_attr_e('Enter 6-digit code', 'job-posting-manager'); ?>" />
+                            </div>
+                            <p class="jpm-field-description">
+                                <?php _e('Enter the 6-digit code sent to your email.', 'job-posting-manager'); ?>
+                            </p>
+                        </div>
+
+                        <div class="jpm-form-field">
+                            <button type="submit" id="jpm-verify-otp-btn"
+                                class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
+                                <span class="jpm-btn-text"><?php _e('Verify Code', 'job-posting-manager'); ?></span>
+                            </button>
+                        </div>
+
+                        <div class="jpm-form-field" style="text-align: center; margin-top: 15px;">
+                            <button type="button" id="jpm-resend-otp-btn" class="jpm-btn-link">
+                                <?php _e('Resend Code', 'job-posting-manager'); ?>
+                            </button>
+                        </div>
+
+                        <div class="jpm-register-footer">
+                            <p class="jpm-register-footer-text">
+                                <?php _e('Already have an account?', 'job-posting-manager'); ?>
+                                <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-register-login-link">
+                                    <?php _e('Sign in', 'job-posting-manager'); ?>
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 3: Registration Form -->
+                <form id="jpm-register-form" class="jpm-register-form" style="display: none;">
                     <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
                     <input type="hidden" name="redirect_url" value="<?php echo esc_attr($atts['redirect_url']); ?>" />
+                    <input type="hidden" id="jpm-register-email-hidden" name="email" />
 
                     <div class="jpm-form-row">
                         <div class="jpm-form-field jpm-form-field-half" style="margin-bottom: 0;">
@@ -1177,16 +1270,6 @@ class JPM_Frontend
                                 <input type="text" id="jpm-register-last-name" name="last_name" required class="jpm-input"
                                     placeholder="<?php esc_attr_e('Enter your last name', 'job-posting-manager'); ?>" />
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="jpm-form-field">
-                        <label for="jpm-register-email" class="jpm-input-label">
-                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
-                        </label>
-                        <div class="jpm-input-wrapper">
-                            <input type="email" id="jpm-register-email" name="email" required class="jpm-input"
-                                placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
                         </div>
                     </div>
 
@@ -1573,6 +1656,38 @@ class JPM_Frontend
                 cursor: not-allowed;
             }
 
+            .jpm-btn-link {
+                background: none;
+                border: none;
+                color: #2563eb;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                padding: 0;
+                font-family: inherit;
+            }
+
+            .jpm-btn-link:hover {
+                text-decoration: underline;
+                color: #1d4ed8;
+            }
+
+            .jpm-otp-step {
+                animation: fadeIn 0.3s ease-in;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
             .jpm-register-footer {
                 text-align: center;
                 margin-top: 20px;
@@ -1770,7 +1885,132 @@ class JPM_Frontend
                     }
                 });
 
-                // Form submission
+                // Step 1: Send OTP
+                $('#jpm-send-otp-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-register-message');
+                    var $button = $('#jpm-send-otp-btn');
+                    var $btnText = $button.find('.jpm-btn-text');
+                    var email = $('#jpm-register-email').val().trim().toLowerCase();
+
+                    // Validate email
+                    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Please enter a valid email address.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    // Disable button and show loading
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
+                    $message.hide();
+
+                    // Send AJAX request
+                    $.ajax({
+                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_send_otp',
+                            email: email,
+                            nonce: $('#jpm_register_nonce').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('OTP sent successfully!', 'job-posting-manager')); ?>') + '</p></div>').show();
+                                
+                                // Show step 2 and hide step 1 (use normalized email)
+                                $('#jpm-register-email-display').val(email);
+                                $('#jpm-register-email-hidden').val(email);
+                                $('#jpm-otp-step-1').hide();
+                                $('#jpm-otp-step-2').show();
+                                $('#jpm-register-otp').focus();
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to send OTP. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                                $button.prop('disabled', false);
+                                $btnText.text('<?php echo esc_js(__('Send Verification Code', 'job-posting-manager')); ?>');
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo esc_js(__('Send Verification Code', 'job-posting-manager')); ?>');
+                        }
+                    });
+                });
+
+                // Step 2: Verify OTP
+                $('#jpm-verify-otp-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-register-message');
+                    var $button = $('#jpm-verify-otp-btn');
+                    var $btnText = $button.find('.jpm-btn-text');
+                    var email = $('#jpm-register-email-display').val().trim().toLowerCase();
+                    var otp = $('#jpm-register-otp').val();
+
+                    // Validate OTP
+                    if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+                        $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('Please enter a valid 6-digit OTP.', 'job-posting-manager')); ?></p></div>').show();
+                        return;
+                    }
+
+                    // Disable button and show loading
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo esc_js(__('Verifying...', 'job-posting-manager')); ?>');
+                    $message.hide();
+
+                    // Send AJAX request
+                    $.ajax({
+                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_verify_otp',
+                            email: email,
+                            otp: otp,
+                            nonce: $('#jpm_register_nonce').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Email verified successfully!', 'job-posting-manager')); ?>') + '</p></div>').show();
+                                
+                                // Show step 3 and hide step 2 (use normalized email from response if available)
+                                var verifiedEmail = response.data.email || email;
+                                $('#jpm-register-email-hidden').val(verifiedEmail);
+                                $('#jpm-register-email-display').val(verifiedEmail);
+                                $('#jpm-otp-step-2').hide();
+                                $('#jpm-register-form').show();
+                                $('#jpm-register-first-name').focus();
+                            } else {
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js(__('Invalid OTP. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                                $button.prop('disabled', false);
+                                $btnText.text('<?php echo esc_js(__('Verify Code', 'job-posting-manager')); ?>');
+                                $('#jpm-register-otp').val('').focus();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js(__('An error occurred. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo esc_js(__('Verify Code', 'job-posting-manager')); ?>');
+                        }
+                    });
+                });
+
+                // Resend OTP
+                $('#jpm-resend-otp-btn').on('click', function (e) {
+                    e.preventDefault();
+                    var email = $('#jpm-register-email-display').val().trim().toLowerCase();
+                    $('#jpm-register-email').val(email);
+                    $('#jpm-send-otp-form').trigger('submit');
+                });
+
+                // OTP input - only allow numbers and limit to 6 digits
+                $('#jpm-register-otp').on('input', function () {
+                    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+                });
+
+                // Form submission (Step 3: Registration)
                 $('#jpm-register-form').on('submit', function (e) {
                     e.preventDefault();
 
@@ -1808,7 +2048,7 @@ class JPM_Frontend
                             action: 'jpm_register',
                             first_name: $('#jpm-register-first-name').val(),
                             last_name: $('#jpm-register-last-name').val(),
-                            email: $('#jpm-register-email').val(),
+                            email: $('#jpm-register-email-hidden').val(),
                             password: password,
                             redirect_url: $('input[name="redirect_url"]').val(),
                             nonce: $('#jpm_register_nonce').val()
@@ -1845,6 +2085,109 @@ class JPM_Frontend
     }
 
     /**
+     * Handle sending OTP to email
+     */
+    public function handle_send_otp()
+    {
+        check_ajax_referer('jpm_register', 'nonce');
+
+        // Get email from request and normalize it (lowercase, trim)
+        $email = sanitize_email($_POST['email'] ?? '');
+        $email = strtolower(trim($email));
+
+        // Validate email
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        }
+
+        // Check if email already exists
+        if (email_exists($email)) {
+            wp_send_json_error(['message' => __('An account with this email address already exists. Please login instead.', 'job-posting-manager')]);
+        }
+
+        // Generate 6-digit OTP
+        $otp = wp_rand(100000, 999999);
+
+        // Store OTP in transient with 10 minutes expiration (use normalized email for key)
+        $transient_key = 'jpm_otp_' . md5($email);
+        set_transient($transient_key, $otp, 10 * MINUTE_IN_SECONDS);
+
+        // Also store email for verification tracking
+        $email_verify_key = 'jpm_otp_email_' . md5($email);
+        set_transient($email_verify_key, $email, 10 * MINUTE_IN_SECONDS);
+
+        // Send OTP email
+        if (class_exists('JPM_Emails')) {
+            try {
+                $sent = JPM_Emails::send_otp_email($email, $otp);
+                if ($sent) {
+                    wp_send_json_success([
+                        'message' => __('OTP has been sent to your email address. Please check your inbox.', 'job-posting-manager')
+                    ]);
+                } else {
+                    wp_send_json_error(['message' => __('Failed to send OTP email. Please try again.', 'job-posting-manager')]);
+                }
+            } catch (Exception $e) {
+                error_log('JPM: Failed to send OTP email - ' . $e->getMessage());
+                wp_send_json_error(['message' => __('Failed to send OTP email. Please try again.', 'job-posting-manager')]);
+            }
+        } else {
+            wp_send_json_error(['message' => __('Email service is not available. Please contact support.', 'job-posting-manager')]);
+        }
+    }
+
+    /**
+     * Handle OTP verification
+     */
+    public function handle_verify_otp()
+    {
+        check_ajax_referer('jpm_register', 'nonce');
+
+        // Get email and OTP from request and normalize email (lowercase, trim)
+        $email = sanitize_email($_POST['email'] ?? '');
+        $email = strtolower(trim($email));
+        $otp = sanitize_text_field($_POST['otp'] ?? '');
+
+        // Validate inputs
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        }
+
+        if (empty($otp) || strlen($otp) !== 6 || !is_numeric($otp)) {
+            wp_send_json_error(['message' => __('Please enter a valid 6-digit OTP.', 'job-posting-manager')]);
+        }
+
+        // Get stored OTP (use normalized email for key)
+        $transient_key = 'jpm_otp_' . md5($email);
+        $stored_otp = get_transient($transient_key);
+
+        if ($stored_otp === false) {
+            wp_send_json_error(['message' => __('OTP has expired. Please request a new one.', 'job-posting-manager')]);
+        }
+
+        // Verify OTP
+        if ($stored_otp != $otp) {
+            wp_send_json_error(['message' => __('Invalid OTP. Please try again.', 'job-posting-manager')]);
+        }
+
+        // Mark email as verified (store email address for 10 minutes, use normalized email for key)
+        $verified_key = 'jpm_otp_verified_' . md5($email);
+        set_transient($verified_key, $email, 10 * MINUTE_IN_SECONDS);
+
+        // Also store a simpler verification flag
+        $simple_verified_key = 'jpm_email_verified_' . md5($email);
+        set_transient($simple_verified_key, '1', 10 * MINUTE_IN_SECONDS);
+
+        // Delete the OTP after successful verification
+        delete_transient($transient_key);
+
+        wp_send_json_success([
+            'message' => __('Email verified successfully! You can now complete your registration.', 'job-posting-manager'),
+            'email' => $email // Return normalized email for frontend
+        ]);
+    }
+
+    /**
      * Handle user registration via AJAX
      */
     public function handle_registration()
@@ -1856,10 +2199,11 @@ class JPM_Frontend
             wp_send_json_error(['message' => __('You are already logged in.', 'job-posting-manager')]);
         }
 
-        // Get form data
+        // Get form data and normalize email (lowercase, trim)
         $first_name = sanitize_text_field($_POST['first_name'] ?? '');
         $last_name = sanitize_text_field($_POST['last_name'] ?? '');
         $email = sanitize_email($_POST['email'] ?? '');
+        $email = strtolower(trim($email));
         $password = $_POST['password'] ?? '';
         $redirect_url = esc_url_raw($_POST['redirect_url'] ?? '');
 
@@ -1883,6 +2227,19 @@ class JPM_Frontend
         // Check if email already exists
         if (email_exists($email)) {
             wp_send_json_error(['message' => __('An account with this email address already exists. Please login instead.', 'job-posting-manager')]);
+        }
+
+        // Verify that email has been verified via OTP (use normalized email for key)
+        $verified_key = 'jpm_otp_verified_' . md5($email);
+        $simple_verified_key = 'jpm_email_verified_' . md5($email);
+        $verified_email = get_transient($verified_key);
+        $is_verified = get_transient($simple_verified_key);
+        
+        // Check if email is verified - check if either transient exists
+        $email_verified = ($verified_email !== false) || ($is_verified !== false);
+        
+        if (!$email_verified) {
+            wp_send_json_error(['message' => __('Please verify your email address with OTP before creating an account.', 'job-posting-manager')]);
         }
 
         // Create username from email
@@ -1940,6 +2297,14 @@ class JPM_Frontend
                 error_log('JPM: Failed to send new customer notification - ' . $e->getMessage());
             }
         }
+
+        // Clean up OTP transients after successful registration
+        $verified_key = 'jpm_otp_verified_' . md5($email);
+        $simple_verified_key = 'jpm_email_verified_' . md5($email);
+        $email_verify_key = 'jpm_otp_email_' . md5($email);
+        delete_transient($verified_key);
+        delete_transient($simple_verified_key);
+        delete_transient($email_verify_key);
 
         // Redirect to login page (do not auto-login)
         $final_redirect = home_url('/sign-in/');
