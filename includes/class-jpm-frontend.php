@@ -814,12 +814,12 @@ class JPM_Frontend
 
             <div class="jpm-tracker-footer" id="jpm-tracker-footer">
                 <h3 class="jpm-tracker-footer-title"><?php _e('Application Status:', 'job-posting-manager'); ?></h3>
-                <ul class="jpm-tracker-status-list">
+                <div class="jpm-tracker-accordion">
                     <?php
                     // Get all statuses from database
                     $all_statuses = JPM_DB::get_all_statuses_info();
                     if (!empty($all_statuses)):
-                        foreach ($all_statuses as $status):
+                        foreach ($all_statuses as $index => $status):
                             $status_name = isset($status['name']) ? $status['name'] : ucfirst($status['slug']);
                             // Format status name to match PSA page style: "Your application is [status]"
                             // Use past tense for completed actions, present for ongoing
@@ -834,16 +834,29 @@ class JPM_Frontend
                             $status_description = isset($status['description']) && !empty($status['description'])
                                 ? $status['description']
                                 : sprintf(__('This means that your application status is %s.', 'job-posting-manager'), strtolower($status_name));
+
+                            $accordion_id = 'jpm-status-accordion-' . $index;
                             ?>
-                            <li class="jpm-tracker-status-item">
-                                <strong class="jpm-tracker-status-name"><?php echo esc_html($status_title); ?></strong>
-                                <p class="jpm-tracker-status-desc"><?php echo wp_kses_post($status_description); ?></p>
-                            </li>
+                            <div class="jpm-tracker-accordion-item">
+                                <button class="jpm-tracker-accordion-header" type="button" aria-expanded="false"
+                                    aria-controls="<?php echo esc_attr($accordion_id); ?>"><span
+                                        class="jpm-tracker-status-name"><?php echo esc_html($status_title); ?></span><span
+                                        class="jpm-tracker-accordion-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+                                            xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M8 11L3 6L4.4 4.6L8 8.2L11.6 4.6L13 6L8 11Z" fill="currentColor" />
+                                        </svg> </span> </button>
+                                <div class="jpm-tracker-accordion-content" id="<?php echo esc_attr($accordion_id); ?>"
+                                    aria-hidden="true">
+                                    <div class="jpm-tracker-accordion-inner">
+                                        <p class="jpm-tracker-status-desc"><?php echo wp_kses_post($status_description); ?></p>
+                                    </div>
+                                </div>
+                            </div>
                             <?php
                         endforeach;
                     endif;
                     ?>
-                </ul>
+                </div>
 
                 <div class="jpm-tracker-footer-links">
                     <p class="jpm-tracker-footer-text">
@@ -1212,8 +1225,8 @@ class JPM_Frontend
                                 <?php _e('Verification Code', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper">
-                                <input type="text" id="jpm-register-otp" name="otp" required class="jpm-input"
-                                    maxlength="6" pattern="[0-9]{6}"
+                                <input type="text" id="jpm-register-otp" name="otp" required class="jpm-input" maxlength="6"
+                                    pattern="[0-9]{6}"
                                     placeholder="<?php esc_attr_e('Enter 6-digit code', 'job-posting-manager'); ?>" />
                             </div>
                             <p class="jpm-field-description">
@@ -1682,6 +1695,7 @@ class JPM_Frontend
                     opacity: 0;
                     transform: translateY(10px);
                 }
+
                 to {
                     opacity: 1;
                     transform: translateY(0);
@@ -1918,7 +1932,7 @@ class JPM_Frontend
                         success: function (response) {
                             if (response.success) {
                                 $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('OTP sent successfully!', 'job-posting-manager')); ?>') + '</p></div>').show();
-                                
+
                                 // Show step 2 and hide step 1 (use normalized email)
                                 $('#jpm-register-email-display').val(email);
                                 $('#jpm-register-email-hidden').val(email);
@@ -1974,7 +1988,7 @@ class JPM_Frontend
                         success: function (response) {
                             if (response.success) {
                                 $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Email verified successfully!', 'job-posting-manager')); ?>') + '</p></div>').show();
-                                
+
                                 // Show step 3 and hide step 2 (use normalized email from response if available)
                                 var verifiedEmail = response.data.email || email;
                                 $('#jpm-register-email-hidden').val(verifiedEmail);
@@ -2234,10 +2248,10 @@ class JPM_Frontend
         $simple_verified_key = 'jpm_email_verified_' . md5($email);
         $verified_email = get_transient($verified_key);
         $is_verified = get_transient($simple_verified_key);
-        
+
         // Check if email is verified - check if either transient exists
         $email_verified = ($verified_email !== false) || ($is_verified !== false);
-        
+
         if (!$email_verified) {
             wp_send_json_error(['message' => __('Please verify your email address with OTP before creating an account.', 'job-posting-manager')]);
         }
@@ -4386,7 +4400,8 @@ class JPM_Frontend
                                                     <?php if (!empty($personal_fields)): ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Personal Information', 'job-posting-manager'); ?></h4>
+                                                                <?php _e('Personal Information', 'job-posting-manager'); ?>
+                                                            </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($personal_fields as $key => $value):
                                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
@@ -4419,7 +4434,8 @@ class JPM_Frontend
                                                     <?php if (!empty($education_fields)): ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Education', 'job-posting-manager'); ?></h4>
+                                                                <?php _e('Education', 'job-posting-manager'); ?>
+                                                            </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($education_fields as $key => $value):
                                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
@@ -4452,7 +4468,8 @@ class JPM_Frontend
                                                     <?php if (!empty($employment_fields)): ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Employment', 'job-posting-manager'); ?></h4>
+                                                                <?php _e('Employment', 'job-posting-manager'); ?>
+                                                            </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($employment_fields as $key => $value):
                                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
@@ -4485,7 +4502,8 @@ class JPM_Frontend
                                                     <?php if (!empty($additional_fields)): ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Additional Information', 'job-posting-manager'); ?></h4>
+                                                                <?php _e('Additional Information', 'job-posting-manager'); ?>
+                                                            </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($additional_fields as $key => $value):
                                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
@@ -4736,12 +4754,14 @@ class JPM_Frontend
                             <?php if (!empty($all_personal_fields) || !empty($all_education_fields) || !empty($all_employment_fields) || !empty($all_additional_fields)): ?>
                                 <div class="jpm-info-section">
                                     <h3 class="jpm-info-section-title">
-                                        <?php _e('Application Information', 'job-posting-manager'); ?></h3>
+                                        <?php _e('Application Information', 'job-posting-manager'); ?>
+                                    </h3>
 
                                     <?php if (!empty($all_personal_fields)): ?>
                                         <div class="jpm-form-data-section">
                                             <h4 class="jpm-form-data-section-title">
-                                                <?php _e('Personal Information', 'job-posting-manager'); ?></h4>
+                                                <?php _e('Personal Information', 'job-posting-manager'); ?>
+                                            </h4>
                                             <div class="jpm-info-grid">
                                                 <?php foreach ($all_personal_fields as $key => $value):
                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
@@ -4831,7 +4851,8 @@ class JPM_Frontend
                                     <?php if (!empty($all_additional_fields)): ?>
                                         <div class="jpm-form-data-section">
                                             <h4 class="jpm-form-data-section-title">
-                                                <?php _e('Additional Information', 'job-posting-manager'); ?></h4>
+                                                <?php _e('Additional Information', 'job-posting-manager'); ?>
+                                            </h4>
                                             <div class="jpm-info-grid">
                                                 <?php foreach ($all_additional_fields as $key => $value):
                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
@@ -6006,12 +6027,12 @@ class JPM_Frontend
             // Try email first if it looks like an email
             $user = get_user_by('email', $login);
         }
-        
+
         // If not found by email, try username
         if (!$user) {
             $user = get_user_by('login', $login);
         }
-        
+
         if (!$user) {
             wp_send_json_error(['message' => __('Invalid username/email or password.', 'job-posting-manager')]);
         }
@@ -6114,12 +6135,16 @@ class JPM_Frontend
                     </svg>
                 </div>
                 <h3 class="jpm-logout-modal-title"><?php _e('Confirm Logout', 'job-posting-manager'); ?></h3>
-                <p class="jpm-logout-modal-message"><?php _e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?></p>
+                <p class="jpm-logout-modal-message">
+                    <?php _e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?>
+                </p>
                 <div class="jpm-logout-modal-actions">
-                    <button type="button" class="jpm-logout-modal-cancel"><?php _e('No, stay logged in', 'job-posting-manager'); ?></button>
+                    <button type="button"
+                        class="jpm-logout-modal-cancel"><?php _e('No, stay logged in', 'job-posting-manager'); ?></button>
                     <button type="button" class="jpm-logout-modal-confirm">
                         <span class="jpm-logout-confirm-text"><?php _e('Yes, log out', 'job-posting-manager'); ?></span>
-                        <span class="jpm-logout-loading-text" style="display: none;"><?php _e('Logging out...', 'job-posting-manager'); ?></span>
+                        <span class="jpm-logout-loading-text"
+                            style="display: none;"><?php _e('Logging out...', 'job-posting-manager'); ?></span>
                     </button>
                 </div>
             </div>
@@ -6130,23 +6155,28 @@ class JPM_Frontend
                 from {
                     opacity: 0;
                 }
+
                 to {
                     opacity: 1;
                 }
             }
+
             @keyframes jpm-modal-slide-up {
                 from {
                     opacity: 0;
                     transform: translate(-50%, -40px);
                 }
+
                 to {
                     opacity: 1;
                     transform: translate(-50%, -50%);
                 }
             }
+
             .jpm-logout-wrapper {
                 width: 100%;
             }
+
             .jpm-logout-button {
                 display: block;
                 width: 100%;
@@ -6167,11 +6197,13 @@ class JPM_Frontend
                 font-family: inherit;
                 font-size: inherit;
             }
+
             .jpm-logout-button:hover {
                 background-color: #ffc527;
                 border: 2px solid transparent !important;
                 color: #000000;
             }
+
             .jpm-logout-modal {
                 display: none;
                 position: fixed;
@@ -6181,10 +6213,12 @@ class JPM_Frontend
                 height: 100%;
                 z-index: 999999;
             }
+
             .jpm-logout-modal.active {
                 display: block;
                 animation: jpm-modal-fade-in 0.3s ease;
             }
+
             .jpm-logout-modal-overlay {
                 position: absolute;
                 top: 0;
@@ -6194,6 +6228,7 @@ class JPM_Frontend
                 background-color: rgba(0, 0, 0, 0.7);
                 backdrop-filter: blur(4px);
             }
+
             .jpm-logout-modal-content {
                 position: absolute;
                 top: 50%;
@@ -6209,6 +6244,7 @@ class JPM_Frontend
                 animation: jpm-modal-slide-up 0.4s ease;
                 text-align: center;
             }
+
             .jpm-logout-modal-icon {
                 width: 80px;
                 height: 80px;
@@ -6221,27 +6257,32 @@ class JPM_Frontend
                 justify-content: center;
                 color: #2563eb;
             }
+
             .jpm-logout-modal-icon svg {
                 width: 40px;
                 height: 40px;
             }
+
             .jpm-logout-modal-title {
                 color: #111827;
                 font-size: 24px;
                 font-weight: 600;
                 margin: 0 0 16px;
             }
+
             .jpm-logout-modal-message {
                 color: #6b7280;
                 font-size: 15px;
                 line-height: 1.6;
                 margin: 0 0 32px;
             }
+
             .jpm-logout-modal-actions {
                 display: flex;
                 gap: 12px;
                 justify-content: center;
             }
+
             .jpm-logout-modal-cancel,
             .jpm-logout-modal-confirm {
                 padding: 12px 32px;
@@ -6253,28 +6294,33 @@ class JPM_Frontend
                 border: 2px solid transparent;
                 font-family: inherit;
             }
+
             .jpm-logout-modal-cancel {
                 background-color: transparent;
                 border-color: #e5e7eb;
                 color: #374151;
             }
+
             .jpm-logout-modal-cancel:hover {
                 background-color: #f9fafb;
                 border-color: #2563eb;
                 color: #2563eb;
                 transform: translateY(-2px);
             }
+
             .jpm-logout-modal-confirm {
                 background-color: transparent;
                 border-color: #2563eb;
                 color: #2563eb;
             }
+
             .jpm-logout-modal-confirm:hover {
                 background-color: transparent;
                 border-color: #2563eb;
                 color: #2563eb;
                 transform: translateY(-2px);
             }
+
             .jpm-logout-modal-confirm:disabled {
                 opacity: 0.6;
                 cursor: not-allowed;
@@ -6283,106 +6329,106 @@ class JPM_Frontend
         </style>
 
         <script>
-        (function() {
-            document.addEventListener('DOMContentLoaded', function() {
-                const logoutButton = document.querySelector('.jpm-logout-button');
-                const modal = document.getElementById('jpm-logout-modal');
-                const cancelButton = document.querySelector('.jpm-logout-modal-cancel');
-                const confirmButton = document.querySelector('.jpm-logout-modal-confirm');
-                const overlay = document.querySelector('.jpm-logout-modal-overlay');
-                const confirmText = document.querySelector('.jpm-logout-confirm-text');
-                const loadingText = document.querySelector('.jpm-logout-loading-text');
+            (function () {
+                document.addEventListener('DOMContentLoaded', function () {
+                    const logoutButton = document.querySelector('.jpm-logout-button');
+                    const modal = document.getElementById('jpm-logout-modal');
+                    const cancelButton = document.querySelector('.jpm-logout-modal-cancel');
+                    const confirmButton = document.querySelector('.jpm-logout-modal-confirm');
+                    const overlay = document.querySelector('.jpm-logout-modal-overlay');
+                    const confirmText = document.querySelector('.jpm-logout-confirm-text');
+                    const loadingText = document.querySelector('.jpm-logout-loading-text');
 
-                if (!logoutButton || !modal) return;
+                    if (!logoutButton || !modal) return;
 
-                function openModal() {
-                    modal.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                    // Reset button state
-                    if (confirmButton) {
-                        confirmButton.disabled = false;
-                        if (confirmText) confirmText.style.display = 'inline';
-                        if (loadingText) loadingText.style.display = 'none';
-                    }
-                }
-
-                function closeModal() {
-                    modal.classList.remove('active');
-                    document.body.style.overflow = '';
-                    // Reset button state
-                    if (confirmButton) {
-                        confirmButton.disabled = false;
-                        if (confirmText) confirmText.style.display = 'inline';
-                        if (loadingText) loadingText.style.display = 'none';
-                    }
-                }
-
-                function proceedLogout() {
-                    if (!confirmButton || confirmButton.disabled) return;
-
-                    // Show loading state
-                    confirmButton.disabled = true;
-                    if (confirmText) confirmText.style.display = 'none';
-                    if (loadingText) loadingText.style.display = 'inline';
-
-                    const nonce = document.getElementById('jpm_logout_nonce')?.value || '';
-                    const redirectUrl = document.getElementById('jpm-logout-redirect-url')?.value || '<?php echo esc_js(home_url('/sign-in/')); ?>';
-
-                    // Make AJAX request
-                    const formData = new FormData();
-                    formData.append('action', 'jpm_logout');
-                    formData.append('nonce', nonce);
-                    formData.append('redirect_url', redirectUrl);
-
-                    fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Redirect to sign-in page
-                            window.location.href = data.data.redirect_url || redirectUrl;
-                        } else {
-                            // Show error and reset button
-                            alert(data.data?.message || 'Logout failed. Please try again.');
+                    function openModal() {
+                        modal.classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                        // Reset button state
+                        if (confirmButton) {
                             confirmButton.disabled = false;
                             if (confirmText) confirmText.style.display = 'inline';
                             if (loadingText) loadingText.style.display = 'none';
                         }
-                    })
-                    .catch(error => {
-                        console.error('Logout error:', error);
-                        alert('An error occurred. Please try again.');
-                        confirmButton.disabled = false;
-                        if (confirmText) confirmText.style.display = 'inline';
-                        if (loadingText) loadingText.style.display = 'none';
-                    });
-                }
-
-                logoutButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    openModal();
-                });
-
-                if (cancelButton) {
-                    cancelButton.addEventListener('click', closeModal);
-                }
-                if (confirmButton) {
-                    confirmButton.addEventListener('click', proceedLogout);
-                }
-                if (overlay) {
-                    overlay.addEventListener('click', closeModal);
-                }
-
-                // Close on Escape key
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape' && modal.classList.contains('active')) {
-                        closeModal();
                     }
+
+                    function closeModal() {
+                        modal.classList.remove('active');
+                        document.body.style.overflow = '';
+                        // Reset button state
+                        if (confirmButton) {
+                            confirmButton.disabled = false;
+                            if (confirmText) confirmText.style.display = 'inline';
+                            if (loadingText) loadingText.style.display = 'none';
+                        }
+                    }
+
+                    function proceedLogout() {
+                        if (!confirmButton || confirmButton.disabled) return;
+
+                        // Show loading state
+                        confirmButton.disabled = true;
+                        if (confirmText) confirmText.style.display = 'none';
+                        if (loadingText) loadingText.style.display = 'inline';
+
+                        const nonce = document.getElementById('jpm_logout_nonce')?.value || '';
+                        const redirectUrl = document.getElementById('jpm-logout-redirect-url')?.value || '<?php echo esc_js(home_url('/sign-in/')); ?>';
+
+                        // Make AJAX request
+                        const formData = new FormData();
+                        formData.append('action', 'jpm_logout');
+                        formData.append('nonce', nonce);
+                        formData.append('redirect_url', redirectUrl);
+
+                        fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                            method: 'POST',
+                            body: formData
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Redirect to sign-in page
+                                    window.location.href = data.data.redirect_url || redirectUrl;
+                                } else {
+                                    // Show error and reset button
+                                    alert(data.data?.message || 'Logout failed. Please try again.');
+                                    confirmButton.disabled = false;
+                                    if (confirmText) confirmText.style.display = 'inline';
+                                    if (loadingText) loadingText.style.display = 'none';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Logout error:', error);
+                                alert('An error occurred. Please try again.');
+                                confirmButton.disabled = false;
+                                if (confirmText) confirmText.style.display = 'inline';
+                                if (loadingText) loadingText.style.display = 'none';
+                            });
+                    }
+
+                    logoutButton.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        openModal();
+                    });
+
+                    if (cancelButton) {
+                        cancelButton.addEventListener('click', closeModal);
+                    }
+                    if (confirmButton) {
+                        confirmButton.addEventListener('click', proceedLogout);
+                    }
+                    if (overlay) {
+                        overlay.addEventListener('click', closeModal);
+                    }
+
+                    // Close on Escape key
+                    document.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape' && modal.classList.contains('active')) {
+                            closeModal();
+                        }
+                    });
                 });
-            });
-        })();
+            })();
         </script>
         <?php
         return ob_get_clean();

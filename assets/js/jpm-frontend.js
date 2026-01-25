@@ -1458,4 +1458,75 @@ jQuery(document).ready(function ($) {
       },
     });
   });
+
+  // Application Status Accordion with smooth animations
+  $(document).on("click", ".jpm-tracker-accordion-header", function (e) {
+    e.preventDefault();
+    const $header = $(this);
+    const $item = $header.closest(".jpm-tracker-accordion-item");
+    const $content = $item.find(".jpm-tracker-accordion-content");
+    const $accordion = $header.closest(".jpm-tracker-accordion");
+    const isExpanded = $header.attr("aria-expanded") === "true";
+
+    // Close all other accordion items with animation
+    $accordion.find(".jpm-tracker-accordion-item").not($item).each(function () {
+      const $otherHeader = $(this).find(".jpm-tracker-accordion-header");
+      const $otherContent = $(this).find(".jpm-tracker-accordion-content");
+      const $otherItem = $(this);
+      
+      $otherHeader.attr("aria-expanded", "false");
+      $otherContent.attr("aria-hidden", "true");
+      $otherItem.removeAttr("aria-expanded");
+    });
+
+    // Toggle current item with dynamic height calculation
+    if (isExpanded) {
+      // Collapse - hide the description
+      $header.attr("aria-expanded", "false");
+      $content.attr("aria-hidden", "true");
+      $item.removeAttr("aria-expanded");
+      
+      // Animate collapse
+      $content.css("max-height", "0");
+    } else {
+      // Expand - show the description
+      // First, temporarily show content to calculate its height
+      $content.css({
+        "max-height": "none",
+        "visibility": "visible",
+        "opacity": "0"
+      });
+      
+      const contentHeight = $content.outerHeight();
+      
+      // Reset to collapsed state
+      $content.css({
+        "max-height": "0",
+        "opacity": "0",
+        "visibility": "hidden"
+      });
+      
+      // Trigger reflow
+      $content[0].offsetHeight;
+      
+      // Expand with animation
+      $header.attr("aria-expanded", "true");
+      $content.attr("aria-hidden", "false");
+      $item.attr("aria-expanded", "true");
+      
+      // Animate to full height
+      $content.css({
+        "max-height": contentHeight + "px",
+        "opacity": "1",
+        "visibility": "visible"
+      });
+      
+      // Reset max-height after animation completes
+      setTimeout(function () {
+        if ($content.attr("aria-hidden") === "false") {
+          $content.css("max-height", "none");
+        }
+      }, 400);
+    }
+  });
 });
