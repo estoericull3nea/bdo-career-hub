@@ -4213,6 +4213,19 @@ class JPM_Frontend
                                         $status_text_color = '#000000';
                                     }
 
+                                    // Check if status is for medical
+                                    $is_medical_status = false;
+                                    $medical_status_slug = strtolower($application->status);
+                                    if ($medical_status_slug === 'for-medical' || $medical_status_slug === 'for_medical' || stripos($medical_status_slug, 'medical') !== false) {
+                                        $is_medical_status = true;
+                                    }
+                                    
+                                    // Get medical details if status is medical
+                                    $medical_details = null;
+                                    if ($is_medical_status) {
+                                        $medical_details = get_option('jpm_application_medical_details_' . $application->id, null);
+                                    }
+
                                     // Extract application number
                                     $application_number = '';
                                     $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
@@ -4497,6 +4510,66 @@ class JPM_Frontend
                                                 </div>
                                             </div>
                                         <?php endif; ?>
+
+                                        <!-- Medical Requirements (only for medical status) -->
+                                        <?php if ($is_medical_status): ?>
+                                            <div class="jpm-application-form-data">
+                                                <button type="button" class="jpm-toggle-requirements"
+                                                    data-application-id="<?php echo esc_attr($application->id); ?>">
+                                                    <span
+                                                        class="jpm-toggle-text"><?php _e('View Requirements', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon">▼</span>
+                                                </button>
+                                                <div class="jpm-application-requirements-content"
+                                                    id="jpm-requirements-<?php echo esc_attr($application->id); ?>" style="display: none;">
+                                                    <div class="jpm-form-data-section">
+                                                        <h4 class="jpm-form-data-section-title">
+                                                            <?php _e('Medical Requirements', 'job-posting-manager'); ?>
+                                                        </h4>
+                                                        <div class="jpm-form-data-grid">
+                                                            <?php if ($medical_details && !empty($medical_details['requirements'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Requirements:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo wp_kses_post(nl2br(esc_html($medical_details['requirements']))); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if ($medical_details && !empty($medical_details['address'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Address:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($medical_details['address']); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if ($medical_details && !empty($medical_details['date'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Date:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($medical_details['date']); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if ($medical_details && !empty($medical_details['time'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Time:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($medical_details['time']); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if (!$medical_details || (empty($medical_details['requirements']) && empty($medical_details['address']) && empty($medical_details['date']) && empty($medical_details['time']))): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php _e('Requirements details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -4587,22 +4660,6 @@ class JPM_Frontend
                                     </div>
                                     <div class="jpm-edit-message" id="jpm-edit-message" style="display: none;"></div>
                                 </form>
-                            </div>
-
-                            <div class="jpm-info-section">
-                                <h3 class="jpm-info-section-title"><?php _e('Account Statistics', 'job-posting-manager'); ?>
-                                </h3>
-                                <div class="jpm-info-grid">
-                                    <div class="jpm-info-item">
-                                        <span
-                                            class="jpm-info-label"><?php _e('Total Applications:', 'job-posting-manager'); ?></span>
-                                        <span class="jpm-info-value"><?php echo count($applications); ?></span>
-                                    </div>
-                                    <div class="jpm-info-item">
-                                        <span class="jpm-info-label"><?php _e('User ID:', 'job-posting-manager'); ?></span>
-                                        <span class="jpm-info-value">#<?php echo esc_html($user_id); ?></span>
-                                    </div>
-                                </div>
                             </div>
 
                             <?php
@@ -5235,6 +5292,36 @@ class JPM_Frontend
                 border-top: 1px solid #e5e7eb;
             }
 
+            .jpm-toggle-requirements {
+                background: none;
+                border: none;
+                color: #2563eb;
+                cursor: pointer;
+                padding: 8px 0;
+                font-size: 13px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: color 0.15s ease;
+                margin-top: 8px;
+            }
+
+            .jpm-toggle-requirements .jpm-toggle-icon {
+                font-size: 10px;
+                transition: transform 0.2s ease;
+            }
+
+            .jpm-toggle-requirements.active .jpm-toggle-icon {
+                transform: rotate(180deg);
+            }
+
+            .jpm-application-requirements-content {
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid #e5e7eb;
+            }
+
             .jpm-form-data-section {
                 margin-bottom: 32px;
             }
@@ -5681,6 +5768,16 @@ class JPM_Frontend
                     var $button = $(this);
                     var applicationId = $button.data('application-id');
                     var $content = $('#jpm-details-' + applicationId);
+
+                    $content.slideToggle(300);
+                    $button.toggleClass('active');
+                });
+
+                // Toggle requirements for medical status
+                $('.jpm-toggle-requirements').on('click', function () {
+                    var $button = $(this);
+                    var applicationId = $button.data('application-id');
+                    var $content = $('#jpm-requirements-' + applicationId);
 
                     $content.slideToggle(300);
                     $button.toggleClass('active');
