@@ -4154,61 +4154,7 @@ class JPM_Frontend
                                                     <span
                                                         class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
                                                 </div>
-                                                <?php if ($job): ?>
-                                                    <div class="jpm-application-detail-item">
-                                                        <span class="jpm-detail-label"><?php _e('Job ID:', 'job-posting-manager'); ?></span>
-                                                        <span class="jpm-detail-value">#<?php echo esc_html($application->job_id); ?></span>
-                                                    </div>
-                                                <?php endif; ?>
                                             </div>
-
-                                            <!-- Application Form Data -->
-                                            <?php if (!empty($form_data)): ?>
-                                                <div class="jpm-application-form-data">
-                                                    <button type="button" class="jpm-toggle-details"
-                                                        data-application-id="<?php echo esc_attr($application->id); ?>">
-                                                        <span
-                                                            class="jpm-toggle-text"><?php _e('View Application Details', 'job-posting-manager'); ?></span>
-                                                        <span class="jpm-toggle-icon">▼</span>
-                                                    </button>
-                                                    <div class="jpm-application-details-content"
-                                                        id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
-                                                        <div class="jpm-form-data-grid">
-                                                            <?php foreach ($form_data as $key => $value):
-                                                                // Skip empty values
-                                                                if (empty($value) && $value !== '0' && $value !== 0)
-                                                                    continue;
-
-                                                                // Skip file uploads (they're usually URLs)
-                                                                if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
-                                                                    $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                    ?>
-                                                                    <div class="jpm-form-data-item">
-                                                                        <span
-                                                                            class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                        <span class="jpm-form-data-value">
-                                                                            <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                                rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
-                                                                        </span>
-                                                                    </div>
-                                                                    <?php
-                                                                    continue;
-                                                                }
-
-                                                                $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
-                                                                $field_value = is_array($value) ? implode(', ', $value) : $value;
-                                                                ?>
-                                                                <div class="jpm-form-data-item">
-                                                                    <span
-                                                                        class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
-                                                                    <span
-                                                                        class="jpm-form-data-value"><?php echo esc_html($field_value); ?></span>
-                                                                </div>
-                                                            <?php endforeach; ?>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            <?php endif; ?>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -4300,12 +4246,6 @@ class JPM_Frontend
                                                 <span
                                                     class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
                                             </div>
-                                            <?php if ($job): ?>
-                                                <div class="jpm-application-detail-item">
-                                                    <span class="jpm-detail-label"><?php _e('Job ID:', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-detail-value">#<?php echo esc_html($application->job_id); ?></span>
-                                                </div>
-                                            <?php endif; ?>
                                         </div>
 
                                         <!-- Application Form Data -->
@@ -5279,10 +5219,6 @@ class JPM_Frontend
                 transition: color 0.15s ease;
             }
 
-            .jpm-toggle-details:hover {
-                color: #1d4ed8;
-                text-decoration: underline;
-            }
 
             .jpm-toggle-icon {
                 font-size: 10px;
