@@ -4949,6 +4949,237 @@ class JPM_Admin
 
                 <div class="divider"></div>
 
+                <!-- Education Section -->
+                <?php
+                $has_education = false;
+                $education_fields = [
+                    'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
+                    'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
+                    'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status'
+                ];
+                
+                foreach ($education_fields as $edu_field) {
+                    if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
+                        $has_education = true;
+                        break;
+                    }
+                }
+
+                if ($has_education):
+                ?>
+                    <div class="section">
+                        <div class="section-title"><?php _e('Education', 'job-posting-manager'); ?></div>
+                        <div class="info-grid">
+                            <!-- Primary Education -->
+                            <?php if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])): ?>
+                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px;">
+                                    <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                        <?php _e('Primary Education', 'job-posting-manager'); ?>
+                                    </div>
+                                </div>
+                                <?php if (!empty($form_data['edu_primary_school_name'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('School Name', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_school_name']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_primary_school_address'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('School Address', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_school_address']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_primary_start_year'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Start Year', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_start_year']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_primary_end_year'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('End Year', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_end_year']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_primary_completed'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Completed', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_completed']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+
+                            <!-- Secondary Education -->
+                            <?php if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])): ?>
+                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                    <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                        <?php _e('Secondary Education', 'job-posting-manager'); ?>
+                                    </div>
+                                </div>
+                                <?php if (!empty($form_data['edu_secondary_school_name'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('School Name', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_name']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_secondary_school_address'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('School Address', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_address']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_secondary_school_type'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('School Type', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_type']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_secondary_start_year'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Start Year', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_start_year']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_secondary_end_year'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('End Year', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_end_year']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_secondary_completed'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Completed', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_completed']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+
+                            <!-- Tertiary Education -->
+                            <?php if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])): ?>
+                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                    <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                        <?php _e('Tertiary Education', 'job-posting-manager'); ?>
+                                    </div>
+                                </div>
+                                <?php if (!empty($form_data['edu_tertiary_institution_name'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Institution Name', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_institution_name']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_tertiary_school_address'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('School Address', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_school_address']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_tertiary_program'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Program / Course', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_program']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_tertiary_degree_level'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Degree Level', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_degree_level']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_tertiary_start_year'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Start Year', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_start_year']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_tertiary_end_year'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('End Year', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_end_year']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($form_data['edu_tertiary_status'])): ?>
+                                    <div class="info-row">
+                                        <div class="info-label"><?php _e('Status', 'job-posting-manager'); ?></div>
+                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_status']); ?></div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                <?php endif; ?>
+
+                <!-- Employment Section -->
+                <?php
+                $has_employment = false;
+                if ((isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
+                    (isset($form_data['emp_position']) && !empty($form_data['emp_position'])) ||
+                    (isset($form_data['emp_years']) && !empty($form_data['emp_years'])) ||
+                    (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))) {
+                    $has_employment = true;
+                }
+
+                if ($has_employment):
+                    // Handle employment entries (array format)
+                    $employment_entries = [];
+                    if (isset($form_data['employment_entries']) && is_array($form_data['employment_entries'])) {
+                        $employment_entries = $form_data['employment_entries'];
+                    } else {
+                        // Fallback: reconstruct from arrays
+                        $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
+                        $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
+                        $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
+                        
+                        $max_count = max(count($company_names), count($positions), count($years));
+                        for ($i = 0; $i < $max_count; $i++) {
+                            if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
+                                $employment_entries[] = [
+                                    'company_name' => $company_names[$i] ?? '',
+                                    'position' => $positions[$i] ?? '',
+                                    'years' => $years[$i] ?? ''
+                                ];
+                            }
+                        }
+                    }
+                ?>
+                    <div class="section">
+                        <div class="section-title"><?php _e('Employment History', 'job-posting-manager'); ?></div>
+                        <div class="info-grid">
+                            <?php if (!empty($employment_entries)): ?>
+                                <?php foreach ($employment_entries as $index => $entry): ?>
+                                    <?php if ($index > 0): ?>
+                                        <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;"></div>
+                                    <?php endif; ?>
+                                    <div class="info-row" style="grid-column: 1 / -1; margin-top: <?php echo $index > 0 ? '15px' : '0'; ?>;">
+                                        <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                            <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($entry['company_name'])): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php _e('Company Name', 'job-posting-manager'); ?></div>
+                                            <div class="info-value"><?php echo esc_html($entry['company_name']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($entry['position'])): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php _e('Position', 'job-posting-manager'); ?></div>
+                                            <div class="info-value"><?php echo esc_html($entry['position']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($entry['years'])): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php _e('Years', 'job-posting-manager'); ?></div>
+                                            <div class="info-value"><?php echo esc_html($entry['years']); ?></div>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                <?php endif; ?>
+
                 <!-- Application Form Data -->
                 <?php if (!empty($form_data)): ?>
                     <div class="section form-data-section">
@@ -4957,7 +5188,14 @@ class JPM_Admin
                         </div>
                         <?php
                         // Exclude internal fields from display
-                        $excluded_fields = ['application_number', 'date_of_registration', 'applicant_number'];
+                        $excluded_fields = [
+                            'application_number', 'date_of_registration', 'applicant_number',
+                            // Exclude education and employment fields as they are shown in dedicated sections above
+                            'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
+                            'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
+                            'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status',
+                            'emp_company_name', 'emp_position', 'emp_years', 'employment_entries'
+                        ];
 
                         // Skip if already displayed in applicant information
                         $skip_fields = ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email'];
