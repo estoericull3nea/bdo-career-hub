@@ -448,6 +448,13 @@ jQuery(document).ready(function ($) {
       return name.toLowerCase().replace(/[_\s-]/g, '');
     }
 
+    // Helper function to extract field name from jpm_fields[field_name] format
+    function extractFieldName(name) {
+      if (!name) return name;
+      const match = name.match(/jpm_fields\[([^\]]+)\]/);
+      return match ? match[1] : name;
+    }
+
     // Helper function to get field value from saved data (only if value exists and is not empty)
     function getSavedValue(fieldName) {
       if (!fieldName) return null;
@@ -464,9 +471,15 @@ jQuery(document).ready(function ($) {
       if (savedData[fieldName] !== undefined && isValidValue(savedData[fieldName])) {
         return savedData[fieldName];
       }
+
+      // Try extracting field name from jpm_fields[field_name] format
+      const extracted = extractFieldName(fieldName);
+      if (extracted !== fieldName && savedData[extracted] !== undefined && isValidValue(savedData[extracted])) {
+        return savedData[extracted];
+      }
       
       // Try normalized match
-      const normalizedFieldName = normalizeFieldName(fieldName);
+      const normalizedFieldName = normalizeFieldName(extracted);
       for (const key in savedData) {
         if (normalizeFieldName(key) === normalizedFieldName) {
           if (isValidValue(savedData[key])) {

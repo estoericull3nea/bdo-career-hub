@@ -652,45 +652,55 @@ class JPM_Form_Builder
                     // Render each step
                     foreach ($steps as $step_index => $step):
                         $step_number = $step_index + 1;
+                        $step_type = $step['type'] ?? 'default';
                         ?>
                         <div class="jpm-form-step" data-step="<?php echo esc_attr($step_number); ?>"
                             style="display: <?php echo $step_index === 0 ? 'block' : 'none'; ?>;">
                             <?php
-                            // Group fields in this step into rows based on column width
-                            $current_row = [];
-                            $current_row_width = 0;
+                            if ($step_type === 'education') {
+                                // Render hardcoded Education fields
+                                $this->render_education_fields();
+                            } elseif ($step_type === 'employment') {
+                                // Render hardcoded Employment fields
+                                $this->render_employment_fields();
+                            } else {
+                                // Default: render form builder fields
+                                // Group fields in this step into rows based on column width
+                                $current_row = [];
+                                $current_row_width = 0;
 
-                            foreach ($step['fields'] as $field_data):
-                                $field = $field_data['field'];
-                                $index = $field_data['index'];
-                                $column_width = intval($field['column_width'] ?? 12);
+                                foreach ($step['fields'] as $field_data):
+                                    $field = $field_data['field'];
+                                    $index = $field_data['index'];
+                                    $column_width = intval($field['column_width'] ?? 12);
 
-                                // If adding this field would exceed 12 columns, render current row
-                                if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                                    // If adding this field would exceed 12 columns, render current row
+                                    if ($current_row_width + $column_width > 12 && !empty($current_row)) {
+                                        $this->render_form_row($current_row);
+                                        $current_row = [];
+                                        $current_row_width = 0;
+                                    }
+
+                                    // Add field to current row
+                                    $current_row[] = [
+                                        'field' => $field,
+                                        'index' => $index,
+                                        'column_width' => $column_width
+                                    ];
+                                    $current_row_width += $column_width;
+
+                                    // If row is full (12 columns), render it
+                                    if ($current_row_width >= 12) {
+                                        $this->render_form_row($current_row);
+                                        $current_row = [];
+                                        $current_row_width = 0;
+                                    }
+                                endforeach;
+
+                                // Render any remaining fields
+                                if (!empty($current_row)) {
                                     $this->render_form_row($current_row);
-                                    $current_row = [];
-                                    $current_row_width = 0;
                                 }
-
-                                // Add field to current row
-                                $current_row[] = [
-                                    'field' => $field,
-                                    'index' => $index,
-                                    'column_width' => $column_width
-                                ];
-                                $current_row_width += $column_width;
-
-                                // If row is full (12 columns), render it
-                                if ($current_row_width >= 12) {
-                                    $this->render_form_row($current_row);
-                                    $current_row = [];
-                                    $current_row_width = 0;
-                                }
-                            endforeach;
-
-                            // Render any remaining fields
-                            if (!empty($current_row)) {
-                                $this->render_form_row($current_row);
                             }
                             ?>
                         </div>
@@ -754,6 +764,81 @@ class JPM_Form_Builder
                                     endforeach;
                                 endif;
                                 ?>
+
+                                <!-- Education Summary -->
+                                <div class="jpm-summary-section-header"><?php _e('🎒 Primary Education', 'job-posting-manager'); ?></div>
+                                <?php
+                                $edu_primary_fields = [
+                                    'edu_primary_school_name' => __('School Name', 'job-posting-manager'),
+                                    'edu_primary_school_address' => __('School Address', 'job-posting-manager'),
+                                    'edu_primary_start_year' => __('Start Year', 'job-posting-manager'),
+                                    'edu_primary_end_year' => __('End Year', 'job-posting-manager'),
+                                    'edu_primary_completed' => __('Completed?', 'job-posting-manager'),
+                                ];
+                                foreach ($edu_primary_fields as $name => $label): ?>
+                                    <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($name); ?>">
+                                        <div class="jpm-summary-label"><?php echo esc_html($label); ?> <span class="required">*</span></div>
+                                        <div class="jpm-summary-value" data-field-id="jpm_<?php echo esc_attr($name); ?>">
+                                            <span class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+
+                                <div class="jpm-summary-section-header"><?php _e('🏫 Secondary Education', 'job-posting-manager'); ?></div>
+                                <?php
+                                $edu_secondary_fields = [
+                                    'edu_secondary_school_name' => __('School Name', 'job-posting-manager'),
+                                    'edu_secondary_school_address' => __('School Address', 'job-posting-manager'),
+                                    'edu_secondary_school_type' => __('School Type', 'job-posting-manager'),
+                                    'edu_secondary_start_year' => __('Start Year', 'job-posting-manager'),
+                                    'edu_secondary_end_year' => __('End Year', 'job-posting-manager'),
+                                    'edu_secondary_completed' => __('Completed?', 'job-posting-manager'),
+                                ];
+                                foreach ($edu_secondary_fields as $name => $label): ?>
+                                    <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($name); ?>">
+                                        <div class="jpm-summary-label"><?php echo esc_html($label); ?> <span class="required">*</span></div>
+                                        <div class="jpm-summary-value" data-field-id="jpm_<?php echo esc_attr($name); ?>">
+                                            <span class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+
+                                <div class="jpm-summary-section-header"><?php _e('🎓 Tertiary Education', 'job-posting-manager'); ?></div>
+                                <?php
+                                $edu_tertiary_fields = [
+                                    'edu_tertiary_institution_name' => __('Institution Name', 'job-posting-manager'),
+                                    'edu_tertiary_school_address' => __('School Address', 'job-posting-manager'),
+                                    'edu_tertiary_program' => __('Program / Course', 'job-posting-manager'),
+                                    'edu_tertiary_degree_level' => __('Degree Level', 'job-posting-manager'),
+                                    'edu_tertiary_start_year' => __('Start Year', 'job-posting-manager'),
+                                    'edu_tertiary_end_year' => __('End Year', 'job-posting-manager'),
+                                    'edu_tertiary_status' => __('Status', 'job-posting-manager'),
+                                ];
+                                foreach ($edu_tertiary_fields as $name => $label): ?>
+                                    <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($name); ?>">
+                                        <div class="jpm-summary-label"><?php echo esc_html($label); ?> <span class="required">*</span></div>
+                                        <div class="jpm-summary-value" data-field-id="jpm_<?php echo esc_attr($name); ?>">
+                                            <span class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+
+                                <!-- Employment Summary -->
+                                <div class="jpm-summary-section-header"><?php _e('💼 Employment History', 'job-posting-manager'); ?></div>
+                                <?php
+                                $emp_fields = [
+                                    'emp_company_name' => __('Company Name', 'job-posting-manager'),
+                                    'emp_position' => __('Position', 'job-posting-manager'),
+                                ];
+                                foreach ($emp_fields as $name => $label): ?>
+                                    <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($name); ?>">
+                                        <div class="jpm-summary-label"><?php echo esc_html($label); ?> <span class="required">*</span></div>
+                                        <div class="jpm-summary-value" data-field-id="jpm_<?php echo esc_attr($name); ?>">
+                                            <span class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+
                             </div>
                         </div>
                     </div>
@@ -789,9 +874,50 @@ class JPM_Form_Builder
 
     /**
      * Group form fields into logical steps
-     * Respects row layout - fields in the same row stay together
+     * All form builder fields go into "Personal", then hardcoded Education and Employment steps
      */
     private function group_fields_into_steps($form_fields)
+    {
+        $steps = [];
+
+        // All form builder fields go into the "Personal" step
+        $personal_fields = [];
+        foreach ($form_fields as $index => $field) {
+            $personal_fields[] = [
+                'field' => $field,
+                'index' => $index
+            ];
+        }
+
+        if (!empty($personal_fields)) {
+            $steps[] = [
+                'title' => __('Personal', 'job-posting-manager'),
+                'fields' => $personal_fields
+            ];
+        }
+
+        // Education step (hardcoded)
+        $steps[] = [
+            'title' => __('Education', 'job-posting-manager'),
+            'fields' => [],
+            'type' => 'education'
+        ];
+
+        // Employment step (hardcoded)
+        $steps[] = [
+            'title' => __('Employment', 'job-posting-manager'),
+            'fields' => [],
+            'type' => 'employment'
+        ];
+
+        return $steps;
+    }
+
+    /**
+     * LEGACY: Group form fields into logical steps (old logic)
+     * Respects row layout - fields in the same row stay together
+     */
+    private function group_fields_into_steps_legacy($form_fields)
     {
         $steps = [];
 
@@ -948,6 +1074,274 @@ class JPM_Form_Builder
             echo '</div>';
         }
         echo '</div>';
+    }
+
+    /**
+     * Generate year options for education fields
+     */
+    private function get_year_options($include_present = true)
+    {
+        $current_year = intval(date('Y'));
+        $start_year = $current_year - 60;
+        $options = '<option value="">' . __('Select Year...', 'job-posting-manager') . '</option>';
+        if ($include_present) {
+            $options .= '<option value="Present">' . __('Present', 'job-posting-manager') . '</option>';
+        }
+        for ($y = $current_year; $y >= $start_year; $y--) {
+            $options .= '<option value="' . $y . '">' . $y . '</option>';
+        }
+        return $options;
+    }
+
+    /**
+     * Render hardcoded Education fields (Primary, Secondary, Tertiary)
+     */
+    private function render_education_fields()
+    {
+        ?>
+        <!-- Primary Education -->
+        <div class="jpm-education-section jpm-section-block">
+            <h4 class="jpm-section-title">
+                <span class="jpm-section-icon">🎒</span>
+                <?php _e('Primary Education', 'job-posting-manager'); ?>
+            </h4>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_primary_school_name"><?php _e('School Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_primary_school_name" name="jpm_fields[edu_primary_school_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter school name', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_primary_school_name" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_primary_school_address"><?php _e('School Address', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_primary_school_address" name="jpm_fields[edu_primary_school_address]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Full address', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_primary_school_address" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-4">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_primary_start_year"><?php _e('Start Year', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_primary_start_year" name="jpm_fields[edu_primary_start_year]" class="jpm-form-field" required>
+                            <?php echo $this->get_year_options(false); ?>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_primary_start_year" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-4">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_primary_end_year"><?php _e('End Year', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_primary_end_year" name="jpm_fields[edu_primary_end_year]" class="jpm-form-field" required>
+                            <?php echo $this->get_year_options(true); ?>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_primary_end_year" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-4">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_primary_completed"><?php _e('Completed?', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_primary_completed" name="jpm_fields[edu_primary_completed]" class="jpm-form-field" required>
+                            <option value=""><?php _e('Select...', 'job-posting-manager'); ?></option>
+                            <option value="Yes"><?php _e('Yes', 'job-posting-manager'); ?></option>
+                            <option value="No"><?php _e('No', 'job-posting-manager'); ?></option>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_primary_completed" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Education -->
+        <div class="jpm-education-section jpm-section-block">
+            <h4 class="jpm-section-title">
+                <span class="jpm-section-icon">🏫</span>
+                <?php _e('Secondary Education', 'job-posting-manager'); ?>
+            </h4>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_secondary_school_name"><?php _e('School Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_secondary_school_name" name="jpm_fields[edu_secondary_school_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter school name', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_secondary_school_name" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_secondary_school_address"><?php _e('School Address', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_secondary_school_address" name="jpm_fields[edu_secondary_school_address]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Full address', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_secondary_school_address" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_secondary_school_type"><?php _e('School Type', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_secondary_school_type" name="jpm_fields[edu_secondary_school_type]" class="jpm-form-field" required>
+                            <option value=""><?php _e('Select...', 'job-posting-manager'); ?></option>
+                            <option value="Junior High"><?php _e('Junior High', 'job-posting-manager'); ?></option>
+                            <option value="Senior High"><?php _e('Senior High', 'job-posting-manager'); ?></option>
+                            <option value="High School"><?php _e('High School', 'job-posting-manager'); ?></option>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_secondary_school_type" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_secondary_completed"><?php _e('Completed?', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_secondary_completed" name="jpm_fields[edu_secondary_completed]" class="jpm-form-field" required>
+                            <option value=""><?php _e('Select...', 'job-posting-manager'); ?></option>
+                            <option value="Yes"><?php _e('Yes', 'job-posting-manager'); ?></option>
+                            <option value="No"><?php _e('No', 'job-posting-manager'); ?></option>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_secondary_completed" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_secondary_start_year"><?php _e('Start Year', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_secondary_start_year" name="jpm_fields[edu_secondary_start_year]" class="jpm-form-field" required>
+                            <?php echo $this->get_year_options(false); ?>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_secondary_start_year" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_secondary_end_year"><?php _e('End Year', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_secondary_end_year" name="jpm_fields[edu_secondary_end_year]" class="jpm-form-field" required>
+                            <?php echo $this->get_year_options(true); ?>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_secondary_end_year" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tertiary Education -->
+        <div class="jpm-education-section jpm-section-block">
+            <h4 class="jpm-section-title">
+                <span class="jpm-section-icon">🎓</span>
+                <?php _e('Tertiary Education', 'job-posting-manager'); ?>
+            </h4>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_institution_name"><?php _e('Institution Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_tertiary_institution_name" name="jpm_fields[edu_tertiary_institution_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter institution name', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_institution_name" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_school_address"><?php _e('School Address', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_tertiary_school_address" name="jpm_fields[edu_tertiary_school_address]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Full address', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_school_address" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_program"><?php _e('Program / Course', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_edu_tertiary_program" name="jpm_fields[edu_tertiary_program]" class="jpm-form-field" required placeholder="<?php esc_attr_e('e.g. Bachelor of Science in Computer Science', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_program" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_degree_level"><?php _e('Degree Level', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_tertiary_degree_level" name="jpm_fields[edu_tertiary_degree_level]" class="jpm-form-field" required>
+                            <option value=""><?php _e('Select...', 'job-posting-manager'); ?></option>
+                            <option value="Associate"><?php _e('Associate', 'job-posting-manager'); ?></option>
+                            <option value="Bachelor"><?php _e('Bachelor', 'job-posting-manager'); ?></option>
+                            <option value="Master"><?php _e('Master', 'job-posting-manager'); ?></option>
+                            <option value="Doctorate"><?php _e('Doctorate', 'job-posting-manager'); ?></option>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_degree_level" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-4">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_start_year"><?php _e('Start Year', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_tertiary_start_year" name="jpm_fields[edu_tertiary_start_year]" class="jpm-form-field" required>
+                            <?php echo $this->get_year_options(false); ?>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_start_year" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-4">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_end_year"><?php _e('End Year', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_tertiary_end_year" name="jpm_fields[edu_tertiary_end_year]" class="jpm-form-field" required>
+                            <?php echo $this->get_year_options(true); ?>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_end_year" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-4">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_edu_tertiary_status"><?php _e('Status', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <select id="jpm_edu_tertiary_status" name="jpm_fields[edu_tertiary_status]" class="jpm-form-field" required>
+                            <option value=""><?php _e('Select...', 'job-posting-manager'); ?></option>
+                            <option value="Ongoing"><?php _e('Ongoing', 'job-posting-manager'); ?></option>
+                            <option value="Graduated"><?php _e('Graduated', 'job-posting-manager'); ?></option>
+                            <option value="Stopped"><?php _e('Stopped', 'job-posting-manager'); ?></option>
+                        </select>
+                        <span class="jpm-field-error" data-field-name="edu_tertiary_status" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render hardcoded Employment fields
+     */
+    private function render_employment_fields()
+    {
+        ?>
+        <div class="jpm-employment-section jpm-section-block">
+            <h4 class="jpm-section-title">
+                <span class="jpm-section-icon">💼</span>
+                <?php _e('Employment History', 'job-posting-manager'); ?>
+            </h4>
+            <p class="jpm-section-description"><?php _e('Please provide your most recent employment information.', 'job-posting-manager'); ?></p>
+
+            <div class="jpm-form-row">
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_emp_company_name"><?php _e('Company Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_emp_company_name" name="jpm_fields[emp_company_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter company name', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="emp_company_name" style="display: none;"></span>
+                    </div>
+                </div>
+                <div class="jpm-form-col jpm-col-6">
+                    <div class="jpm-form-field-group">
+                        <label for="jpm_emp_position"><?php _e('Position', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                        <input type="text" id="jpm_emp_position" name="jpm_fields[emp_position]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter your position/job title', 'job-posting-manager'); ?>">
+                        <span class="jpm-field-error" data-field-name="emp_position" style="display: none;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
     }
 
     /**
@@ -1188,6 +1582,48 @@ class JPM_Form_Builder
             }
         }
 
+        // Validate hardcoded education fields (all required)
+        $education_required_fields = [
+            'edu_primary_school_name' => __('Primary School Name', 'job-posting-manager'),
+            'edu_primary_school_address' => __('Primary School Address', 'job-posting-manager'),
+            'edu_primary_start_year' => __('Primary Start Year', 'job-posting-manager'),
+            'edu_primary_end_year' => __('Primary End Year', 'job-posting-manager'),
+            'edu_primary_completed' => __('Primary Completed', 'job-posting-manager'),
+            'edu_secondary_school_name' => __('Secondary School Name', 'job-posting-manager'),
+            'edu_secondary_school_address' => __('Secondary School Address', 'job-posting-manager'),
+            'edu_secondary_school_type' => __('Secondary School Type', 'job-posting-manager'),
+            'edu_secondary_start_year' => __('Secondary Start Year', 'job-posting-manager'),
+            'edu_secondary_end_year' => __('Secondary End Year', 'job-posting-manager'),
+            'edu_secondary_completed' => __('Secondary Completed', 'job-posting-manager'),
+            'edu_tertiary_institution_name' => __('Tertiary Institution Name', 'job-posting-manager'),
+            'edu_tertiary_school_address' => __('Tertiary School Address', 'job-posting-manager'),
+            'edu_tertiary_program' => __('Program / Course', 'job-posting-manager'),
+            'edu_tertiary_degree_level' => __('Degree Level', 'job-posting-manager'),
+            'edu_tertiary_start_year' => __('Tertiary Start Year', 'job-posting-manager'),
+            'edu_tertiary_end_year' => __('Tertiary End Year', 'job-posting-manager'),
+            'edu_tertiary_status' => __('Tertiary Status', 'job-posting-manager'),
+        ];
+
+        foreach ($education_required_fields as $field_name => $label) {
+            $value = sanitize_text_field($_POST['jpm_fields'][$field_name] ?? '');
+            if (empty($value)) {
+                $field_errors[$field_name] = sprintf(__('%s is required.', 'job-posting-manager'), $label);
+            }
+        }
+
+        // Validate hardcoded employment fields (all required)
+        $employment_required_fields = [
+            'emp_company_name' => __('Company Name', 'job-posting-manager'),
+            'emp_position' => __('Position', 'job-posting-manager'),
+        ];
+
+        foreach ($employment_required_fields as $field_name => $label) {
+            $value = sanitize_text_field($_POST['jpm_fields'][$field_name] ?? '');
+            if (empty($value)) {
+                $field_errors[$field_name] = sprintf(__('%s is required.', 'job-posting-manager'), $label);
+            }
+        }
+
         if (!empty($field_errors) || !empty($general_errors)) {
             wp_send_json_error([
                 'message' => __('Please correct the errors below.', 'job-posting-manager'),
@@ -1251,6 +1687,33 @@ class JPM_Form_Builder
                     }
                 }
                 $form_data[$field_name] = $value;
+            }
+        }
+
+        // Process hardcoded education fields
+        $hardcoded_edu_fields = [
+            'edu_primary_school_name', 'edu_primary_school_address',
+            'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
+            'edu_secondary_school_name', 'edu_secondary_school_address',
+            'edu_secondary_school_type', 'edu_secondary_start_year',
+            'edu_secondary_end_year', 'edu_secondary_completed',
+            'edu_tertiary_institution_name', 'edu_tertiary_school_address',
+            'edu_tertiary_program', 'edu_tertiary_degree_level',
+            'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status',
+        ];
+
+        foreach ($hardcoded_edu_fields as $field_name) {
+            if (isset($_POST['jpm_fields'][$field_name])) {
+                $form_data[$field_name] = sanitize_text_field($_POST['jpm_fields'][$field_name]);
+            }
+        }
+
+        // Process hardcoded employment fields
+        $hardcoded_emp_fields = ['emp_company_name', 'emp_position'];
+
+        foreach ($hardcoded_emp_fields as $field_name) {
+            if (isset($_POST['jpm_fields'][$field_name])) {
+                $form_data[$field_name] = sanitize_text_field($_POST['jpm_fields'][$field_name]);
             }
         }
 

@@ -141,6 +141,17 @@
   gap: 20px;
 }
 
+.jpm-summary-section-header {
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+  font-weight: 700;
+  font-size: 0.95em;
+  color: #1e3a5f;
+  border-left: 4px solid #3b82f6;
+  margin-top: 8px;
+  border-radius: 0 6px 6px 0;
+}
+
 .jpm-summary-item {
   padding: 18px 20px;
   background: #f8f9fa;
@@ -2912,4 +2923,111 @@
 .jpm-tracker-label {
   min-width: auto;
   margin-right: 0;
+}
+
+/* =============================================
+   Education & Employment Section Styles
+   ============================================= */
+
+.jpm-section-block {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.jpm-section-block:last-child {
+  margin-bottom: 0;
+}
+
+.jpm-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.jpm-section-icon {
+  font-size: 1.3em;
+  line-height: 1;
+}
+
+.jpm-section-description {
+  color: #64748b;
+  font-size: 0.9em;
+  margin: -10px 0 20px 0;
+  line-height: 1.5;
+}
+
+.jpm-section-block .jpm-form-row {
+  margin-bottom: 16px;
+}
+
+.jpm-section-block .jpm-form-row:last-child {
+  margin-bottom: 0;
+}
+
+.jpm-section-block .jpm-form-field-group {
+  margin-bottom: 0;
+}
+
+.jpm-section-block .jpm-form-field-group label {
+  font-size: 0.9em;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.jpm-section-block .jpm-form-field {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.jpm-section-block .jpm-form-field:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+/* Education section specific */
+.jpm-education-section + .jpm-education-section {
+  margin-top: 8px;
+}
+
+/* Employment section specific */
+.jpm-employment-section .jpm-section-description {
+  margin-bottom: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .jpm-section-block {
+    padding: 16px;
+  }
+
+  .jpm-section-title {
+    font-size: 1em;
+  }
+
+  .jpm-section-block .jpm-form-row {
+    flex-direction: column;
+  }
+
+  .jpm-section-block .jpm-form-col {
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    margin-bottom: 16px;
+  }
+
+  .jpm-section-block .jpm-form-row:last-child .jpm-form-col:last-child {
+    margin-bottom: 0;
+  }
 }
