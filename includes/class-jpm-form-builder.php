@@ -1109,7 +1109,7 @@ class JPM_Form_Builder
                 <div class="jpm-form-col jpm-col-6">
                     <div class="jpm-form-field-group">
                         <label for="jpm_edu_primary_school_name"><?php _e('School Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
-                        <input type="text" id="jpm_edu_primary_school_name" name="jpm_fields[edu_primary_school_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter school name', 'job-posting-manager'); ?>">
+                        <input type="text" id="jpm_edu_primary_school_name" name="jpm_fields[edu_primary_school_name]" class="jpm-form-field jpm-no-autofill" required autocomplete="off" placeholder="<?php esc_attr_e('Enter school name', 'job-posting-manager'); ?>">
                         <span class="jpm-field-error" data-field-name="edu_primary_school_name" style="display: none;"></span>
                     </div>
                 </div>
@@ -1165,7 +1165,7 @@ class JPM_Form_Builder
                 <div class="jpm-form-col jpm-col-6">
                     <div class="jpm-form-field-group">
                         <label for="jpm_edu_secondary_school_name"><?php _e('School Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
-                        <input type="text" id="jpm_edu_secondary_school_name" name="jpm_fields[edu_secondary_school_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter school name', 'job-posting-manager'); ?>">
+                        <input type="text" id="jpm_edu_secondary_school_name" name="jpm_fields[edu_secondary_school_name]" class="jpm-form-field jpm-no-autofill" required autocomplete="off" placeholder="<?php esc_attr_e('Enter school name', 'job-posting-manager'); ?>">
                         <span class="jpm-field-error" data-field-name="edu_secondary_school_name" style="display: none;"></span>
                     </div>
                 </div>
@@ -1236,7 +1236,7 @@ class JPM_Form_Builder
                 <div class="jpm-form-col jpm-col-6">
                     <div class="jpm-form-field-group">
                         <label for="jpm_edu_tertiary_institution_name"><?php _e('Institution Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
-                        <input type="text" id="jpm_edu_tertiary_institution_name" name="jpm_fields[edu_tertiary_institution_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter institution name', 'job-posting-manager'); ?>">
+                        <input type="text" id="jpm_edu_tertiary_institution_name" name="jpm_fields[edu_tertiary_institution_name]" class="jpm-form-field jpm-no-autofill" required autocomplete="off" placeholder="<?php esc_attr_e('Enter institution name', 'job-posting-manager'); ?>">
                         <span class="jpm-field-error" data-field-name="edu_tertiary_institution_name" style="display: none;"></span>
                     </div>
                 </div>

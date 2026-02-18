@@ -39,6 +39,8 @@ jQuery(document).ready(function ($) {
       // Auto-fill user data when step is shown
       setTimeout(function() {
         autoFillUserData();
+        // Force clear school/institution name fields
+        $('#jpm_edu_primary_school_name, #jpm_edu_secondary_school_name, #jpm_edu_tertiary_institution_name').val('');
       }, 100);
 
       // Update stepper navigation (map to form steps: 0-based index for nav, 1-based for form steps)
@@ -518,10 +520,13 @@ jQuery(document).ready(function ($) {
           return;
         }
         
-        // Skip school name fields (don't auto-fill)
-        if (fieldName && (fieldName.includes('edu_primary_school_name') || 
-                         fieldName.includes('edu_secondary_school_name') || 
-                         fieldName.includes('edu_tertiary_institution_name'))) {
+        // Skip fields marked as no-autofill or school/institution name fields
+        if ($field.hasClass('jpm-no-autofill')) {
+          return;
+        }
+        const fieldId = $field.attr('id') || '';
+        const nameCheck = (fieldName || '') + '|' + fieldId;
+        if (nameCheck.includes('school_name') || nameCheck.includes('institution_name')) {
           return;
         }
         
@@ -656,12 +661,22 @@ jQuery(document).ready(function ($) {
     }
   }
 
+  // Force clear school/institution name fields (never auto-fill these)
+  function clearSchoolNameFields() {
+    $('#jpm_edu_primary_school_name, #jpm_edu_secondary_school_name, #jpm_edu_tertiary_institution_name').val('');
+  }
+
   // Run auto-fill when form is ready
   $(document).ready(function() {
     // Wait a bit for form to be fully rendered
     setTimeout(function() {
       autoFillUserData();
+      clearSchoolNameFields();
     }, 500);
+    // Also clear after a longer delay to override any browser autocomplete
+    setTimeout(function() {
+      clearSchoolNameFields();
+    }, 1500);
   });
 
   // File Upload Preview Functionality
