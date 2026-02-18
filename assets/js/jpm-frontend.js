@@ -643,9 +643,23 @@ jQuery(document).ready(function ($) {
           const $field = $(this);
           if ($field.val()) return;
           
+          // Skip school/institution name fields
+          if ($field.hasClass('jpm-no-autofill') || 
+              $field.attr('id') === 'jpm_edu_primary_school_name' ||
+              $field.attr('id') === 'jpm_edu_secondary_school_name' ||
+              $field.attr('id') === 'jpm_edu_tertiary_institution_name') {
+            return;
+          }
+          
           const fieldName = normalizeFieldName($field.attr('name') || '');
           const fieldId = normalizeFieldName($field.attr('id') || '');
           const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          // Skip if field name or ID contains school/institution name
+          if (fieldName.includes('school_name') || fieldName.includes('institution_name') ||
+              fieldId.includes('school_name') || fieldId.includes('institution_name')) {
+            return;
+          }
           
           if (firstNameVariations.some(variation => 
             fieldName.includes(variation) || 
@@ -664,9 +678,23 @@ jQuery(document).ready(function ($) {
           const $field = $(this);
           if ($field.val()) return;
           
+          // Skip school/institution name fields
+          if ($field.hasClass('jpm-no-autofill') || 
+              $field.attr('id') === 'jpm_edu_primary_school_name' ||
+              $field.attr('id') === 'jpm_edu_secondary_school_name' ||
+              $field.attr('id') === 'jpm_edu_tertiary_institution_name') {
+            return;
+          }
+          
           const fieldName = normalizeFieldName($field.attr('name') || '');
           const fieldId = normalizeFieldName($field.attr('id') || '');
           const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          // Skip if field name or ID contains school/institution name
+          if (fieldName.includes('school_name') || fieldName.includes('institution_name') ||
+              fieldId.includes('school_name') || fieldId.includes('institution_name')) {
+            return;
+          }
           
           if (lastNameVariations.some(variation => 
             fieldName.includes(variation) || 
@@ -686,9 +714,23 @@ jQuery(document).ready(function ($) {
           const $field = $(this);
           if ($field.val()) return;
           
+          // Skip school/institution name fields
+          if ($field.hasClass('jpm-no-autofill') || 
+              $field.attr('id') === 'jpm_edu_primary_school_name' ||
+              $field.attr('id') === 'jpm_edu_secondary_school_name' ||
+              $field.attr('id') === 'jpm_edu_tertiary_institution_name') {
+            return;
+          }
+          
           const fieldName = normalizeFieldName($field.attr('name') || '');
           const fieldId = normalizeFieldName($field.attr('id') || '');
           const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          // Skip if field name or ID contains school/institution name
+          if (fieldName.includes('school_name') || fieldName.includes('institution_name') ||
+              fieldId.includes('school_name') || fieldId.includes('institution_name')) {
+            return;
+          }
           
           if (middleNameVariations.some(variation => 
             fieldName.includes(variation) || 
@@ -706,9 +748,23 @@ jQuery(document).ready(function ($) {
           const $field = $(this);
           if ($field.val()) return;
           
+          // Skip school/institution name fields (though unlikely for email, but for consistency)
+          if ($field.hasClass('jpm-no-autofill') || 
+              $field.attr('id') === 'jpm_edu_primary_school_name' ||
+              $field.attr('id') === 'jpm_edu_secondary_school_name' ||
+              $field.attr('id') === 'jpm_edu_tertiary_institution_name') {
+            return;
+          }
+          
           const fieldName = normalizeFieldName($field.attr('name') || '');
           const fieldId = normalizeFieldName($field.attr('id') || '');
           const fieldLabel = normalizeFieldName($field.closest('.jpm-form-field-group').find('label').text() || '');
+          
+          // Skip if field name or ID contains school/institution name
+          if (fieldName.includes('school_name') || fieldName.includes('institution_name') ||
+              fieldId.includes('school_name') || fieldId.includes('institution_name')) {
+            return;
+          }
           
           if (emailVariations.some(variation => 
             fieldName.includes(variation) || 
