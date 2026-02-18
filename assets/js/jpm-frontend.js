@@ -131,16 +131,19 @@ jQuery(document).ready(function ($) {
         if (fieldName === "employment_entries" || fieldId === "jpm-employment-summary") {
           const $companyFields = $form.find('[name="jpm_fields[emp_company_name][]"]');
           const $positionFields = $form.find('[name="jpm_fields[emp_position][]"]');
+          const $yearsFields = $form.find('[name="jpm_fields[emp_years][]"]');
           const entries = [];
           
           $companyFields.each(function(index) {
             const company = $(this).val() || '';
             const position = $positionFields.eq(index).val() || '';
-            if (company.trim() || position.trim()) {
+            const years = $yearsFields.eq(index).val() || '';
+            if (company.trim() || position.trim() || years.trim()) {
               entries.push({
                 number: index + 1,
                 company: company.trim(),
-                position: position.trim()
+                position: position.trim(),
+                years: years.trim()
               });
             }
           });
@@ -154,6 +157,9 @@ jQuery(document).ready(function ($) {
               if (entry.position) {
                 html += ' - ' + entry.position;
               }
+              if (entry.years) {
+                html += ' (' + entry.years + ')';
+              }
               html += '</div>';
             });
             html += '</div>';
@@ -165,7 +171,7 @@ jQuery(document).ready(function ($) {
         }
         
         // Handle individual employment fields (arrays) - fallback
-        if (fieldName === "emp_company_name" || fieldName === "emp_position") {
+        if (fieldName === "emp_company_name" || fieldName === "emp_position" || fieldName === "emp_years") {
           const $allFields = $form.find('[name="jpm_fields[' + fieldName + '][]"]');
           if ($allFields.length > 0) {
             const values = [];
@@ -1868,18 +1874,25 @@ jQuery(document).ready(function ($) {
           </button>
         </div>
         <div class="jpm-form-row">
-          <div class="jpm-form-col jpm-col-6">
+          <div class="jpm-form-col jpm-col-4">
             <div class="jpm-form-field-group">
               <label for="jpm_emp_company_name_${newIndex}">Company Name <span class="required">*</span></label>
               <input type="text" id="jpm_emp_company_name_${newIndex}" name="jpm_fields[emp_company_name][]" class="jpm-form-field" required placeholder="Enter company name">
               <span class="jpm-field-error" data-field-name="emp_company_name" style="display: none;"></span>
             </div>
           </div>
-          <div class="jpm-form-col jpm-col-6">
+          <div class="jpm-form-col jpm-col-4">
             <div class="jpm-form-field-group">
               <label for="jpm_emp_position_${newIndex}">Position <span class="required">*</span></label>
               <input type="text" id="jpm_emp_position_${newIndex}" name="jpm_fields[emp_position][]" class="jpm-form-field" required placeholder="Enter your position/job title">
               <span class="jpm-field-error" data-field-name="emp_position" style="display: none;"></span>
+            </div>
+          </div>
+          <div class="jpm-form-col jpm-col-4">
+            <div class="jpm-form-field-group">
+              <label for="jpm_emp_years_${newIndex}">Years <span class="required">*</span></label>
+              <input type="text" id="jpm_emp_years_${newIndex}" name="jpm_fields[emp_years][]" class="jpm-form-field" required placeholder="e.g. 2020-2024">
+              <span class="jpm-field-error" data-field-name="emp_years" style="display: none;"></span>
             </div>
           </div>
         </div>
