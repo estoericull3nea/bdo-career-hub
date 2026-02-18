@@ -20,6 +20,7 @@ class JPM_Admin
         add_action('admin_init', [$this, 'handle_status_actions'], 1);
         add_action('wp_ajax_jpm_get_chart_data', [$this, 'get_chart_data_ajax']);
         add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
+        add_action('admin_notices', [$this, 'display_expiration_duration_error']);
     }
 
     /**
@@ -1293,6 +1294,8 @@ class JPM_Admin
         $location = get_post_meta($post->ID, 'location', true);
         $salary = get_post_meta($post->ID, 'salary', true);
         $duration = get_post_meta($post->ID, 'duration', true);
+        $expiration_duration = get_post_meta($post->ID, 'expiration_duration', true);
+        $expiration_unit = get_post_meta($post->ID, 'expiration_unit', true);
 
         // Output form fields (ensure these are inside the form)
         ?>
@@ -1342,6 +1345,24 @@ class JPM_Admin
             </tr>
             <tr>
                 <th scope="row">
+                    <label for="expiration_duration"><?php _e('Expiration Duration', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                </th>
+                <td>
+                    <input type="number" id="expiration_duration" name="expiration_duration" class="small-text" 
+                        value="<?php echo esc_attr($expiration_duration); ?>" 
+                        min="1" step="1" required />
+                    <select id="expiration_unit" name="expiration_unit" required>
+                        <option value=""><?php _e('Select unit', 'job-posting-manager'); ?></option>
+                        <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>><?php _e('Minutes', 'job-posting-manager'); ?></option>
+                        <option value="hours" <?php selected($expiration_unit, 'hours'); ?>><?php _e('Hours', 'job-posting-manager'); ?></option>
+                        <option value="days" <?php selected($expiration_unit, 'days'); ?>><?php _e('Days', 'job-posting-manager'); ?></option>
+                        <option value="months" <?php selected($expiration_unit, 'months'); ?>><?php _e('Months', 'job-posting-manager'); ?></option>
+                    </select>
+                    <p class="description"><?php _e('Required: How long until this job posting expires', 'job-posting-manager'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
                     <label><?php _e('Posted Date', 'job-posting-manager'); ?></label>
                 </th>
                 <td>
@@ -1381,8 +1402,18 @@ class JPM_Admin
             return;
         }
 
-        // Save job metadata (all fields are optional)
+        // Save job metadata
         if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce($_POST['jpm_job_nonce'], 'jpm_job_meta')) {
+            // Validate required expiration duration field
+            if (empty($_POST['expiration_duration']) || empty($_POST['expiration_unit'])) {
+                // Set a transient error message
+                set_transient('jpm_expiration_duration_error', __('Expiration Duration is required. Please specify how long until this job posting expires.', 'job-posting-manager'), 30);
+                // Prevent saving if this is a new post or if explicitly saving (not autosave)
+                if (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE) {
+                    // For new posts, we'll let it save but show an error
+                    // The HTML5 required attribute should prevent form submission anyway
+                }
+            }
             if (isset($_POST['company_name'])) {
                 update_post_meta($post_id, 'company_name', sanitize_text_field($_POST['company_name']));
             } else {
@@ -1406,6 +1437,56 @@ class JPM_Admin
             } else {
                 delete_post_meta($post_id, 'duration');
             }
+
+            // Handle expiration duration (required field)
+            if (isset($_POST['expiration_duration']) && isset($_POST['expiration_unit']) && 
+                !empty($_POST['expiration_duration']) && !empty($_POST['expiration_unit'])) {
+                $expiration_duration = absint($_POST['expiration_duration']);
+                $expiration_unit = sanitize_text_field($_POST['expiration_unit']);
+                
+                // Validate unit
+                $allowed_units = ['minutes', 'hours', 'days', 'months'];
+                if (!in_array($expiration_unit, $allowed_units)) {
+                    $expiration_unit = 'days'; // Default to days if invalid
+                }
+                
+                // Save expiration duration and unit
+                update_post_meta($post_id, 'expiration_duration', $expiration_duration);
+                update_post_meta($post_id, 'expiration_unit', $expiration_unit);
+                
+                // Calculate expiration date based on current time
+                $current_time = current_time('timestamp');
+                $expiration_timestamp = $current_time;
+                
+                switch ($expiration_unit) {
+                    case 'minutes':
+                        $expiration_timestamp = $current_time + ($expiration_duration * 60);
+                        break;
+                    case 'hours':
+                        $expiration_timestamp = $current_time + ($expiration_duration * 60 * 60);
+                        break;
+                    case 'days':
+                        $expiration_timestamp = $current_time + ($expiration_duration * 24 * 60 * 60);
+                        break;
+                    case 'months':
+                        // Use strtotime for accurate month calculation (handles different month lengths)
+                        $expiration_timestamp = strtotime('+' . $expiration_duration . ' months', $current_time);
+                        break;
+                }
+                
+                // Save expiration date as timestamp and formatted date
+                update_post_meta($post_id, 'expiration_date', $expiration_timestamp);
+                update_post_meta($post_id, 'expiration_date_formatted', date('Y-m-d H:i:s', $expiration_timestamp));
+            } else {
+                // If required field is missing, don't delete existing values on autosave
+                // Only delete if explicitly saving (not autosave)
+                if (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE) {
+                    delete_post_meta($post_id, 'expiration_duration');
+                    delete_post_meta($post_id, 'expiration_unit');
+                    delete_post_meta($post_id, 'expiration_date');
+                    delete_post_meta($post_id, 'expiration_date_formatted');
+                }
+            }
         }
 
         // Save company image (separate nonce check)
@@ -1415,6 +1496,24 @@ class JPM_Admin
             } else {
                 delete_post_meta($post_id, 'company_image');
             }
+        }
+    }
+
+    /**
+     * Display admin notice for expiration duration validation error
+     */
+    public function display_expiration_duration_error()
+    {
+        // Only show on job posting edit screens
+        $screen = get_current_screen();
+        if (!$screen || $screen->post_type !== 'job_posting') {
+            return;
+        }
+
+        $error_message = get_transient('jpm_expiration_duration_error');
+        if ($error_message) {
+            echo '<div class="notice notice-error is-dismissible"><p><strong>' . esc_html__('Error:', 'job-posting-manager') . '</strong> ' . esc_html($error_message) . '</p></div>';
+            delete_transient('jpm_expiration_duration_error');
         }
     }
 

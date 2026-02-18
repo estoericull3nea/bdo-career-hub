@@ -829,3 +829,19 @@ body.jpm-dragging * {
     padding: 5px 0;
   }
 }
+
+/* Required field indicator */
+.form-table th label .required {
+  color: #dc3232;
+  font-weight: bold;
+  margin-left: 3px;
+}
+
+/* Expiration duration field styling */
+#expiration_duration {
+  margin-right: 10px;
+}
+
+#expiration_unit {
+  min-width: 120px;
+}

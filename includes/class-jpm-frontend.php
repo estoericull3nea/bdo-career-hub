@@ -5805,7 +5805,9 @@ class JPM_Frontend
                     $('.jpm-editable-value').each(function () {
                         var $value = $(this);
                         var fieldName = $value.data('field');
-                        var $input = $('#jpm-edit-' + fieldName);
+                        // Convert underscore to dash for ID matching
+                        var fieldId = fieldName.replace(/_/g, '-');
+                        var $input = $('#jpm-edit-' + fieldId);
 
                         if ($input.length) {
                             // Set input value from span text
@@ -5813,7 +5815,11 @@ class JPM_Frontend
                             $input.val(currentValue);
                             // Hide span and show input
                             $value.hide();
-                            $input.css('display', 'block').show();
+                            $input.css({
+                                'display': 'block',
+                                'width': '100%',
+                                'padding': '4px 0'
+                            }).show();
                             // Focus on first input
                             if ($input.attr('name') === 'display_name') {
                                 setTimeout(function () {
@@ -5840,8 +5846,9 @@ class JPM_Frontend
                         var $value = $('[data-field="' + fieldName + '"]');
 
                         if ($value.length) {
-                            // Reset input to original value
-                            $input.val($value.text().trim());
+                            // Reset input to original value from the span
+                            var originalValue = $value.text().trim();
+                            $input.val(originalValue);
                             $input.hide();
                             $value.show();
                         }
