@@ -127,6 +127,63 @@ jQuery(document).ready(function ($) {
           return;
         }
 
+        // Handle employment entries (special handling for paired display)
+        if (fieldName === "employment_entries" || fieldId === "jpm-employment-summary") {
+          const $companyFields = $form.find('[name="jpm_fields[emp_company_name][]"]');
+          const $positionFields = $form.find('[name="jpm_fields[emp_position][]"]');
+          const entries = [];
+          
+          $companyFields.each(function(index) {
+            const company = $(this).val() || '';
+            const position = $positionFields.eq(index).val() || '';
+            if (company.trim() || position.trim()) {
+              entries.push({
+                number: index + 1,
+                company: company.trim(),
+                position: position.trim()
+              });
+            }
+          });
+          
+          if (entries.length > 0) {
+            let html = '<div class="jpm-employment-summary-entries">';
+            entries.forEach(function(entry) {
+              html += '<div class="jpm-employment-summary-entry">';
+              html += '<strong>Employment #' + entry.number + ':</strong> ';
+              html += entry.company || '(No company)';
+              if (entry.position) {
+                html += ' - ' + entry.position;
+              }
+              html += '</div>';
+            });
+            html += '</div>';
+            $valueContainer.html(html);
+          } else {
+            $valueContainer.html('<span class="jpm-summary-empty">Not filled</span>');
+          }
+          return;
+        }
+        
+        // Handle individual employment fields (arrays) - fallback
+        if (fieldName === "emp_company_name" || fieldName === "emp_position") {
+          const $allFields = $form.find('[name="jpm_fields[' + fieldName + '][]"]');
+          if ($allFields.length > 0) {
+            const values = [];
+            $allFields.each(function(index) {
+              const val = $(this).val();
+              if (val && val.trim() !== '') {
+                values.push(val.trim());
+              }
+            });
+            if (values.length > 0) {
+              $valueContainer.html("<span>" + values.join('<br>') + "</span>");
+            } else {
+              $valueContainer.html('<span class="jpm-summary-empty">Not filled</span>');
+            }
+          }
+          return;
+        }
+
         // Find the actual form field
         let $field = $("#" + fieldId);
 
@@ -1018,44 +1075,61 @@ jQuery(document).ready(function ($) {
           $(".jpm-field-error").hide().empty();
           $(".jpm-form-field").removeClass("error");
 
-          // Handle field-specific errors
-          if (response.data && response.data.field_errors) {
-            var fieldErrors = response.data.field_errors;
-            for (var fieldName in fieldErrors) {
-              var $errorSpan = $(
-                '.jpm-field-error[data-field-name="' + fieldName + '"]'
-              );
-              if ($errorSpan.length === 0) {
-                // If error span doesn't exist, find the field and add error after it
-                var $field = $(
-                  'input[name="jpm_fields[' +
-                    fieldName +
-                    '"], textarea[name="jpm_fields[' +
-                    fieldName +
-                    '"], select[name="jpm_fields[' +
-                    fieldName +
-                    '"]'
+            // Handle field-specific errors
+            if (response.data && response.data.field_errors) {
+              var fieldErrors = response.data.field_errors;
+              for (var fieldName in fieldErrors) {
+                var $errorSpan = $(
+                  '.jpm-field-error[data-field-name="' + fieldName + '"]'
                 );
-                if ($field.length > 0) {
-                  $field.addClass("error");
-                  $field
-                    .closest(".jpm-form-field-group")
-                    .append(
-                      '<span class="jpm-field-error" data-field-name="' +
-                        fieldName +
-                        '">' +
-                        fieldErrors[fieldName] +
-                        "</span>"
-                    );
+                var $field = null;
+                
+                // Handle array field errors (e.g., emp_company_name_0)
+                var arrayMatch = fieldName.match(/^(.+)_(\d+)$/);
+                if (arrayMatch) {
+                  var baseFieldName = arrayMatch[1];
+                  var index = parseInt(arrayMatch[2]);
+                  // Find the array field by index
+                  $field = $form.find('[name="jpm_fields[' + baseFieldName + '][]"]').eq(index);
+                } else {
+                  // Regular field lookup
+                  $field = $(
+                    'input[name="jpm_fields[' +
+                      fieldName +
+                      ']], textarea[name="jpm_fields[' +
+                      fieldName +
+                      ']], select[name="jpm_fields[' +
+                      fieldName +
+                      '"]'
+                  );
                 }
-              } else {
-                $errorSpan.html(fieldErrors[fieldName]).show();
-                $errorSpan
-                  .closest(".jpm-form-field-group")
-                  .find(".jpm-form-field")
-                  .addClass("error");
+                
+                if ($errorSpan.length === 0) {
+                  // If error span doesn't exist, find the field and add error after it
+                  if ($field.length > 0) {
+                    $field.addClass("error");
+                    $field
+                      .closest(".jpm-form-field-group")
+                      .append(
+                        '<span class="jpm-field-error" data-field-name="' +
+                          fieldName +
+                          '">' +
+                          fieldErrors[fieldName] +
+                          "</span>"
+                      );
+                  }
+                } else {
+                  $errorSpan.html(fieldErrors[fieldName]).show();
+                  if ($field.length > 0) {
+                    $field.addClass("error");
+                  } else {
+                    $errorSpan
+                      .closest(".jpm-form-field-group")
+                      .find(".jpm-form-field")
+                      .addClass("error");
+                  }
+                }
               }
-            }
 
             // Scroll to first error
             var $firstError = $(".jpm-field-error:visible").first();
@@ -1776,4 +1850,87 @@ jQuery(document).ready(function ($) {
       }, 400);
     }
   });
+
+  // Employment Add More functionality
+  $(document).on('click', '.jpm-btn-add-employment', function(e) {
+    e.preventDefault();
+    const $container = $(this).closest('.jpm-employment-section').find('.jpm-employment-entries');
+    const currentCount = parseInt($container.data('entry-count')) || 1;
+    const newIndex = currentCount;
+    
+    // Create new employment entry HTML
+    const entryHtml = `
+      <div class="jpm-employment-entry" data-entry-index="${newIndex}">
+        <div class="jpm-employment-entry-header">
+          <span class="jpm-employment-entry-number">Employment #${newIndex + 1}</span>
+          <button type="button" class="jpm-btn-remove-employment">
+            Remove
+          </button>
+        </div>
+        <div class="jpm-form-row">
+          <div class="jpm-form-col jpm-col-6">
+            <div class="jpm-form-field-group">
+              <label for="jpm_emp_company_name_${newIndex}">Company Name <span class="required">*</span></label>
+              <input type="text" id="jpm_emp_company_name_${newIndex}" name="jpm_fields[emp_company_name][]" class="jpm-form-field" required placeholder="Enter company name">
+              <span class="jpm-field-error" data-field-name="emp_company_name" style="display: none;"></span>
+            </div>
+          </div>
+          <div class="jpm-form-col jpm-col-6">
+            <div class="jpm-form-field-group">
+              <label for="jpm_emp_position_${newIndex}">Position <span class="required">*</span></label>
+              <input type="text" id="jpm_emp_position_${newIndex}" name="jpm_fields[emp_position][]" class="jpm-form-field" required placeholder="Enter your position/job title">
+              <span class="jpm-field-error" data-field-name="emp_position" style="display: none;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Append new entry
+    $container.append(entryHtml);
+    $container.data('entry-count', currentCount + 1);
+    
+    // Update entry numbers
+    updateEmploymentEntryNumbers($container);
+    
+    // Show remove buttons if more than one entry
+    if (currentCount + 1 > 1) {
+      $container.find('.jpm-btn-remove-employment').show();
+    }
+    
+    // Scroll to new entry
+    $('html, body').animate({
+      scrollTop: $container.find('.jpm-employment-entry').last().offset().top - 100
+    }, 300);
+  });
+
+  // Remove employment entry
+  $(document).on('click', '.jpm-btn-remove-employment', function(e) {
+    e.preventDefault();
+    const $entry = $(this).closest('.jpm-employment-entry');
+    const $container = $entry.closest('.jpm-employment-entries');
+    
+    // Don't allow removing if only one entry
+    if ($container.find('.jpm-employment-entry').length <= 1) {
+      return;
+    }
+    
+    // Fade out and remove
+    $entry.fadeOut(300, function() {
+      $(this).remove();
+      updateEmploymentEntryNumbers($container);
+      
+      // Hide remove buttons if only one entry left
+      if ($container.find('.jpm-employment-entry').length <= 1) {
+        $container.find('.jpm-btn-remove-employment').hide();
+      }
+    });
+  });
+
+  // Update employment entry numbers
+  function updateEmploymentEntryNumbers($container) {
+    $container.find('.jpm-employment-entry').each(function(index) {
+      $(this).find('.jpm-employment-entry-number').text('Employment #' + (index + 1));
+    });
+  }
 });

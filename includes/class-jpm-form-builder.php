@@ -825,19 +825,14 @@ class JPM_Form_Builder
 
                                 <!-- Employment Summary -->
                                 <div class="jpm-summary-section-header"><?php _e('Employment History', 'job-posting-manager'); ?></div>
-                                <?php
-                                $emp_fields = [
-                                    'emp_company_name' => __('Company Name', 'job-posting-manager'),
-                                    'emp_position' => __('Position', 'job-posting-manager'),
-                                ];
-                                foreach ($emp_fields as $name => $label): ?>
-                                    <div class="jpm-summary-item" data-field-name="<?php echo esc_attr($name); ?>">
-                                        <div class="jpm-summary-label"><?php echo esc_html($label); ?> <span class="required">*</span></div>
-                                        <div class="jpm-summary-value" data-field-id="jpm_<?php echo esc_attr($name); ?>">
+                                <div class="jpm-summary-employment-container">
+                                    <div class="jpm-summary-item" data-field-name="employment_entries">
+                                        <div class="jpm-summary-label"><?php _e('Employment Entries', 'job-posting-manager'); ?> <span class="required">*</span></div>
+                                        <div class="jpm-summary-value" id="jpm-employment-summary">
                                             <span class="jpm-summary-placeholder"><?php _e('Not filled', 'job-posting-manager'); ?></span>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
+                                </div>
 
                             </div>
                         </div>
@@ -1309,7 +1304,7 @@ class JPM_Form_Builder
     }
 
     /**
-     * Render hardcoded Employment fields
+     * Render hardcoded Employment fields (with Add More functionality)
      */
     private function render_employment_fields()
     {
@@ -1318,23 +1313,41 @@ class JPM_Form_Builder
             <h4 class="jpm-section-title">
                 <?php _e('Employment History', 'job-posting-manager'); ?>
             </h4>
-            <p class="jpm-section-description"><?php _e('Please provide your most recent employment information.', 'job-posting-manager'); ?></p>
+            <p class="jpm-section-description"><?php _e('Please provide your employment information. Click "Add More" to add additional employment entries.', 'job-posting-manager'); ?></p>
 
-            <div class="jpm-form-row">
-                <div class="jpm-form-col jpm-col-6">
-                    <div class="jpm-form-field-group">
-                        <label for="jpm_emp_company_name"><?php _e('Company Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
-                        <input type="text" id="jpm_emp_company_name" name="jpm_fields[emp_company_name]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter company name', 'job-posting-manager'); ?>">
-                        <span class="jpm-field-error" data-field-name="emp_company_name" style="display: none;"></span>
+            <div class="jpm-employment-entries" data-entry-count="1">
+                <!-- First Employment Entry -->
+                <div class="jpm-employment-entry" data-entry-index="0">
+                    <div class="jpm-employment-entry-header">
+                        <span class="jpm-employment-entry-number"><?php _e('Employment #1', 'job-posting-manager'); ?></span>
+                        <button type="button" class="jpm-btn-remove-employment" style="display: none;">
+                            <?php _e('Remove', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                    <div class="jpm-form-row">
+                        <div class="jpm-form-col jpm-col-6">
+                            <div class="jpm-form-field-group">
+                                <label for="jpm_emp_company_name_0"><?php _e('Company Name', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                                <input type="text" id="jpm_emp_company_name_0" name="jpm_fields[emp_company_name][]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter company name', 'job-posting-manager'); ?>">
+                                <span class="jpm-field-error" data-field-name="emp_company_name" style="display: none;"></span>
+                            </div>
+                        </div>
+                        <div class="jpm-form-col jpm-col-6">
+                            <div class="jpm-form-field-group">
+                                <label for="jpm_emp_position_0"><?php _e('Position', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                                <input type="text" id="jpm_emp_position_0" name="jpm_fields[emp_position][]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter your position/job title', 'job-posting-manager'); ?>">
+                                <span class="jpm-field-error" data-field-name="emp_position" style="display: none;"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="jpm-form-col jpm-col-6">
-                    <div class="jpm-form-field-group">
-                        <label for="jpm_emp_position"><?php _e('Position', 'job-posting-manager'); ?> <span class="required">*</span></label>
-                        <input type="text" id="jpm_emp_position" name="jpm_fields[emp_position]" class="jpm-form-field" required placeholder="<?php esc_attr_e('Enter your position/job title', 'job-posting-manager'); ?>">
-                        <span class="jpm-field-error" data-field-name="emp_position" style="display: none;"></span>
-                    </div>
-                </div>
+            </div>
+
+            <div class="jpm-employment-actions">
+                <button type="button" class="jpm-btn jpm-btn-secondary jpm-btn-add-employment">
+                    <span class="dashicons dashicons-plus-alt"></span>
+                    <?php _e('Add More', 'job-posting-manager'); ?>
+                </button>
             </div>
         </div>
         <?php
@@ -1607,17 +1620,35 @@ class JPM_Form_Builder
             }
         }
 
-        // Validate hardcoded employment fields (all required)
-        $employment_required_fields = [
-            'emp_company_name' => __('Company Name', 'job-posting-manager'),
-            'emp_position' => __('Position', 'job-posting-manager'),
-        ];
-
-        foreach ($employment_required_fields as $field_name => $label) {
-            $value = sanitize_text_field($_POST['jpm_fields'][$field_name] ?? '');
-            if (empty($value)) {
-                $field_errors[$field_name] = sprintf(__('%s is required.', 'job-posting-manager'), $label);
+        // Validate hardcoded employment fields (arrays - all entries required)
+        $emp_company_names = $_POST['jpm_fields']['emp_company_name'] ?? [];
+        $emp_positions = $_POST['jpm_fields']['emp_position'] ?? [];
+        
+        // Ensure they are arrays
+        if (!is_array($emp_company_names)) {
+            $emp_company_names = [$emp_company_names];
+        }
+        if (!is_array($emp_positions)) {
+            $emp_positions = [$emp_positions];
+        }
+        
+        // Validate each employment entry
+        $emp_count = max(count($emp_company_names), count($emp_positions));
+        for ($i = 0; $i < $emp_count; $i++) {
+            $company_name = isset($emp_company_names[$i]) ? sanitize_text_field($emp_company_names[$i]) : '';
+            $position = isset($emp_positions[$i]) ? sanitize_text_field($emp_positions[$i]) : '';
+            
+            if (empty($company_name)) {
+                $field_errors['emp_company_name_' . $i] = sprintf(__('Employment #%d: Company Name is required.', 'job-posting-manager'), $i + 1);
             }
+            if (empty($position)) {
+                $field_errors['emp_position_' . $i] = sprintf(__('Employment #%d: Position is required.', 'job-posting-manager'), $i + 1);
+            }
+        }
+        
+        // At least one employment entry is required
+        if ($emp_count === 0 || (empty($company_name) && empty($position))) {
+            $field_errors['emp_company_name'] = __('At least one employment entry is required.', 'job-posting-manager');
         }
 
         if (!empty($field_errors) || !empty($general_errors)) {
@@ -1704,13 +1735,38 @@ class JPM_Form_Builder
             }
         }
 
-        // Process hardcoded employment fields
-        $hardcoded_emp_fields = ['emp_company_name', 'emp_position'];
-
-        foreach ($hardcoded_emp_fields as $field_name) {
-            if (isset($_POST['jpm_fields'][$field_name])) {
-                $form_data[$field_name] = sanitize_text_field($_POST['jpm_fields'][$field_name]);
+        // Process hardcoded employment fields (arrays)
+        $emp_company_names = $_POST['jpm_fields']['emp_company_name'] ?? [];
+        $emp_positions = $_POST['jpm_fields']['emp_position'] ?? [];
+        
+        // Ensure they are arrays
+        if (!is_array($emp_company_names)) {
+            $emp_company_names = !empty($emp_company_names) ? [$emp_company_names] : [];
+        }
+        if (!is_array($emp_positions)) {
+            $emp_positions = !empty($emp_positions) ? [$emp_positions] : [];
+        }
+        
+        // Sanitize and store employment entries
+        $employment_entries = [];
+        $emp_count = max(count($emp_company_names), count($emp_positions));
+        for ($i = 0; $i < $emp_count; $i++) {
+            $company_name = isset($emp_company_names[$i]) ? sanitize_text_field($emp_company_names[$i]) : '';
+            $position = isset($emp_positions[$i]) ? sanitize_text_field($emp_positions[$i]) : '';
+            
+            if (!empty($company_name) || !empty($position)) {
+                $employment_entries[] = [
+                    'company_name' => $company_name,
+                    'position' => $position
+                ];
             }
+        }
+        
+        // Store employment data as array
+        if (!empty($employment_entries)) {
+            $form_data['emp_company_name'] = array_column($employment_entries, 'company_name');
+            $form_data['emp_position'] = array_column($employment_entries, 'position');
+            $form_data['employment_entries'] = $employment_entries; // Store as structured data too
         }
 
         // Extract first name, last name, and email from form data
