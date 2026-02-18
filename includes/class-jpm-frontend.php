@@ -281,6 +281,7 @@ class JPM_Frontend
             $company_image_url = wp_get_attachment_image_url($company_image_id, 'medium');
         }
         $job_link = get_permalink($job_id);
+        $time_remaining = $this->get_time_remaining($job_id);
 
         ob_start();
         ?>
@@ -324,6 +325,16 @@ class JPM_Frontend
                     <strong><?php _e('Posted Date:', 'job-posting-manager'); ?></strong>
                     <span><?php echo esc_html(get_the_date('', $job_id)); ?></span>
                 </li>
+                <?php if ($time_remaining): ?>
+                    <li>
+                        <strong>
+                            <?php _e('Expiration:', 'job-posting-manager'); ?>
+                        </strong>
+                        <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i>
+                            <?php echo esc_html($time_remaining); ?>
+                        </span>
+                    </li>
+                <?php endif; ?>
             </ul>
         </div>
 

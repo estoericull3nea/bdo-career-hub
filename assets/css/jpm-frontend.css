@@ -1195,6 +1195,24 @@
   flex: 1;
 }
 
+.jpm-job-detail-item.jpm-job-expiration strong {
+  color: #555;
+}
+
+.jpm-job-detail-item.jpm-job-expiration .jpm-job-expiration-text {
+  color: #d63638;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.jpm-job-detail-item.jpm-job-expiration .jpm-job-expiration-text .dashicons {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
 /* Latest Jobs Shortcode Styles */
 .jpm-latest-jobs {
   display: flex;
@@ -1604,6 +1622,20 @@
 .jpm-modal-job-details-list span {
   color: #333;
   flex: 1;
+}
+
+.jpm-modal-job-details-list .jpm-job-expiration-text {
+  color: #d63638;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.jpm-modal-job-details-list .jpm-job-expiration-text .dashicons {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
 }
 
 .jpm-modal-job-description {

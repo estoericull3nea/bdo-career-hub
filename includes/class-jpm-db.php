@@ -2010,6 +2010,70 @@ class JPM_Admin
     }
 
     /**
+     * Calculate and format time remaining until job expiration
+     * @param int $job_id Job post ID
+     * @return string|false Formatted time remaining or false if no expiration set
+     */
+    private function get_time_remaining($job_id)
+    {
+        $expiration_date = get_post_meta($job_id, 'expiration_date', true);
+        
+        if (empty($expiration_date)) {
+            return false;
+        }
+        
+        $current_time = current_time('timestamp');
+        $expiration_timestamp = intval($expiration_date);
+        
+        // If already expired, return false
+        if ($expiration_timestamp <= $current_time) {
+            return false;
+        }
+        
+        $seconds_remaining = $expiration_timestamp - $current_time;
+        $expiration_unit = get_post_meta($job_id, 'expiration_unit', true);
+        
+        // If the original unit was minutes, always show minutes
+        if ($expiration_unit === 'minutes') {
+            $minutes_remaining = floor($seconds_remaining / 60);
+            if ($minutes_remaining <= 0) {
+                return false; // Already expired
+            }
+            return sprintf(
+                _n('%d minute left', '%d minutes left', $minutes_remaining, 'job-posting-manager'),
+                $minutes_remaining
+            );
+        }
+        
+        // Otherwise, show days (convert hours, days, months all to days)
+        $days_remaining = floor($seconds_remaining / 86400);
+        if ($days_remaining <= 0) {
+            // Less than a day remaining, show hours or minutes for better accuracy
+            $hours_remaining = floor($seconds_remaining / 3600);
+            if ($hours_remaining > 0) {
+                return sprintf(
+                    _n('%d hour left', '%d hours left', $hours_remaining, 'job-posting-manager'),
+                    $hours_remaining
+                );
+            } else {
+                $minutes_remaining = floor($seconds_remaining / 60);
+                if ($minutes_remaining <= 0) {
+                    return false; // Already expired
+                }
+                return sprintf(
+                    _n('%d minute left', '%d minutes left', $minutes_remaining, 'job-posting-manager'),
+                    $minutes_remaining
+                );
+            }
+        }
+        
+        return sprintf(
+            _n('%d day left', '%d days left', $days_remaining, 'job-posting-manager'),
+            $days_remaining
+        );
+    }
+
+    /**
      * Display job details on single job posting page
      * @param string $content The post content
      * @return string Modified content with job details
@@ -2027,6 +2091,7 @@ class JPM_Admin
         $location = get_post_meta($post->ID, 'location', true);
         $salary = get_post_meta($post->ID, 'salary', true);
         $duration = get_post_meta($post->ID, 'duration', true);
+        $time_remaining = $this->get_time_remaining($post->ID);
 
         // Always display job details section (at minimum, it will show posted date)
 
@@ -2063,6 +2128,12 @@ class JPM_Admin
                     <strong><?php _e('Posted Date:', 'job-posting-manager'); ?></strong>
                     <span><?php echo esc_html(get_the_date('', $post->ID)); ?></span>
                 </li>
+                <?php if ($time_remaining): ?>
+                    <li class="jpm-job-detail-item jpm-job-expiration">
+                        <strong><?php _e('Expiration:', 'job-posting-manager'); ?></strong>
+                        <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i> <?php echo esc_html($time_remaining); ?></span>
+                    </li>
+                <?php endif; ?>
             </ul>
         </div>
         <?php
