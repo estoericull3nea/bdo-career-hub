@@ -765,13 +765,173 @@ class JPM_Emails
         $body .= '</table>';
         $body .= '</div>';
 
+        // Education Section
+        $has_education = false;
+        $education_fields = [
+            'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
+            'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
+            'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status'
+        ];
+        
+        foreach ($education_fields as $edu_field) {
+            if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
+                $has_education = true;
+                break;
+            }
+        }
+
+        if ($has_education) {
+            $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
+            $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . __('Education', 'job-posting-manager') . '</h2>';
+            
+            // Primary Education
+            if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])) {
+                $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . __('Primary Education', 'job-posting-manager') . '</h3>';
+                $body .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
+                if (!empty($form_data['edu_primary_school_name'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold; width: 35%;">' . __('School Name:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_primary_school_name']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_primary_school_address'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('School Address:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_primary_school_address']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_primary_start_year'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Start Year:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_primary_start_year']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_primary_end_year'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('End Year:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_primary_end_year']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_primary_completed'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Completed:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_primary_completed']) . '</td></tr>';
+                }
+                $body .= '</table>';
+            }
+
+            // Secondary Education
+            if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])) {
+                $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . __('Secondary Education', 'job-posting-manager') . '</h3>';
+                $body .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
+                if (!empty($form_data['edu_secondary_school_name'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold; width: 35%;">' . __('School Name:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_secondary_school_name']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_secondary_school_address'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('School Address:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_secondary_school_address']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_secondary_school_type'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('School Type:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_secondary_school_type']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_secondary_start_year'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Start Year:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_secondary_start_year']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_secondary_end_year'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('End Year:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_secondary_end_year']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_secondary_completed'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Completed:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_secondary_completed']) . '</td></tr>';
+                }
+                $body .= '</table>';
+            }
+
+            // Tertiary Education
+            if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])) {
+                $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . __('Tertiary Education', 'job-posting-manager') . '</h3>';
+                $body .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
+                if (!empty($form_data['edu_tertiary_institution_name'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold; width: 35%;">' . __('Institution Name:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_institution_name']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_tertiary_school_address'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('School Address:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_school_address']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_tertiary_program'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Program / Course:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_program']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_tertiary_degree_level'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Degree Level:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_degree_level']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_tertiary_start_year'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Start Year:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_start_year']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_tertiary_end_year'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('End Year:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_end_year']) . '</td></tr>';
+                }
+                if (!empty($form_data['edu_tertiary_status'])) {
+                    $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($form_data['edu_tertiary_status']) . '</td></tr>';
+                }
+                $body .= '</table>';
+            }
+            
+            $body .= '</div>';
+        }
+
+        // Employment Section
+        $has_employment = false;
+        if ((isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
+            (isset($form_data['emp_position']) && !empty($form_data['emp_position'])) ||
+            (isset($form_data['emp_years']) && !empty($form_data['emp_years'])) ||
+            (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))) {
+            $has_employment = true;
+        }
+
+        if ($has_employment) {
+            $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
+            $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . __('Employment History', 'job-posting-manager') . '</h2>';
+            
+            // Handle employment entries (array format)
+            $employment_entries = [];
+            if (isset($form_data['employment_entries']) && is_array($form_data['employment_entries'])) {
+                $employment_entries = $form_data['employment_entries'];
+            } else {
+                // Fallback: reconstruct from arrays
+                $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
+                $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
+                $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
+                
+                $max_count = max(count($company_names), count($positions), count($years));
+                for ($i = 0; $i < $max_count; $i++) {
+                    if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
+                        $employment_entries[] = [
+                            'company_name' => $company_names[$i] ?? '',
+                            'position' => $positions[$i] ?? '',
+                            'years' => $years[$i] ?? ''
+                        ];
+                    }
+                }
+            }
+            
+            if (!empty($employment_entries)) {
+                foreach ($employment_entries as $index => $entry) {
+                    $entry_num = $index + 1;
+                    $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . sprintf(__('Employment #%d', 'job-posting-manager'), $entry_num) . '</h3>';
+                    $body .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
+                    if (!empty($entry['company_name'])) {
+                        $body .= '<tr><td style="padding: 6px 0; font-weight: bold; width: 35%;">' . __('Company Name:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($entry['company_name']) . '</td></tr>';
+                    }
+                    if (!empty($entry['position'])) {
+                        $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Position:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($entry['position']) . '</td></tr>';
+                    }
+                    if (!empty($entry['years'])) {
+                        $body .= '<tr><td style="padding: 6px 0; font-weight: bold;">' . __('Years:', 'job-posting-manager') . '</td><td style="padding: 6px 0;">' . esc_html($entry['years']) . '</td></tr>';
+                    }
+                    $body .= '</table>';
+                }
+            }
+            
+            $body .= '</div>';
+        }
+
         // Application Details Section - OPTIMIZED: Show only key fields to reduce email size
         $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
         $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['details_section_title']) . '</h2>';
 
         // Only show essential/key fields (limit to 5 most important fields to reduce email size)
-        $exclude_fields = ['application_number', 'date_of_registration', 'applicant_number', 'first_name', 'last_name', 'email', 'email_address'];
-        $priority_fields = ['phone', 'phone_number', 'mobile', 'contact_number', 'resume', 'cv', 'cover_letter', 'message', 'experience', 'qualification', 'education'];
+        // Exclude education and employment fields as they are shown in dedicated sections above
+        $exclude_fields = [
+            'application_number', 'date_of_registration', 'applicant_number', 'first_name', 'last_name', 'email', 'email_address',
+            'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
+            'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
+            'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status',
+            'emp_company_name', 'emp_position', 'emp_years', 'employment_entries'
+        ];
+        $priority_fields = ['phone', 'phone_number', 'mobile', 'contact_number', 'resume', 'cv', 'cover_letter', 'message', 'experience', 'qualification'];
 
         $fields_shown = 0;
         $max_fields = 5; // Limit to 5 fields to keep email small
