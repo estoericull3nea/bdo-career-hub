@@ -36,11 +36,9 @@ jQuery(document).ready(function ($) {
       const $currentStepEl = $steps.filter('[data-step="' + stepIndex + '"]');
       $currentStepEl.addClass("active").show();
 
-      // Auto-fill user data when step is shown
+      // Auto-fill user data when step is shown (only for empty fields)
       setTimeout(function() {
         autoFillUserData();
-        // Force clear school/institution name fields
-        $('#jpm_edu_primary_school_name, #jpm_edu_secondary_school_name, #jpm_edu_tertiary_institution_name').val('');
       }, 100);
 
       // Update stepper navigation (map to form steps: 0-based index for nav, 1-based for form steps)
