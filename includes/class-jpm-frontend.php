@@ -4377,6 +4377,32 @@ class JPM_Frontend
                                         $medical_details = get_option('jpm_application_medical_details_' . $application->id, null);
                                     }
 
+                                    // Check if status is rejected
+                                    $is_rejected_status = false;
+                                    $rejected_status_slug = strtolower($application->status);
+                                    if ($rejected_status_slug === 'rejected') {
+                                        $is_rejected_status = true;
+                                    }
+
+                                    // Get rejection details if status is rejected
+                                    $rejection_details = null;
+                                    if ($is_rejected_status) {
+                                        $stored = get_option('jpm_application_rejection_details_' . $application->id, []);
+                                        if (is_array($stored) && !empty($stored)) {
+                                            $problem_area_labels = [
+                                                'personal_information' => __('Personal Information', 'job-posting-manager'),
+                                                'education' => __('Education', 'job-posting-manager'),
+                                                'employment' => __('Employment', 'job-posting-manager'),
+                                            ];
+                                            $rejection_details = [
+                                                'problem_area' => isset($stored['problem_area']) ? sanitize_text_field($stored['problem_area']) : '',
+                                                'problem_area_label' => isset($stored['problem_area']) && isset($problem_area_labels[$stored['problem_area']]) ? $problem_area_labels[$stored['problem_area']] : '',
+                                                'notes' => isset($stored['notes']) ? wp_kses_post($stored['notes']) : '',
+                                                'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+                                            ];
+                                        }
+                                    }
+
                                     // Extract application number
                                     $application_number = '';
                                     $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
@@ -5060,6 +5086,44 @@ class JPM_Frontend
                                                                 <div class="jpm-form-data-item">
                                                                     <span
                                                                         class="jpm-form-data-value"><?php _e('Requirements details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <!-- Rejection Details (only for rejected status) -->
+                                        <?php if ($is_rejected_status && $rejection_details): ?>
+                                            <div class="jpm-application-form-data">
+                                                <button type="button" class="jpm-toggle-rejection"
+                                                    data-application-id="<?php echo esc_attr($application->id); ?>">
+                                                    <span
+                                                        class="jpm-toggle-text"><?php _e('View Rejection Details', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon">▼</span>
+                                                </button>
+                                                <div class="jpm-application-rejection-content"
+                                                    id="jpm-rejection-<?php echo esc_attr($application->id); ?>" style="display: none;">
+                                                    <div class="jpm-form-data-section">
+                                                        <h4 class="jpm-form-data-section-title">
+                                                            <?php _e('Rejection Details', 'job-posting-manager'); ?>
+                                                        </h4>
+                                                        <div class="jpm-form-data-grid">
+                                                            <?php if (!empty($rejection_details['problem_area_label'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('The problem is in the:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($rejection_details['problem_area_label']); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($rejection_details['notes'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Notes:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo wp_kses_post(nl2br(esc_html($rejection_details['notes']))); ?></span>
                                                                 </div>
                                                             <?php endif; ?>
                                                         </div>
@@ -5819,6 +5883,39 @@ class JPM_Frontend
                 border-top: 1px solid #e5e7eb;
             }
 
+            .jpm-toggle-rejection {
+                background: none;
+                border: none;
+                color: #dc3545;
+                cursor: pointer;
+                padding: 8px 0;
+                font-size: 13px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .jpm-toggle-rejection:hover {
+                color: #b91c1c;
+                text-decoration: underline;
+            }
+
+            .jpm-toggle-rejection .jpm-toggle-icon {
+                font-size: 10px;
+                transition: transform 0.2s ease;
+            }
+
+            .jpm-toggle-rejection.active .jpm-toggle-icon {
+                transform: rotate(180deg);
+            }
+
+            .jpm-application-rejection-content {
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid #e5e7eb;
+            }
+
             .jpm-form-data-section {
                 margin-bottom: 32px;
             }
@@ -6275,6 +6372,16 @@ class JPM_Frontend
                     var $button = $(this);
                     var applicationId = $button.data('application-id');
                     var $content = $('#jpm-requirements-' + applicationId);
+
+                    $content.slideToggle(300);
+                    $button.toggleClass('active');
+                });
+
+                // Toggle rejection details for rejected status
+                $('.jpm-toggle-rejection').on('click', function () {
+                    var $button = $(this);
+                    var applicationId = $button.data('application-id');
+                    var $content = $('#jpm-rejection-' + applicationId);
 
                     $content.slideToggle(300);
                     $button.toggleClass('active');

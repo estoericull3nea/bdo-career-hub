@@ -14,6 +14,8 @@ class JPM_Admin
         add_action('wp_ajax_jpm_update_application_status', [$this, 'update_application_status']);
         add_action('wp_ajax_jpm_get_medical_details', [$this, 'get_medical_details_ajax']);
         add_action('wp_ajax_jpm_save_medical_details', [$this, 'save_medical_details_ajax']);
+        add_action('wp_ajax_jpm_get_rejection_details', [$this, 'get_rejection_details_ajax']);
+        add_action('wp_ajax_jpm_save_rejection_details', [$this, 'save_rejection_details_ajax']);
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
@@ -812,6 +814,50 @@ class JPM_Admin
             </div>
         </div>
 
+        <!-- Rejection Modal -->
+        <div id="jpm-rejection-modal" class="jpm-admin-modal" style="display:none;">
+            <div class="jpm-admin-modal__backdrop"></div>
+            <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="jpm-rejection-modal-title">
+                <button type="button" class="jpm-admin-modal__close"
+                    aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                <h2 id="jpm-rejection-modal-title"><?php _e('Application Rejection Details', 'job-posting-manager'); ?></h2>
+                <p class="description" style="margin-bottom: 15px;">
+                    <?php _e('Please provide the reason for rejection to notify the applicant.', 'job-posting-manager'); ?>
+                </p>
+                <form id="jpm-rejection-form">
+                    <input type="hidden" name="application_id" value="">
+                    <div class="jpm-admin-field">
+                        <label for="jpm-rejection-problem-area">
+                            <?php _e('The problem is in the:', 'job-posting-manager'); ?>
+                        </label>
+                        <select id="jpm-rejection-problem-area" name="problem_area" required>
+                            <option value=""><?php _e('-- Select --', 'job-posting-manager'); ?></option>
+                            <option value="personal_information"><?php _e('Personal Information', 'job-posting-manager'); ?></option>
+                            <option value="education"><?php _e('Education', 'job-posting-manager'); ?></option>
+                            <option value="employment"><?php _e('Employment', 'job-posting-manager'); ?></option>
+                        </select>
+                        <small class="description"><?php _e('Select the area where the problem was found.', 'job-posting-manager'); ?></small>
+                    </div>
+                    <div class="jpm-admin-field">
+                        <label for="jpm-rejection-notes">
+                            <?php _e('Notes', 'job-posting-manager'); ?>
+                        </label>
+                        <textarea id="jpm-rejection-notes" name="notes" rows="6" required
+                            placeholder="<?php esc_attr_e('Provide detailed notes about the rejection reason...', 'job-posting-manager'); ?>"></textarea>
+                        <small class="description"><?php _e('These notes will be sent to the applicant via email.', 'job-posting-manager'); ?></small>
+                    </div>
+                    <div class="jpm-admin-field" style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button type="submit" class="button button-primary">
+                            <?php _e('Save and Update Status', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="button" class="button jpm-rejection-cancel">
+                            <?php _e('Cancel', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <style>
             .jpm-status-badge {
                 display: inline-block;
@@ -956,14 +1002,27 @@ class JPM_Admin
 
         <?php
         $medical_status_slug = $this->get_medical_status_slug();
+        // Get rejected status slug
+        $rejected_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'rejected' || $name === 'rejected') {
+                $rejected_status_slug = $status['slug'];
+                break;
+            }
+        }
         $status_labels = self::get_status_options();
         ?>
         <script>
             jQuery(function ($) {
                 const statusLabels = <?php echo wp_json_encode($status_labels); ?>;
                 const medicalStatusSlug = '<?php echo esc_js($medical_status_slug); ?>';
+                const rejectedStatusSlug = '<?php echo esc_js($rejected_status_slug); ?>';
                 const updateNonce = '<?php echo wp_create_nonce('jpm_update_status'); ?>';
                 const medicalNonce = '<?php echo wp_create_nonce('jpm_medical_details'); ?>';
+                const rejectionNonce = '<?php echo wp_create_nonce('jpm_rejection_details'); ?>';
                 const defaultMedicalAddress = '<?php echo esc_js($this->get_default_medical_address()); ?>';
 
                 let activeSelect = null;
@@ -1072,6 +1131,54 @@ class JPM_Admin
                     });
                 }
 
+                function closeRejectionModal(revertSelect = false) {
+                    $('#jpm-rejection-modal').hide();
+                    if (revertSelect && activeSelect && previousStatus !== null) {
+                        activeSelect.val(previousStatus);
+                    }
+                    activeSelect = null;
+                    activeRow = null;
+                    activeApplicationId = null;
+                    previousStatus = null;
+                }
+
+                function openRejectionModal(applicationId, $select, $row) {
+                    if (!rejectedStatusSlug) {
+                        updateStatus(applicationId, $select.data('previous'), $select, $row);
+                        return;
+                    }
+
+                    activeSelect = $select;
+                    activeRow = $row;
+                    activeApplicationId = applicationId;
+                    previousStatus = $select.data('previous');
+
+                    const $modal = $('#jpm-rejection-modal');
+                    const $form = $('#jpm-rejection-form');
+
+                    $form[0].reset();
+                    $form.find('input[name="application_id"]').val(applicationId);
+
+                    $modal.show();
+
+                    // Load existing rejection details if any
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_get_rejection_details',
+                            application_id: applicationId,
+                            nonce: rejectionNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data && response.data.details) {
+                            const details = response.data.details;
+                            $form.find('select[name="problem_area"]').val(details.problem_area || '');
+                            $form.find('textarea[name="notes"]').val(details.notes || '');
+                        }
+                    });
+                }
+
                 $('.jpm-application-status-select').on('change', function () {
                     const $select = $(this);
                     const applicationId = $select.data('application-id');
@@ -1080,6 +1187,11 @@ class JPM_Admin
 
                     if (medicalStatusSlug && newStatus === medicalStatusSlug) {
                         openMedicalModal(applicationId, $select, $row);
+                        return;
+                    }
+
+                    if (rejectedStatusSlug && newStatus === rejectedStatusSlug) {
+                        openRejectionModal(applicationId, $select, $row);
                         return;
                     }
 
@@ -1144,8 +1256,73 @@ class JPM_Admin
                     });
                 });
 
+                $('#jpm-rejection-form').on('submit', function (e) {
+                    e.preventDefault();
+                    const $form = $(this);
+
+                    if (!activeSelect || !activeRow || !activeApplicationId) {
+                        closeRejectionModal(true);
+                        return;
+                    }
+
+                    const problemArea = $form.find('select[name="problem_area"]').val();
+                    const notes = $form.find('textarea[name="notes"]').val();
+
+                    if (!problemArea) {
+                        alert('<?php echo esc_js(__('Please select the problem area.', 'job-posting-manager')); ?>');
+                        return;
+                    }
+
+                    if (!notes.trim()) {
+                        alert('<?php echo esc_js(__('Please enter the rejection notes.', 'job-posting-manager')); ?>');
+                        return;
+                    }
+
+                    const $submitBtn = $form.find('button[type="submit"]');
+                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving…', 'job-posting-manager')); ?>');
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_save_rejection_details',
+                            application_id: activeApplicationId,
+                            problem_area: problemArea,
+                            notes: notes,
+                            nonce: rejectionNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data) {
+                            const statusSlug = response.data.status_slug || rejectedStatusSlug;
+                            if (activeSelect) {
+                                activeSelect.val(statusSlug);
+                                activeSelect.data('previous', statusSlug);
+                            }
+                            if (activeRow) {
+                                updateBadge(activeRow, statusSlug);
+                            }
+                            if (activeSelect) {
+                                showSuccess(activeSelect);
+                            }
+                            closeRejectionModal(false);
+                        } else {
+                            alert(response.data && response.data.message ? response.data.message : '<?php echo esc_js(__('Failed to save rejection details.', 'job-posting-manager')); ?>');
+                        }
+                    }).fail(function () {
+                        alert('<?php echo esc_js(__('Error saving rejection details. Please try again.', 'job-posting-manager')); ?>');
+                    }).always(function () {
+                        $submitBtn.prop('disabled', false).text('<?php echo esc_js(__('Save and Update Status', 'job-posting-manager')); ?>');
+                    });
+                });
+
                 $('.jpm-medical-cancel, .jpm-admin-modal__close, .jpm-admin-modal__backdrop').on('click', function () {
-                    closeMedicalModal(true);
+                    if ($(this).closest('#jpm-medical-modal').length) {
+                        closeMedicalModal(true);
+                    }
+                });
+
+                $('.jpm-rejection-cancel, #jpm-rejection-modal .jpm-admin-modal__close, #jpm-rejection-modal .jpm-admin-modal__backdrop').on('click', function () {
+                    closeRejectionModal(true);
                 });
 
                 // View Requirements functionality - Cache for requirements data
@@ -2514,6 +2691,139 @@ class JPM_Admin
             'message' => __('Medical details saved and status updated.', 'job-posting-manager'),
             'status_slug' => $medical_status_slug,
             'status_label' => $status_info ? $status_info['name'] : ucfirst($medical_status_slug),
+            'details' => $details,
+        ]);
+    }
+
+    /**
+     * Get application rejection details
+     */
+    public function get_application_rejection_details($application_id)
+    {
+        $stored = get_option('jpm_application_rejection_details_' . $application_id, []);
+        if (!is_array($stored)) {
+            $stored = [];
+        }
+
+        return [
+            'problem_area' => isset($stored['problem_area']) ? sanitize_text_field($stored['problem_area']) : '',
+            'notes' => isset($stored['notes']) ? wp_kses_post($stored['notes']) : '',
+            'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+        ];
+    }
+
+    /**
+     * AJAX: Get rejection details
+     */
+    public function get_rejection_details_ajax()
+    {
+        check_ajax_referer('jpm_rejection_details', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = absint($_REQUEST['application_id'] ?? 0);
+        if ($application_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        }
+
+        $details = $this->get_application_rejection_details($application_id);
+
+        // Get rejected status slug
+        $rejected_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'rejected' || $name === 'rejected') {
+                $rejected_status_slug = $status['slug'];
+                break;
+            }
+        }
+
+        wp_send_json_success([
+            'details' => $details,
+            'status_slug' => $rejected_status_slug,
+        ]);
+    }
+
+    /**
+     * AJAX: Save rejection details and update status.
+     */
+    public function save_rejection_details_ajax()
+    {
+        check_ajax_referer('jpm_rejection_details', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = absint($_POST['application_id'] ?? 0);
+        $problem_area = isset($_POST['problem_area']) ? sanitize_text_field(wp_unslash($_POST['problem_area'])) : '';
+        $notes = isset($_POST['notes']) ? wp_kses_post(wp_unslash($_POST['notes'])) : '';
+
+        if ($application_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        }
+
+        if (empty($problem_area)) {
+            wp_send_json_error(['message' => __('Please select the problem area.', 'job-posting-manager')]);
+        }
+
+        if (empty($notes)) {
+            wp_send_json_error(['message' => __('Please enter the rejection notes.', 'job-posting-manager')]);
+        }
+
+        // Get rejected status slug
+        $rejected_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'rejected' || $name === 'rejected') {
+                $rejected_status_slug = $status['slug'];
+                break;
+            }
+        }
+
+        if (empty($rejected_status_slug)) {
+            wp_send_json_error(['message' => __('The "Rejected" status is not configured.', 'job-posting-manager')]);
+        }
+
+        // Validate problem area
+        $allowed_areas = ['personal_information', 'education', 'employment'];
+        if (!in_array($problem_area, $allowed_areas)) {
+            wp_send_json_error(['message' => __('Invalid problem area selected.', 'job-posting-manager')]);
+        }
+
+        // Persist details
+        $details = [
+            'problem_area' => $problem_area,
+            'notes' => $notes,
+            'updated_at' => current_time('mysql'),
+        ];
+
+        update_option('jpm_application_rejection_details_' . $application_id, $details, false);
+
+        // Update status
+        JPM_DB::update_status($application_id, $rejected_status_slug);
+
+        // Send notification (reuse existing flow)
+        if (class_exists('JPM_Emails')) {
+            try {
+                JPM_Emails::send_status_update($application_id);
+            } catch (Exception $e) {
+                error_log('JPM Rejection Email Error: ' . $e->getMessage());
+            }
+        }
+
+        $status_info = self::get_status_by_slug($rejected_status_slug);
+
+        wp_send_json_success([
+            'message' => __('Rejection details saved and status updated.', 'job-posting-manager'),
+            'status_slug' => $rejected_status_slug,
+            'status_label' => $status_info ? $status_info['name'] : ucfirst($rejected_status_slug),
             'details' => $details,
         ]);
     }
@@ -4146,6 +4456,36 @@ class JPM_Admin
 
         $medical_details = $this->get_application_medical_details($application_id);
         $medical_status_slug = $this->get_medical_status_slug();
+        
+        // Get rejection details if status is rejected
+        $rejection_details = [];
+        $rejected_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'rejected' || $name === 'rejected') {
+                $rejected_status_slug = $status['slug'];
+                break;
+            }
+        }
+        
+        if ($rejected_status_slug && $application->status === $rejected_status_slug) {
+            $stored = get_option('jpm_application_rejection_details_' . $application_id, []);
+            if (is_array($stored) && !empty($stored)) {
+                $problem_area_labels = [
+                    'personal_information' => __('Personal Information', 'job-posting-manager'),
+                    'education' => __('Education', 'job-posting-manager'),
+                    'employment' => __('Employment', 'job-posting-manager'),
+                ];
+                $rejection_details = [
+                    'problem_area' => isset($stored['problem_area']) ? sanitize_text_field($stored['problem_area']) : '',
+                    'problem_area_label' => isset($stored['problem_area']) && isset($problem_area_labels[$stored['problem_area']]) ? $problem_area_labels[$stored['problem_area']] : '',
+                    'notes' => isset($stored['notes']) ? wp_kses_post($stored['notes']) : '',
+                    'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+                ];
+            }
+        }
 
         // Print page - standalone HTML without WordPress admin
         // Send headers to prevent caching
@@ -4841,6 +5181,42 @@ class JPM_Admin
                                     <div class="info-label"><?php _e('Last Updated', 'job-posting-manager'); ?></div>
                                     <div class="info-value">
                                         <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($medical_details['updated_at']))); ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+                $has_rejection_details = $rejected_status_slug && ($application->status === $rejected_status_slug) && !empty($rejection_details['notes']);
+                if ($has_rejection_details):
+                ?>
+                    <div class="divider"></div>
+                    <div class="section">
+                        <div class="section-title"><?php _e('Rejection Details', 'job-posting-manager'); ?></div>
+                        <div class="info-grid">
+                            <?php if (!empty($rejection_details['problem_area_label'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('The problem is in the:', 'job-posting-manager'); ?></div>
+                                    <div class="info-value"><?php echo esc_html($rejection_details['problem_area_label']); ?></div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($rejection_details['notes'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('Notes', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <?php echo nl2br(wp_kses_post($rejection_details['notes'])); ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($rejection_details['updated_at'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label"><?php _e('Last Updated', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($rejection_details['updated_at']))); ?>
                                     </div>
                                 </div>
                             <?php endif; ?>

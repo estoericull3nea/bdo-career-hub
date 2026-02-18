@@ -429,6 +429,41 @@ class JPM_Emails
             ];
         }
 
+        // Rejection details (if status is Rejected)
+        $rejection_details = [];
+        $is_rejected = false;
+        $rejected_status_slug = '';
+        $all_statuses = JPM_Admin::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'rejected' || $name === 'rejected') {
+                $rejected_status_slug = $status['slug'];
+                break;
+            }
+        }
+        $is_rejected = $rejected_status_slug && $status_slug === $rejected_status_slug;
+
+        if ($is_rejected) {
+            $stored = get_option('jpm_application_rejection_details_' . $app_id, []);
+            if (!is_array($stored)) {
+                $stored = [];
+            }
+
+            $problem_area_labels = [
+                'personal_information' => __('Personal Information', 'job-posting-manager'),
+                'education' => __('Education', 'job-posting-manager'),
+                'employment' => __('Employment', 'job-posting-manager'),
+            ];
+
+            $rejection_details = [
+                'problem_area' => isset($stored['problem_area']) ? sanitize_text_field($stored['problem_area']) : '',
+                'problem_area_label' => isset($stored['problem_area']) && isset($problem_area_labels[$stored['problem_area']]) ? $problem_area_labels[$stored['problem_area']] : '',
+                'notes' => isset($stored['notes']) ? wp_kses_post($stored['notes']) : '',
+                'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+            ];
+        }
+
         // Get email template
         $template = JPM_Email_Templates::get_template('status_update');
 
@@ -517,6 +552,24 @@ class JPM_Emails
                     $schedule .= '<div style="padding: 8px 0;"><strong style="color: #0073aa; font-size: 14px;">' . __('Time:', 'job-posting-manager') . '</strong> <span style="color: #2c3e50; font-size: 15px; font-weight: 500; margin-left: 8px;">' . $time_formatted . '</span></div>';
                 }
                 $body .= '<tr style="background-color: rgba(255,255,255,0.4);"><td style="padding: 14px 12px; font-weight: 700; vertical-align: top; color: #0073aa; border-top: 1px solid rgba(0,115,170,0.2); border-radius: 4px 0 0 4px;">' . __('Schedule:', 'job-posting-manager') . '</td><td style="padding: 14px 12px; border-top: 1px solid rgba(0,115,170,0.2); line-height: 1.8; border-radius: 0 4px 4px 0;">' . $schedule . '</td></tr>';
+            }
+
+            $body .= '</table>';
+            $body .= '</div>';
+        }
+
+        // Rejection details section (only when status is Rejected)
+        if ($is_rejected && !empty($rejection_details['notes'])) {
+            $body .= '<div style="background: linear-gradient(to right, #fff5f5 0%, #ffe8e8 100%); padding: 25px; border-radius: 8px; margin: 25px 0; box-shadow: 0 2px 6px rgba(220,53,69,0.15); border-left: 4px solid #dc3545;">';
+            $body .= '<h2 style="color: #dc3545; margin-top: 0; margin-bottom: 20px; font-size: 21px; font-weight: 700; border-bottom: 2px solid #dc3545; padding-bottom: 12px; letter-spacing: 0.3px;">' . __('Rejection Details', 'job-posting-manager') . '</h2>';
+            $body .= '<table style="width: 100%; border-collapse: collapse;">';
+
+            if (!empty($rejection_details['problem_area_label'])) {
+                $body .= '<tr style="background-color: rgba(255,255,255,0.6);"><td style="padding: 14px 12px; font-weight: 700; width: 35%; vertical-align: top; color: #dc3545; border-radius: 4px 0 0 4px;">' . __('The problem is in the:', 'job-posting-manager') . '</td><td style="padding: 14px 12px; line-height: 1.8; color: #2c3e50; border-radius: 0 4px 4px 0; font-weight: 600;">' . esc_html($rejection_details['problem_area_label']) . '</td></tr>';
+            }
+
+            if (!empty($rejection_details['notes'])) {
+                $body .= '<tr style="background-color: rgba(255,255,255,0.4); margin-top: 8px;"><td style="padding: 14px 12px; font-weight: 700; vertical-align: top; color: #dc3545; border-top: 1px solid rgba(220,53,69,0.2); border-radius: 4px 0 0 4px;">' . __('Notes:', 'job-posting-manager') . '</td><td style="padding: 14px 12px; border-top: 1px solid rgba(220,53,69,0.2); line-height: 1.8; color: #2c3e50; font-size: 15px; border-radius: 0 4px 4px 0;">' . nl2br(wp_kses_post($rejection_details['notes'])) . '</td></tr>';
             }
 
             $body .= '</table>';
