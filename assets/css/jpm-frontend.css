@@ -3129,3 +3129,25 @@
     margin-bottom: 0;
   }
 }
+
+/* Profile Form Data Subsections */
+.jpm-form-data-subsection {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.jpm-form-data-subsection:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.jpm-form-data-subsection-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #0073aa;
+  margin: 0 0 15px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e0e0e0;
+}

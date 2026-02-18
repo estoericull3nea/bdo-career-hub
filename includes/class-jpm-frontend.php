@@ -4429,9 +4429,37 @@ class JPM_Frontend
                                             $employment_fields = [];
                                             $additional_fields = [];
 
+                                            // Define structured field names to exclude from generic categorization
+                                            $structured_education_fields = [
+                                                'edu_primary_school_name',
+                                                'edu_primary_school_address',
+                                                'edu_primary_start_year',
+                                                'edu_primary_end_year',
+                                                'edu_primary_completed',
+                                                'edu_secondary_school_name',
+                                                'edu_secondary_school_address',
+                                                'edu_secondary_school_type',
+                                                'edu_secondary_start_year',
+                                                'edu_secondary_end_year',
+                                                'edu_secondary_completed',
+                                                'edu_tertiary_institution_name',
+                                                'edu_tertiary_school_address',
+                                                'edu_tertiary_program',
+                                                'edu_tertiary_degree_level',
+                                                'edu_tertiary_start_year',
+                                                'edu_tertiary_end_year',
+                                                'edu_tertiary_status'
+                                            ];
+                                            $structured_employment_fields = ['emp_company_name', 'emp_position', 'emp_years', 'employment_entries'];
+
                                             foreach ($form_data as $key => $value) {
                                                 // Skip empty values
                                                 if (empty($value) && $value !== '0' && $value !== 0) {
+                                                    continue;
+                                                }
+
+                                                // Skip structured education and employment fields (they are displayed separately)
+                                                if (in_array($key, $structured_education_fields) || in_array($key, $structured_employment_fields)) {
                                                     continue;
                                                 }
 
@@ -4557,13 +4585,237 @@ class JPM_Frontend
                                                         </div>
                                                     <?php endif; ?>
 
-                                                    <?php if (!empty($education_fields)): ?>
+                                                    <?php
+                                                    // Check if we have structured education fields
+                                                    $has_structured_education = false;
+                                                    $education_field_names = [
+                                                        'edu_primary_school_name',
+                                                        'edu_primary_school_address',
+                                                        'edu_primary_start_year',
+                                                        'edu_primary_end_year',
+                                                        'edu_primary_completed',
+                                                        'edu_secondary_school_name',
+                                                        'edu_secondary_school_address',
+                                                        'edu_secondary_school_type',
+                                                        'edu_secondary_start_year',
+                                                        'edu_secondary_end_year',
+                                                        'edu_secondary_completed',
+                                                        'edu_tertiary_institution_name',
+                                                        'edu_tertiary_school_address',
+                                                        'edu_tertiary_program',
+                                                        'edu_tertiary_degree_level',
+                                                        'edu_tertiary_start_year',
+                                                        'edu_tertiary_end_year',
+                                                        'edu_tertiary_status'
+                                                    ];
+
+                                                    foreach ($education_field_names as $edu_field) {
+                                                        if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
+                                                            $has_structured_education = true;
+                                                            break;
+                                                        }
+                                                    }
+
+                                                    // Filter out structured education fields from generic display
+                                                    $generic_education_fields = [];
+                                                    foreach ($education_fields as $key => $value) {
+                                                        if (!in_array($key, $education_field_names)) {
+                                                            $generic_education_fields[$key] = $value;
+                                                        }
+                                                    }
+
+                                                    if ($has_structured_education):
+                                                        ?>
+                                                        <div class="jpm-form-data-section">
+                                                            <h4 class="jpm-form-data-section-title">
+                                                                <?php _e('Education', 'job-posting-manager'); ?>
+                                                            </h4>
+
+                                                            <!-- Primary Education -->
+                                                            <?php if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])): ?>
+                                                                <div class="jpm-form-data-subsection">
+                                                                    <h5 class="jpm-form-data-subsection-title">
+                                                                        <?php _e('Primary Education', 'job-posting-manager'); ?>
+                                                                    </h5>
+                                                                    <div class="jpm-form-data-grid">
+                                                                        <?php if (!empty($form_data['edu_primary_school_name'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('School Name', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_school_name']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_primary_school_address'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('School Address', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_school_address']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_primary_start_year'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Start Year', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_start_year']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_primary_end_year'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('End Year', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_end_year']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_primary_completed'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Completed', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_completed']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
+
+                                                            <!-- Secondary Education -->
+                                                            <?php if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])): ?>
+                                                                <div class="jpm-form-data-subsection">
+                                                                    <h5 class="jpm-form-data-subsection-title">
+                                                                        <?php _e('Secondary Education', 'job-posting-manager'); ?>
+                                                                    </h5>
+                                                                    <div class="jpm-form-data-grid">
+                                                                        <?php if (!empty($form_data['edu_secondary_school_name'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('School Name', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_school_name']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_secondary_school_address'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('School Address', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_school_address']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_secondary_school_type'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('School Type', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_school_type']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_secondary_start_year'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Start Year', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_start_year']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_secondary_end_year'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('End Year', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_end_year']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_secondary_completed'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Completed', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_completed']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
+
+                                                            <!-- Tertiary Education -->
+                                                            <?php if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])): ?>
+                                                                <div class="jpm-form-data-subsection">
+                                                                    <h5 class="jpm-form-data-subsection-title">
+                                                                        <?php _e('Tertiary Education', 'job-posting-manager'); ?>
+                                                                    </h5>
+                                                                    <div class="jpm-form-data-grid">
+                                                                        <?php if (!empty($form_data['edu_tertiary_institution_name'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Institution Name', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_institution_name']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_tertiary_school_address'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('School Address', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_school_address']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_tertiary_program'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Program / Course', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_program']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_tertiary_degree_level'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Degree Level', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_degree_level']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_tertiary_start_year'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Start Year', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_start_year']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_tertiary_end_year'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('End Year', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_end_year']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                        <?php if (!empty($form_data['edu_tertiary_status'])): ?>
+                                                                            <div class="jpm-form-data-item">
+                                                                                <span
+                                                                                    class="jpm-form-data-label"><?php _e('Status', 'job-posting-manager'); ?>:</span>
+                                                                                <span
+                                                                                    class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_status']); ?></span>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    <?php elseif (!empty($generic_education_fields)): ?>
+                                                        <!-- Fallback: Show generic education fields if no structured fields -->
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
                                                                 <?php _e('Education', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <div class="jpm-form-data-grid">
-                                                                <?php foreach ($education_fields as $key => $value):
+                                                                <?php foreach ($generic_education_fields as $key => $value):
                                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
                                                                     if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
                                                                         ?>
@@ -4591,13 +4843,97 @@ class JPM_Frontend
                                                         </div>
                                                     <?php endif; ?>
 
-                                                    <?php if (!empty($employment_fields)): ?>
+                                                    <?php
+                                                    // Check if we have structured employment fields
+                                                    $has_structured_employment = false;
+                                                    $employment_field_names = ['emp_company_name', 'emp_position', 'emp_years', 'employment_entries'];
+
+                                                    foreach ($employment_field_names as $emp_field) {
+                                                        if (isset($form_data[$emp_field]) && !empty($form_data[$emp_field])) {
+                                                            $has_structured_employment = true;
+                                                            break;
+                                                        }
+                                                    }
+
+                                                    // Filter out structured employment fields from generic display
+                                                    $generic_employment_fields = [];
+                                                    foreach ($employment_fields as $key => $value) {
+                                                        if (!in_array($key, $employment_field_names)) {
+                                                            $generic_employment_fields[$key] = $value;
+                                                        }
+                                                    }
+
+                                                    if ($has_structured_employment):
+                                                        // Handle employment entries (array format)
+                                                        $employment_entries = [];
+                                                        if (isset($form_data['employment_entries']) && is_array($form_data['employment_entries'])) {
+                                                            $employment_entries = $form_data['employment_entries'];
+                                                        } else {
+                                                            // Fallback: reconstruct from arrays
+                                                            $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
+                                                            $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
+                                                            $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
+
+                                                            $max_count = max(count($company_names), count($positions), count($years));
+                                                            for ($i = 0; $i < $max_count; $i++) {
+                                                                if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
+                                                                    $employment_entries[] = [
+                                                                        'company_name' => $company_names[$i] ?? '',
+                                                                        'position' => $positions[$i] ?? '',
+                                                                        'years' => $years[$i] ?? ''
+                                                                    ];
+                                                                }
+                                                            }
+                                                        }
+                                                        ?>
+                                                        <div class="jpm-form-data-section">
+                                                            <h4 class="jpm-form-data-section-title">
+                                                                <?php _e('Employment History', 'job-posting-manager'); ?>
+                                                            </h4>
+                                                            <?php if (!empty($employment_entries)): ?>
+                                                                <?php foreach ($employment_entries as $index => $entry): ?>
+                                                                    <div class="jpm-form-data-subsection">
+                                                                        <h5 class="jpm-form-data-subsection-title">
+                                                                            <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
+                                                                        </h5>
+                                                                        <div class="jpm-form-data-grid">
+                                                                            <?php if (!empty($entry['company_name'])): ?>
+                                                                                <div class="jpm-form-data-item">
+                                                                                    <span
+                                                                                        class="jpm-form-data-label"><?php _e('Company Name', 'job-posting-manager'); ?>:</span>
+                                                                                    <span
+                                                                                        class="jpm-form-data-value"><?php echo esc_html($entry['company_name']); ?></span>
+                                                                                </div>
+                                                                            <?php endif; ?>
+                                                                            <?php if (!empty($entry['position'])): ?>
+                                                                                <div class="jpm-form-data-item">
+                                                                                    <span
+                                                                                        class="jpm-form-data-label"><?php _e('Position', 'job-posting-manager'); ?>:</span>
+                                                                                    <span
+                                                                                        class="jpm-form-data-value"><?php echo esc_html($entry['position']); ?></span>
+                                                                                </div>
+                                                                            <?php endif; ?>
+                                                                            <?php if (!empty($entry['years'])): ?>
+                                                                                <div class="jpm-form-data-item">
+                                                                                    <span
+                                                                                        class="jpm-form-data-label"><?php _e('Years', 'job-posting-manager'); ?>:</span>
+                                                                                    <span
+                                                                                        class="jpm-form-data-value"><?php echo esc_html($entry['years']); ?></span>
+                                                                                </div>
+                                                                            <?php endif; ?>
+                                                                        </div>
+                                                                    </div>
+                                                                <?php endforeach; ?>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    <?php elseif (!empty($generic_employment_fields)): ?>
+                                                        <!-- Fallback: Show generic employment fields if no structured fields -->
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
                                                                 <?php _e('Employment', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <div class="jpm-form-data-grid">
-                                                                <?php foreach ($employment_fields as $key => $value):
+                                                                <?php foreach ($generic_employment_fields as $key => $value):
                                                                     $field_label = ucwords(str_replace(['_', '-'], ' ', $key));
                                                                     if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, '/wp-content/uploads/') !== false)) {
                                                                         ?>
