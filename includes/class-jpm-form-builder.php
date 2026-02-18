@@ -766,7 +766,7 @@ class JPM_Form_Builder
                                 ?>
 
                                 <!-- Education Summary -->
-                                <div class="jpm-summary-section-header"><?php _e('🎒 Primary Education', 'job-posting-manager'); ?></div>
+                                <div class="jpm-summary-section-header"><?php _e('Primary Education', 'job-posting-manager'); ?></div>
                                 <?php
                                 $edu_primary_fields = [
                                     'edu_primary_school_name' => __('School Name', 'job-posting-manager'),
@@ -784,7 +784,7 @@ class JPM_Form_Builder
                                     </div>
                                 <?php endforeach; ?>
 
-                                <div class="jpm-summary-section-header"><?php _e('🏫 Secondary Education', 'job-posting-manager'); ?></div>
+                                <div class="jpm-summary-section-header"><?php _e('Secondary Education', 'job-posting-manager'); ?></div>
                                 <?php
                                 $edu_secondary_fields = [
                                     'edu_secondary_school_name' => __('School Name', 'job-posting-manager'),
@@ -803,7 +803,7 @@ class JPM_Form_Builder
                                     </div>
                                 <?php endforeach; ?>
 
-                                <div class="jpm-summary-section-header"><?php _e('🎓 Tertiary Education', 'job-posting-manager'); ?></div>
+                                <div class="jpm-summary-section-header"><?php _e('Tertiary Education', 'job-posting-manager'); ?></div>
                                 <?php
                                 $edu_tertiary_fields = [
                                     'edu_tertiary_institution_name' => __('Institution Name', 'job-posting-manager'),
@@ -824,7 +824,7 @@ class JPM_Form_Builder
                                 <?php endforeach; ?>
 
                                 <!-- Employment Summary -->
-                                <div class="jpm-summary-section-header"><?php _e('💼 Employment History', 'job-posting-manager'); ?></div>
+                                <div class="jpm-summary-section-header"><?php _e('Employment History', 'job-posting-manager'); ?></div>
                                 <?php
                                 $emp_fields = [
                                     'emp_company_name' => __('Company Name', 'job-posting-manager'),
@@ -1102,7 +1102,6 @@ class JPM_Form_Builder
         <!-- Primary Education -->
         <div class="jpm-education-section jpm-section-block">
             <h4 class="jpm-section-title">
-                <span class="jpm-section-icon">🎒</span>
                 <?php _e('Primary Education', 'job-posting-manager'); ?>
             </h4>
 
@@ -1159,7 +1158,6 @@ class JPM_Form_Builder
         <!-- Secondary Education -->
         <div class="jpm-education-section jpm-section-block">
             <h4 class="jpm-section-title">
-                <span class="jpm-section-icon">🏫</span>
                 <?php _e('Secondary Education', 'job-posting-manager'); ?>
             </h4>
 
@@ -1231,7 +1229,6 @@ class JPM_Form_Builder
         <!-- Tertiary Education -->
         <div class="jpm-education-section jpm-section-block">
             <h4 class="jpm-section-title">
-                <span class="jpm-section-icon">🎓</span>
                 <?php _e('Tertiary Education', 'job-posting-manager'); ?>
             </h4>
 
@@ -1319,7 +1316,6 @@ class JPM_Form_Builder
         ?>
         <div class="jpm-employment-section jpm-section-block">
             <h4 class="jpm-section-title">
-                <span class="jpm-section-icon">💼</span>
                 <?php _e('Employment History', 'job-posting-manager'); ?>
             </h4>
             <p class="jpm-section-description"><?php _e('Please provide your most recent employment information.', 'job-posting-manager'); ?></p>

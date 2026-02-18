@@ -518,6 +518,13 @@ jQuery(document).ready(function ($) {
           return;
         }
         
+        // Skip school name fields (don't auto-fill)
+        if (fieldName && (fieldName.includes('edu_primary_school_name') || 
+                         fieldName.includes('edu_secondary_school_name') || 
+                         fieldName.includes('edu_tertiary_institution_name'))) {
+          return;
+        }
+        
         const savedValue = getSavedValue(fieldName);
         if (savedValue !== null) {
           $field.val(savedValue);
