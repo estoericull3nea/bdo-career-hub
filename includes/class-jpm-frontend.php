@@ -124,13 +124,16 @@ class JPM_Frontend
             $view_all_url = home_url('/jobs/');
         }
 
-        // Query latest published jobs
+        // Query latest published jobs (exclude expired)
         $jobs = get_posts([
             'post_type' => 'job_posting',
             'posts_per_page' => $count,
             'post_status' => 'publish',
             'orderby' => 'date',
-            'order' => 'DESC'
+            'order' => 'DESC',
+            'meta_query' => [
+                $this->get_expiration_filter()
+            ]
         ]);
 
         if (empty($jobs)) {
@@ -379,8 +382,12 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
-        // Add meta query for location and company filters
+        // Add meta query for location, company filters, and expiration
         $meta_query = [];
+
+        // Add expiration filter (exclude expired jobs)
+        $meta_query[] = $this->get_expiration_filter();
+
         if (!empty($location_filter)) {
             $meta_query[] = [
                 'key' => 'location',
@@ -395,17 +402,29 @@ class JPM_Frontend
                 'compare' => 'LIKE'
             ];
         }
+
+        // Set relation to AND so all conditions must be met
         if (!empty($meta_query)) {
-            $args['meta_query'] = $meta_query;
+            if (count($meta_query) > 1) {
+                $args['meta_query'] = array_merge(
+                    ['relation' => 'AND'],
+                    array_values($meta_query)
+                );
+            } else {
+                $args['meta_query'] = $meta_query;
+            }
         }
 
         $jobs_query = new WP_Query($args);
 
-        // Get unique locations and companies for filter dropdowns
+        // Get unique locations and companies for filter dropdowns (only non-expired jobs)
         $all_jobs = get_posts([
             'post_type' => 'job_posting',
             'posts_per_page' => -1,
-            'post_status' => 'publish'
+            'post_status' => 'publish',
+            'meta_query' => [
+                $this->get_expiration_filter()
+            ]
         ]);
 
         $locations = [];
@@ -633,6 +652,32 @@ class JPM_Frontend
     }
 
     /**
+     * Get meta query to filter out expired jobs
+     * @return array Meta query array for WP_Query
+     */
+    private function get_expiration_filter()
+    {
+        $current_time = current_time('timestamp');
+
+        // Return meta query that shows:
+        // 1. Jobs without expiration_date (no expiration set)
+        // 2. Jobs where expiration_date is greater than current time (not expired)
+        return [
+            'relation' => 'OR',
+            [
+                'key' => 'expiration_date',
+                'compare' => 'NOT EXISTS'
+            ],
+            [
+                'key' => 'expiration_date',
+                'value' => $current_time,
+                'compare' => '>',
+                'type' => 'NUMERIC'
+            ]
+        ];
+    }
+
+    /**
      * Calculate and format time remaining until job expiration
      * @param int $job_id Job post ID
      * @return string|false Formatted time remaining or false if no expiration set
@@ -726,6 +771,10 @@ class JPM_Frontend
         }
 
         $meta_query = [];
+
+        // Add expiration filter (exclude expired jobs)
+        $meta_query[] = $this->get_expiration_filter();
+
         if (!empty($location_filter)) {
             $meta_query[] = [
                 'key' => 'location',
@@ -740,8 +789,17 @@ class JPM_Frontend
                 'compare' => 'LIKE'
             ];
         }
+
+        // Set relation to AND so all conditions must be met
         if (!empty($meta_query)) {
-            $args['meta_query'] = $meta_query;
+            if (count($meta_query) > 1) {
+                $args['meta_query'] = array_merge(
+                    ['relation' => 'AND'],
+                    array_values($meta_query)
+                );
+            } else {
+                $args['meta_query'] = $meta_query;
+            }
         }
 
         $jobs_query = new WP_Query($args);
