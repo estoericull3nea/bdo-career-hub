@@ -160,6 +160,7 @@ class JPM_Frontend
                 if ($post_status === 'publish') {
                     $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
                 }
+                $time_remaining = $this->get_time_remaining($job->ID);
                 ?>
                 <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job->ID); ?>">
                     <?php if ($company_image_url): ?>
@@ -199,6 +200,11 @@ class JPM_Frontend
                         <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
                                     class="dashicons dashicons-calendar-alt"></i><?php echo esc_html(get_the_date('', $job->ID)); ?>
                             </span>
+                            <?php if ($time_remaining): ?>
+                                <span class="jpm-job-expiration"> <i class="dashicons dashicons-clock"></i>
+                                    <?php echo esc_html($time_remaining); ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
@@ -517,6 +523,7 @@ class JPM_Frontend
                         if ($post_status === 'publish') {
                             $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
                         }
+                        $time_remaining = $this->get_time_remaining($job_id);
                         ?>
                         <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
                             <?php if ($company_image_url): ?>
@@ -556,6 +563,11 @@ class JPM_Frontend
                                 <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
                                             class="dashicons dashicons-calendar-alt"></i> <?php echo esc_html(get_the_date()); ?>
                                     </span>
+                                    <?php if ($time_remaining): ?>
+                                        <span class="jpm-job-expiration"> <i class="dashicons dashicons-clock"></i>
+                                            <?php echo esc_html($time_remaining); ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="jpm-job-card-actions">
                                     <button type="button" class="jpm-btn jpm-btn-quick-view"
@@ -618,6 +630,70 @@ class JPM_Frontend
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    /**
+     * Calculate and format time remaining until job expiration
+     * @param int $job_id Job post ID
+     * @return string|false Formatted time remaining or false if no expiration set
+     */
+    private function get_time_remaining($job_id)
+    {
+        $expiration_date = get_post_meta($job_id, 'expiration_date', true);
+
+        if (empty($expiration_date)) {
+            return false;
+        }
+
+        $current_time = current_time('timestamp');
+        $expiration_timestamp = intval($expiration_date);
+
+        // If already expired, return false
+        if ($expiration_timestamp <= $current_time) {
+            return false;
+        }
+
+        $seconds_remaining = $expiration_timestamp - $current_time;
+        $expiration_unit = get_post_meta($job_id, 'expiration_unit', true);
+
+        // If the original unit was minutes, always show minutes
+        if ($expiration_unit === 'minutes') {
+            $minutes_remaining = floor($seconds_remaining / 60);
+            if ($minutes_remaining <= 0) {
+                return false; // Already expired
+            }
+            return sprintf(
+                _n('%d minute left', '%d minutes left', $minutes_remaining, 'job-posting-manager'),
+                $minutes_remaining
+            );
+        }
+
+        // Otherwise, show days (convert hours, days, months all to days)
+        $days_remaining = floor($seconds_remaining / 86400);
+        if ($days_remaining <= 0) {
+            // Less than a day remaining, show hours or minutes for better accuracy
+            $hours_remaining = floor($seconds_remaining / 3600);
+            if ($hours_remaining > 0) {
+                return sprintf(
+                    _n('%d hour left', '%d hours left', $hours_remaining, 'job-posting-manager'),
+                    $hours_remaining
+                );
+            } else {
+                $minutes_remaining = floor($seconds_remaining / 60);
+                if ($minutes_remaining <= 0) {
+                    return false; // Already expired
+                }
+                return sprintf(
+                    _n('%d minute left', '%d minutes left', $minutes_remaining, 'job-posting-manager'),
+                    $minutes_remaining
+                );
+            }
+        }
+
+        return sprintf(
+            _n('%d day left', '%d days left', $days_remaining, 'job-posting-manager'),
+            $days_remaining
+        );
     }
 
     /**
@@ -689,6 +765,7 @@ class JPM_Frontend
                 if (empty($excerpt)) {
                     $excerpt = wp_trim_words(get_the_content(), 20);
                 }
+                $time_remaining = $this->get_time_remaining($job_id);
                 ?>
                 <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
                     <?php if ($company_image_url): ?>
@@ -731,6 +808,11 @@ class JPM_Frontend
                         <?php endif; ?>
                         <div class="jpm-job-card-footer"> <span class="jpm-job-posted-date"> <i
                                     class="dashicons dashicons-calendar-alt"></i><?php echo esc_html(get_the_date()); ?> </span>
+                            <?php if ($time_remaining): ?>
+                                <span class="jpm-job-expiration"> <i class="dashicons dashicons-clock"></i>
+                                    <?php echo esc_html($time_remaining); ?>
+                                </span>
+                            <?php endif; ?>
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
@@ -4219,7 +4301,7 @@ class JPM_Frontend
                                     if ($medical_status_slug === 'for-medical' || $medical_status_slug === 'for_medical' || stripos($medical_status_slug, 'medical') !== false) {
                                         $is_medical_status = true;
                                     }
-                                    
+
                                     // Get medical details if status is medical
                                     $medical_details = null;
                                     if ($is_medical_status) {
@@ -4547,8 +4629,7 @@ class JPM_Frontend
                                                                 <div class="jpm-form-data-item">
                                                                     <span
                                                                         class="jpm-form-data-label"><?php _e('Date:', 'job-posting-manager'); ?></span>
-                                                                    <span
-                                                                        class="jpm-form-data-value">
+                                                                    <span class="jpm-form-data-value">
                                                                         <?php
                                                                         // Format date to "January 13, 2003" format
                                                                         $date_value = $medical_details['date'];

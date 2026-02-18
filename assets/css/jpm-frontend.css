@@ -1348,6 +1348,22 @@
   height: 14px;
 }
 
+.jpm-job-expiration {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #d63638;
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-left: 15px;
+}
+
+.jpm-job-expiration .dashicons {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
 .jpm-job-card-actions {
   display: flex;
   gap: 10px;
