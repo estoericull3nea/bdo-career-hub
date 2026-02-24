@@ -1206,6 +1206,18 @@ class JPM_Emails
         $body .= '<p><strong>' . __('Login URL:', 'job-posting-manager') . '</strong> <a href="' . esc_url($login_url) . '">' . esc_html($login_url) . '</a></p>';
         $body .= '<hr>';
         $body .= '<p><strong>' . __('Important:', 'job-posting-manager') . '</strong> ' . __('Please save this email and change your password after your first login for security purposes.', 'job-posting-manager') . '</p>';
+        
+        // Get forgot password URL - try to find page with shortcode, otherwise use default
+        $forgot_password_url = home_url('/forgot-password/');
+        $pages = get_pages();
+        foreach ($pages as $page) {
+            if (has_shortcode($page->post_content, 'jpm_forgot_password')) {
+                $forgot_password_url = get_permalink($page->ID);
+                break;
+            }
+        }
+        
+        $body .= '<p>' . __('Forgot your password?', 'job-posting-manager') . ' <a href="' . esc_url($forgot_password_url) . '" style="color: #0073aa; text-decoration: underline;">' . __('Click here to reset it', 'job-posting-manager') . '</a>.</p>';
         $body .= '<p style="color: #666; font-size: 12px;">' . __('This is an automated email from Job Posting Manager.', 'job-posting-manager') . '</p>';
         $body .= '</body></html>';
 
