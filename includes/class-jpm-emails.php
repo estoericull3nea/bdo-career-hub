@@ -219,7 +219,6 @@ class JPM_Emails
         $body .= '<div style="background-color: ' . esc_attr($template['details_bg_color']) . '; padding: 20px; border-radius: 5px; margin: 20px 0;">';
         $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px;">' . esc_html($template['details_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
-        $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">#' . esc_html($app_id) . '</td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">';
         $body .= '<span style="display: inline-block; background-color: ' . esc_attr($status_color) . '; color: ' . esc_attr($status_text_color) . '; padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; text-transform: uppercase;">' . esc_html($status_name) . '</span>';
         $body .= '</td></tr>';
@@ -241,6 +240,29 @@ class JPM_Emails
             '[Full Name]' => esc_html($full_name),
         ]);
         $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($closing_message) . '</p>';
+
+        // Tracking and login links
+        $login_url = home_url('/sign-in/');
+        $track_url = home_url('/track-job-application/');
+
+        // Try to find pages with shortcodes dynamically
+        $pages = get_pages();
+        foreach ($pages as $page) {
+            if (has_shortcode($page->post_content, 'jpm_login')) {
+                $login_url = get_permalink($page->ID);
+            }
+            if (has_shortcode($page->post_content, 'application_tracker')) {
+                $track_url = get_permalink($page->ID);
+            }
+        }
+
+        $body .= '<div style="background-color: #f0f8ff; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #0073aa;">';
+        $body .= '<p style="font-size: 15px; margin: 0 0 15px 0; color: #333;">' . __('Please check this link for tracking your application or login to your account to view or track your application in your profile.', 'job-posting-manager') . '</p>';
+        $body .= '<p style="margin: 10px 0;">';
+        $body .= '<a href="' . esc_url($login_url) . '" style="display: inline-block; background-color: #0073aa; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px; font-weight: bold;">' . __('Login to Your Account', 'job-posting-manager') . '</a>';
+        $body .= '<a href="' . esc_url($track_url) . '" style="display: inline-block; background-color: #28a745; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">' . __('Track Your Application', 'job-posting-manager') . '</a>';
+        $body .= '</p>';
+        $body .= '</div>';
 
         // Signature
         $body .= '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">';
@@ -821,11 +843,26 @@ class JPM_Emails
         // Education Section
         $has_education = false;
         $education_fields = [
-            'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
-            'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
-            'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status'
+            'edu_primary_school_name',
+            'edu_primary_school_address',
+            'edu_primary_start_year',
+            'edu_primary_end_year',
+            'edu_primary_completed',
+            'edu_secondary_school_name',
+            'edu_secondary_school_address',
+            'edu_secondary_school_type',
+            'edu_secondary_start_year',
+            'edu_secondary_end_year',
+            'edu_secondary_completed',
+            'edu_tertiary_institution_name',
+            'edu_tertiary_school_address',
+            'edu_tertiary_program',
+            'edu_tertiary_degree_level',
+            'edu_tertiary_start_year',
+            'edu_tertiary_end_year',
+            'edu_tertiary_status'
         ];
-        
+
         foreach ($education_fields as $edu_field) {
             if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
                 $has_education = true;
@@ -836,7 +873,7 @@ class JPM_Emails
         if ($has_education) {
             $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
             $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . __('Education', 'job-posting-manager') . '</h2>';
-            
+
             // Primary Education
             if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])) {
                 $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . __('Primary Education', 'job-posting-manager') . '</h3>';
@@ -911,23 +948,25 @@ class JPM_Emails
                 }
                 $body .= '</table>';
             }
-            
+
             $body .= '</div>';
         }
 
         // Employment Section
         $has_employment = false;
-        if ((isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
+        if (
+            (isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
             (isset($form_data['emp_position']) && !empty($form_data['emp_position'])) ||
             (isset($form_data['emp_years']) && !empty($form_data['emp_years'])) ||
-            (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))) {
+            (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))
+        ) {
             $has_employment = true;
         }
 
         if ($has_employment) {
             $body .= '<div style="background-color: ' . esc_attr($template['details_section_bg_color']) . '; padding: 20px; border-radius: 5px; margin-bottom: 20px;">';
             $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . __('Employment History', 'job-posting-manager') . '</h2>';
-            
+
             // Handle employment entries (array format)
             $employment_entries = [];
             if (isset($form_data['employment_entries']) && is_array($form_data['employment_entries'])) {
@@ -937,7 +976,7 @@ class JPM_Emails
                 $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
                 $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
                 $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
-                
+
                 $max_count = max(count($company_names), count($positions), count($years));
                 for ($i = 0; $i < $max_count; $i++) {
                     if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
@@ -949,7 +988,7 @@ class JPM_Emails
                     }
                 }
             }
-            
+
             if (!empty($employment_entries)) {
                 foreach ($employment_entries as $index => $entry) {
                     $entry_num = $index + 1;
@@ -967,7 +1006,7 @@ class JPM_Emails
                     $body .= '</table>';
                 }
             }
-            
+
             $body .= '</div>';
         }
 
@@ -978,11 +1017,35 @@ class JPM_Emails
         // Only show essential/key fields (limit to 5 most important fields to reduce email size)
         // Exclude education and employment fields as they are shown in dedicated sections above
         $exclude_fields = [
-            'application_number', 'date_of_registration', 'applicant_number', 'first_name', 'last_name', 'email', 'email_address',
-            'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
-            'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
-            'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status',
-            'emp_company_name', 'emp_position', 'emp_years', 'employment_entries'
+            'application_number',
+            'date_of_registration',
+            'applicant_number',
+            'first_name',
+            'last_name',
+            'email',
+            'email_address',
+            'edu_primary_school_name',
+            'edu_primary_school_address',
+            'edu_primary_start_year',
+            'edu_primary_end_year',
+            'edu_primary_completed',
+            'edu_secondary_school_name',
+            'edu_secondary_school_address',
+            'edu_secondary_school_type',
+            'edu_secondary_start_year',
+            'edu_secondary_end_year',
+            'edu_secondary_completed',
+            'edu_tertiary_institution_name',
+            'edu_tertiary_school_address',
+            'edu_tertiary_program',
+            'edu_tertiary_degree_level',
+            'edu_tertiary_start_year',
+            'edu_tertiary_end_year',
+            'edu_tertiary_status',
+            'emp_company_name',
+            'emp_position',
+            'emp_years',
+            'employment_entries'
         ];
         $priority_fields = ['phone', 'phone_number', 'mobile', 'contact_number', 'resume', 'cv', 'cover_letter', 'message', 'experience', 'qualification'];
 
@@ -1136,20 +1199,20 @@ class JPM_Emails
         $body .= '<div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">';
         $body .= '<h1 style="color: #ffffff; margin: 0; font-size: 24px;">' . __('Email Verification', 'job-posting-manager') . '</h1>';
         $body .= '</div>';
-        
+
         $body .= '<div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">';
         $body .= '<p style="font-size: 16px; margin: 0 0 20px 0;">' . __('Hello,', 'job-posting-manager') . '</p>';
         $body .= '<p style="font-size: 16px; margin: 0 0 20px 0;">' . __('Thank you for registering with us. Please use the verification code below to verify your email address:', 'job-posting-manager') . '</p>';
-        
+
         // OTP display box
         $body .= '<div style="background: #f3f4f6; border: 2px dashed #2563eb; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">';
         $body .= '<div style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 8px; font-family: monospace;">' . esc_html($otp) . '</div>';
         $body .= '</div>';
-        
+
         $body .= '<p style="font-size: 14px; color: #6b7280; margin: 20px 0 0 0;">' . __('This code will expire in 10 minutes.', 'job-posting-manager') . '</p>';
         $body .= '<p style="font-size: 14px; color: #6b7280; margin: 10px 0 0 0;">' . __('If you did not request this code, please ignore this email.', 'job-posting-manager') . '</p>';
         $body .= '</div>';
-        
+
         $body .= '<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">';
         $body .= '<p style="font-size: 12px; color: #9ca3af; margin: 0;">' . sprintf(__('This is an automated email from %s.', 'job-posting-manager'), get_bloginfo('name')) . '</p>';
         $body .= '</div>';
@@ -1206,7 +1269,7 @@ class JPM_Emails
         $body .= '<p><strong>' . __('Login URL:', 'job-posting-manager') . '</strong> <a href="' . esc_url($login_url) . '">' . esc_html($login_url) . '</a></p>';
         $body .= '<hr>';
         $body .= '<p><strong>' . __('Important:', 'job-posting-manager') . '</strong> ' . __('Please save this email and change your password after your first login for security purposes.', 'job-posting-manager') . '</p>';
-        
+
         // Get forgot password URL - try to find page with shortcode, otherwise use default
         $forgot_password_url = home_url('/forgot-password/');
         $pages = get_pages();
@@ -1216,7 +1279,7 @@ class JPM_Emails
                 break;
             }
         }
-        
+
         $body .= '<p>' . __('Forgot your password?', 'job-posting-manager') . ' <a href="' . esc_url($forgot_password_url) . '" style="color: #0073aa; text-decoration: underline;">' . __('Click here to reset it', 'job-posting-manager') . '</a>.</p>';
         $body .= '<p style="color: #666; font-size: 12px;">' . __('This is an automated email from Job Posting Manager.', 'job-posting-manager') . '</p>';
         $body .= '</body></html>';
