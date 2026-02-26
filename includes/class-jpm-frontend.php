@@ -1021,9 +1021,18 @@ class JPM_Frontend
                     <?php if (!is_user_logged_in()): ?>
                         <p class="jpm-tracker-footer-text">
                             <?php
+                            // Get login URL - try to find page with shortcode, otherwise use default
+                            $login_url = home_url('/sign-in/');
+                            $pages = get_pages();
+                            foreach ($pages as $page) {
+                                if (has_shortcode($page->post_content, 'jpm_login')) {
+                                    $login_url = get_permalink($page->ID);
+                                    break;
+                                }
+                            }
                             printf(
                                 __('Have an existing account? %s to login.', 'job-posting-manager'),
-                                '<a href="' . esc_url(wp_login_url()) . '">' . __('Click here', 'job-posting-manager') . '</a>'
+                                '<a href="' . esc_url($login_url) . '">' . __('Click here', 'job-posting-manager') . '</a>'
                             );
                             ?>
                         </p>
