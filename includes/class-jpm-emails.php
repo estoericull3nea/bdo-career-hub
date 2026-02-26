@@ -819,7 +819,6 @@ class JPM_Emails
         $body .= '<h2 style="color: ' . esc_attr($template['header_text_color']) . '; margin-top: 0; font-size: 18px; border-bottom: 2px solid ' . esc_attr($template['header_color']) . '; padding-bottom: 10px;">' . esc_html($template['job_section_title']) . '</h2>';
         $body .= '<table style="width: 100%; border-collapse: collapse;">';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 35%;">' . __('Job Title:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><a href="' . esc_url($job_link) . '" style="color: #0073aa; text-decoration: none;">' . esc_html($job_title) . '</a></td></tr>';
-        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>#' . esc_html($application_id) . '</strong></td></tr>';
         if (!empty($application_number)) {
             $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application Number:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($application_number) . '</td></tr>';
         }
