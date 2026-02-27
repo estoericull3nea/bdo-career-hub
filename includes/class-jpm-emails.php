@@ -537,7 +537,6 @@ class JPM_Emails
         if (!empty($application_number)) {
             $body .= '<tr><td style="padding: 8px 0; font-weight: bold; width: 40%;">' . __('Application Number:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($application_number) . '</td></tr>';
         }
-        $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Application ID:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">#' . esc_html($app_id) . '</td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Job Position:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html($job_title) . '</td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Status:', 'job-posting-manager') . '</td><td style="padding: 8px 0;"><strong>' . esc_html($status_name) . '</strong></td></tr>';
         $body .= '<tr><td style="padding: 8px 0; font-weight: bold;">' . __('Date Updated:', 'job-posting-manager') . '</td><td style="padding: 8px 0;">' . esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), current_time('timestamp'))) . '</td></tr>';
@@ -582,7 +581,7 @@ class JPM_Emails
 
         // Rejection details section (only when status is Rejected)
         if ($is_rejected && !empty($rejection_details['notes'])) {
-            $body .= '<div style="background: linear-gradient(to right, #fff5f5 0%, #ffe8e8 100%); padding: 25px; border-radius: 8px; margin: 25px 0; box-shadow: 0 2px 6px rgba(220,53,69,0.15); border-left: 4px solid #dc3545;">';
+            $body .= '<div style="background: linear-gradient(to right, #fff5f5 0%, #ffe8e8 100%); padding: 25px; border-radius: 8px; margin: 25px 0; box-shadow: 0 2px 6px rgba(220,53,69,0.15);">';
             $body .= '<h2 style="color: #dc3545; margin-top: 0; margin-bottom: 20px; font-size: 21px; font-weight: 700; border-bottom: 2px solid #dc3545; padding-bottom: 12px; letter-spacing: 0.3px;">' . __('Rejection Details', 'job-posting-manager') . '</h2>';
             $body .= '<table style="width: 100%; border-collapse: collapse;">';
 
@@ -614,6 +613,26 @@ class JPM_Emails
             '[Status Name]' => esc_html($status_name),
             '[Job Title]' => esc_html($job_title),
         ]);
+
+        // Get contact page URL - try to find page with /contact/ slug, otherwise use default
+        $contact_url = home_url('/contact/');
+        $pages = get_pages();
+        foreach ($pages as $page) {
+            if (strpos(strtolower($page->post_name), 'contact') !== false || strpos(strtolower(get_permalink($page->ID)), '/contact/') !== false) {
+                $contact_url = get_permalink($page->ID);
+                break;
+            }
+        }
+
+        // Replace "contact us" with a link (preserve original case)
+        $closing_message = preg_replace_callback(
+            '/(contact us)/i',
+            function ($matches) use ($contact_url) {
+                return '<a href="' . esc_url($contact_url) . '" style="color: #0073aa; text-decoration: underline;">' . $matches[1] . '</a>';
+            },
+            $closing_message
+        );
+
         $body .= '<p style="font-size: 16px; margin-bottom: 20px;">' . wp_kses_post($closing_message) . '</p>';
 
         if (!empty($job_link)) {
