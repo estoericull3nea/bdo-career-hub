@@ -598,14 +598,24 @@ class JPM_Emails
         }
 
         // Status-specific message
-        $status_specific_message = self::replace_placeholders($template['status_specific_message'], [
-            '[Status Name]' => esc_html($status_name),
-            '[Job Title]' => esc_html($job_title),
-        ]);
-        if (!empty($status_specific_message)) {
-            $body .= '<div style="background-color: #e7f3ff; padding: 15px; border-radius: 3px; margin: 20px 0;">';
-            $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . wp_kses_post($status_specific_message) . '</p>';
+        // For rejected status, show custom message about re-applying
+        if ($is_rejected) {
+            $body .= '<div style="background-color: #fff3cd; padding: 15px; border-radius: 3px; margin: 20px 0;">';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #856404; font-weight: 500;">' . __('You need to re-apply to this job. Please fix the issues in your application that caused the rejection before submitting a new application.', 'job-posting-manager') . '</p>';
             $body .= '</div>';
+        } else {
+            // For other statuses, only show if message exists and is not the default one
+            $status_specific_message = self::replace_placeholders($template['status_specific_message'], [
+                '[Status Name]' => esc_html($status_name),
+                '[Job Title]' => esc_html($job_title),
+            ]);
+            // Don't show the default "We will keep you updated..." message
+            $default_message = __('We will keep you updated on any further changes to your application status.', 'job-posting-manager');
+            if (!empty($status_specific_message) && trim($status_specific_message) !== trim($default_message)) {
+                $body .= '<div style="background-color: #e7f3ff; padding: 15px; border-radius: 3px; margin: 20px 0;">';
+                $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . wp_kses_post($status_specific_message) . '</p>';
+                $body .= '</div>';
+            }
         }
 
         // Closing message
