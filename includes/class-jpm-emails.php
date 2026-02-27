@@ -256,7 +256,7 @@ class JPM_Emails
             }
         }
 
-        $body .= '<div style="background-color: #f0f8ff; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #0073aa;">';
+        $body .= '<div style="background-color: #f0f8ff; padding: 20px; border-radius: 5px; margin: 20px 0;">';
         $body .= '<p style="font-size: 15px; margin: 0 0 15px 0; color: #333;">' . __('Please check this link for tracking your application or login to your account to view or track your application in your profile.', 'job-posting-manager') . '</p>';
         $body .= '<p style="margin: 10px 0;">';
         $body .= '<a href="' . esc_url($login_url) . '" style="display: inline-block; background-color: #0073aa; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px; font-weight: bold;">' . __('Login to Your Account', 'job-posting-manager') . '</a>';
