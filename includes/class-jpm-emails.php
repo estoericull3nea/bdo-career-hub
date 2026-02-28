@@ -604,17 +604,60 @@ class JPM_Emails
             $body .= '<p style="margin: 0; font-size: 15px; color: #856404; font-weight: 500;">' . __('You need to re-apply to this job. Please fix the issues in your application that caused the rejection before submitting a new application.', 'job-posting-manager') . '</p>';
             $body .= '</div>';
         } else {
-            // For other statuses, only show if message exists and is not the default one
-            $status_specific_message = self::replace_placeholders($template['status_specific_message'], [
-                '[Status Name]' => esc_html($status_name),
-                '[Job Title]' => esc_html($job_title),
-            ]);
-            // Don't show the default "We will keep you updated..." message
-            $default_message = __('We will keep you updated on any further changes to your application status.', 'job-posting-manager');
-            if (!empty($status_specific_message) && trim($status_specific_message) !== trim($default_message)) {
+            // Check if status is "In Progress" or "Pending"
+            $status_slug_lower = strtolower($status_slug);
+            $status_name_lower = strtolower($status_name);
+
+            $is_in_progress = false;
+            if (
+                $status_slug_lower === 'in-progress' || $status_slug_lower === 'in_progress' || $status_slug_lower === 'inprogress' ||
+                $status_name_lower === 'in progress' || stripos($status_name_lower, 'in progress') !== false
+            ) {
+                $is_in_progress = true;
+            }
+
+            $is_pending = false;
+            if (
+                $status_slug_lower === 'pending' ||
+                $status_name_lower === 'pending'
+            ) {
+                $is_pending = true;
+            }
+
+            $is_reviewed = false;
+            if (
+                $status_slug_lower === 'reviewed' ||
+                $status_name_lower === 'reviewed'
+            ) {
+                $is_reviewed = true;
+            }
+
+            $is_accepted = false;
+            if (
+                $status_slug_lower === 'accepted' ||
+                $status_name_lower === 'accepted'
+            ) {
+                $is_accepted = true;
+            }
+
+            // For "In Progress", "Pending", "Reviewed", or "Accepted" status, show the default message
+            if ($is_in_progress || $is_pending || $is_reviewed || $is_accepted) {
                 $body .= '<div style="background-color: #e7f3ff; padding: 15px; border-radius: 3px; margin: 20px 0;">';
-                $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . wp_kses_post($status_specific_message) . '</p>';
+                $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . __('We will keep you updated on any further changes to your application status.', 'job-posting-manager') . '</p>';
                 $body .= '</div>';
+            } else {
+                // For other statuses, only show if message exists and is not the default one
+                $status_specific_message = self::replace_placeholders($template['status_specific_message'], [
+                    '[Status Name]' => esc_html($status_name),
+                    '[Job Title]' => esc_html($job_title),
+                ]);
+                // Don't show the default "We will keep you updated..." message
+                $default_message = __('We will keep you updated on any further changes to your application status.', 'job-posting-manager');
+                if (!empty($status_specific_message) && trim($status_specific_message) !== trim($default_message)) {
+                    $body .= '<div style="background-color: #e7f3ff; padding: 15px; border-radius: 3px; margin: 20px 0;">';
+                    $body .= '<p style="margin: 0; font-size: 15px; color: #004085;">' . wp_kses_post($status_specific_message) . '</p>';
+                    $body .= '</div>';
+                }
             }
         }
 
