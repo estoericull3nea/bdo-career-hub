@@ -4412,6 +4412,28 @@ class JPM_Frontend
                                         }
                                     }
 
+                                    // Check if status is for interview
+                                    $is_interview_status = false;
+                                    $interview_status_slug = strtolower($application->status);
+                                    if ($interview_status_slug === 'for-interview' || $interview_status_slug === 'for_interview' || $interview_status_slug === 'forinterview' || stripos($interview_status_slug, 'interview') !== false) {
+                                        $is_interview_status = true;
+                                    }
+
+                                    // Get interview details if status is interview
+                                    $interview_details = null;
+                                    if ($is_interview_status) {
+                                        $stored = get_option('jpm_application_interview_details_' . $application->id, null);
+                                        if (is_array($stored) && !empty($stored)) {
+                                            $interview_details = [
+                                                'requirements' => isset($stored['requirements']) ? wp_kses_post($stored['requirements']) : '',
+                                                'address' => isset($stored['address']) ? sanitize_text_field($stored['address']) : '',
+                                                'date' => isset($stored['date']) ? sanitize_text_field($stored['date']) : '',
+                                                'time' => isset($stored['time']) ? sanitize_text_field($stored['time']) : '',
+                                                'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+                                            ];
+                                        }
+                                    }
+
                                     // Extract application number
                                     $application_number = '';
                                     $app_number_fields = ['application_number', 'applicationnumber', 'app_number', 'app-number', 'application-number', 'application number', 'reference_number', 'referencenumber', 'reference-number', 'reference number'];
@@ -5095,6 +5117,76 @@ class JPM_Frontend
                                                                 <div class="jpm-form-data-item">
                                                                     <span
                                                                         class="jpm-form-data-value"><?php _e('Requirements details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <!-- Interview Details (only for interview status) -->
+                                        <?php if ($is_interview_status && $interview_details): ?>
+                                            <div class="jpm-application-form-data">
+                                                <button type="button" class="jpm-toggle-requirements"
+                                                    data-application-id="<?php echo esc_attr($application->id); ?>">
+                                                    <span
+                                                        class="jpm-toggle-text"><?php _e('View Interview Requirements', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon">▼</span>
+                                                </button>
+                                                <div class="jpm-application-requirements-content"
+                                                    id="jpm-requirements-<?php echo esc_attr($application->id); ?>" style="display: none;">
+                                                    <div class="jpm-form-data-section">
+                                                        <h4 class="jpm-form-data-section-title">
+                                                            <?php _e('Interview Requirements & Schedule', 'job-posting-manager'); ?>
+                                                        </h4>
+                                                        <div class="jpm-form-data-grid">
+                                                            <?php if ($interview_details && !empty($interview_details['requirements'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Requirements:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo wp_kses_post(nl2br(esc_html($interview_details['requirements']))); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if ($interview_details && !empty($interview_details['address'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Address:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($interview_details['address']); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if ($interview_details && !empty($interview_details['date'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Date:', 'job-posting-manager'); ?></span>
+                                                                    <span class="jpm-form-data-value">
+                                                                        <?php
+                                                                        // Format date to "January 13, 2003" format
+                                                                        $date_value = $interview_details['date'];
+                                                                        $timestamp = strtotime($date_value);
+                                                                        if ($timestamp !== false) {
+                                                                            echo esc_html(date('F j, Y', $timestamp));
+                                                                        } else {
+                                                                            echo esc_html($date_value);
+                                                                        }
+                                                                        ?>
+                                                                    </span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if ($interview_details && !empty($interview_details['time'])): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-label"><?php _e('Time:', 'job-posting-manager'); ?></span>
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php echo esc_html($interview_details['time']); ?></span>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php if (!$interview_details || (empty($interview_details['requirements']) && empty($interview_details['address']) && empty($interview_details['date']) && empty($interview_details['time']))): ?>
+                                                                <div class="jpm-form-data-item">
+                                                                    <span
+                                                                        class="jpm-form-data-value"><?php _e('Interview details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
                                                                 </div>
                                                             <?php endif; ?>
                                                         </div>

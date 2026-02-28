@@ -16,6 +16,8 @@ class JPM_Admin
         add_action('wp_ajax_jpm_save_medical_details', [$this, 'save_medical_details_ajax']);
         add_action('wp_ajax_jpm_get_rejection_details', [$this, 'get_rejection_details_ajax']);
         add_action('wp_ajax_jpm_save_rejection_details', [$this, 'save_rejection_details_ajax']);
+        add_action('wp_ajax_jpm_get_interview_details', [$this, 'get_interview_details_ajax']);
+        add_action('wp_ajax_jpm_save_interview_details', [$this, 'save_interview_details_ajax']);
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
@@ -858,6 +860,63 @@ class JPM_Admin
             </div>
         </div>
 
+        <!-- Interview Modal -->
+        <div id="jpm-interview-modal" class="jpm-admin-modal" style="display:none;">
+            <div class="jpm-admin-modal__backdrop"></div>
+            <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="jpm-interview-modal-title">
+                <button type="button" class="jpm-admin-modal__close"
+                    aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                <h2 id="jpm-interview-modal-title"><?php _e('Set For Interview Requirements', 'job-posting-manager'); ?></h2>
+                <p class="description" style="margin-bottom: 15px;">
+                    <?php _e('Provide the interview requirements and schedule details for this applicant.', 'job-posting-manager'); ?>
+                </p>
+                <form id="jpm-interview-form">
+                    <input type="hidden" name="application_id" value="">
+                    <div class="jpm-admin-field">
+                        <label for="jpm-interview-requirements">
+                            <?php _e('Requirements', 'job-posting-manager'); ?>
+                        </label>
+                        <textarea id="jpm-interview-requirements" name="requirements" rows="4" required
+                            placeholder="<?php esc_attr_e('e.g., Bring two valid IDs, resume, portfolio…', 'job-posting-manager'); ?>"></textarea>
+                        <small
+                            class="description"><?php _e('List what the customer must bring.', 'job-posting-manager'); ?></small>
+                    </div>
+                    <div class="jpm-admin-field">
+                        <label for="jpm-interview-address">
+                            <?php _e('Interview Address', 'job-posting-manager'); ?>
+                        </label>
+                        <input id="jpm-interview-address" type="text" name="address" required
+                            value="<?php echo esc_attr('2250 Singalong St., Malate Manila'); ?>"
+                            placeholder="<?php esc_attr_e('Enter interview location address', 'job-posting-manager'); ?>" />
+                        <small
+                            class="description"><?php _e('Default interview address is pre-filled.', 'job-posting-manager'); ?></small>
+                    </div>
+                    <div class="jpm-admin-field jpm-admin-field--inline">
+                        <div>
+                            <label for="jpm-interview-date">
+                                <?php _e('Date', 'job-posting-manager'); ?>
+                            </label>
+                            <input id="jpm-interview-date" type="date" name="date" />
+                        </div>
+                        <div>
+                            <label for="jpm-interview-time">
+                                <?php _e('Time', 'job-posting-manager'); ?>
+                            </label>
+                            <input id="jpm-interview-time" type="time" name="time" />
+                        </div>
+                    </div>
+                    <div class="jpm-admin-field" style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button type="submit" class="button button-primary">
+                            <?php _e('Save and Update Status', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="button" class="button jpm-interview-cancel">
+                            <?php _e('Cancel', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <style>
             .jpm-status-badge {
                 display: inline-block;
@@ -1004,13 +1063,18 @@ class JPM_Admin
         $medical_status_slug = $this->get_medical_status_slug();
         // Get rejected status slug
         $rejected_status_slug = '';
+        // Get interview status slug
+        $interview_status_slug = '';
         $all_statuses = self::get_all_statuses_info();
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);
             if ($slug === 'rejected' || $name === 'rejected') {
                 $rejected_status_slug = $status['slug'];
-                break;
+            }
+            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+                $interview_status_slug = $status['slug'];
             }
         }
         $status_labels = self::get_status_options();
@@ -1020,10 +1084,13 @@ class JPM_Admin
                 const statusLabels = <?php echo wp_json_encode($status_labels); ?>;
                 const medicalStatusSlug = '<?php echo esc_js($medical_status_slug); ?>';
                 const rejectedStatusSlug = '<?php echo esc_js($rejected_status_slug); ?>';
+                const interviewStatusSlug = '<?php echo esc_js($interview_status_slug); ?>';
                 const updateNonce = '<?php echo wp_create_nonce('jpm_update_status'); ?>';
                 const medicalNonce = '<?php echo wp_create_nonce('jpm_medical_details'); ?>';
                 const rejectionNonce = '<?php echo wp_create_nonce('jpm_rejection_details'); ?>';
+                const interviewNonce = '<?php echo wp_create_nonce('jpm_interview_details'); ?>';
                 const defaultMedicalAddress = '<?php echo esc_js($this->get_default_medical_address()); ?>';
+                const defaultInterviewAddress = '<?php echo esc_js('2250 Singalong St., Malate Manila'); ?>';
 
                 let activeSelect = null;
                 let activeRow = null;
@@ -1179,6 +1246,56 @@ class JPM_Admin
                     });
                 }
 
+                function closeInterviewModal(revertSelect = false) {
+                    $('#jpm-interview-modal').hide();
+                    if (revertSelect && activeSelect && previousStatus !== null) {
+                        activeSelect.val(previousStatus);
+                    }
+                    activeSelect = null;
+                    activeRow = null;
+                    activeApplicationId = null;
+                    previousStatus = null;
+                }
+
+                function openInterviewModal(applicationId, $select, $row) {
+                    if (!interviewStatusSlug) {
+                        updateStatus(applicationId, $select.data('previous'), $select, $row);
+                        return;
+                    }
+
+                    activeSelect = $select;
+                    activeRow = $row;
+                    activeApplicationId = applicationId;
+                    previousStatus = $select.data('previous');
+
+                    const $modal = $('#jpm-interview-modal');
+                    const $form = $('#jpm-interview-form');
+
+                    $form[0].reset();
+                    $form.find('input[name="application_id"]').val(applicationId);
+                    $form.find('input[name="address"]').val(defaultInterviewAddress);
+
+                    $modal.show();
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_get_interview_details',
+                            application_id: applicationId,
+                            nonce: interviewNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data && response.data.details) {
+                            const details = response.data.details;
+                            $form.find('textarea[name="requirements"]').val(details.requirements || '');
+                            $form.find('input[name="address"]').val(details.address || defaultInterviewAddress);
+                            $form.find('input[name="date"]').val(details.date || '');
+                            $form.find('input[name="time"]').val(details.time || '');
+                        }
+                    });
+                }
+
                 $('.jpm-application-status-select').on('change', function () {
                     const $select = $(this);
                     const applicationId = $select.data('application-id');
@@ -1192,6 +1309,11 @@ class JPM_Admin
 
                     if (rejectedStatusSlug && newStatus === rejectedStatusSlug) {
                         openRejectionModal(applicationId, $select, $row);
+                        return;
+                    }
+
+                    if (interviewStatusSlug && newStatus === interviewStatusSlug) {
+                        openInterviewModal(applicationId, $select, $row);
                         return;
                     }
 
@@ -1323,6 +1445,73 @@ class JPM_Admin
 
                 $('.jpm-rejection-cancel, #jpm-rejection-modal .jpm-admin-modal__close, #jpm-rejection-modal .jpm-admin-modal__backdrop').on('click', function () {
                     closeRejectionModal(true);
+                });
+
+                $('#jpm-interview-form').on('submit', function (e) {
+                    e.preventDefault();
+                    const $form = $(this);
+
+                    if (!activeSelect || !activeRow || !activeApplicationId) {
+                        closeInterviewModal(true);
+                        return;
+                    }
+
+                    const requirements = $form.find('textarea[name="requirements"]').val();
+                    const address = $form.find('input[name="address"]').val();
+                    const date = $form.find('input[name="date"]').val();
+                    const time = $form.find('input[name="time"]').val();
+
+                    if (!requirements.trim()) {
+                        alert('<?php echo esc_js(__('Please enter the requirements.', 'job-posting-manager')); ?>');
+                        return;
+                    }
+
+                    if (!address.trim()) {
+                        alert('<?php echo esc_js(__('Please enter the interview address.', 'job-posting-manager')); ?>');
+                        return;
+                    }
+
+                    const $submitBtn = $form.find('button[type="submit"]');
+                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving…', 'job-posting-manager')); ?>');
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_save_interview_details',
+                            application_id: activeApplicationId,
+                            requirements: requirements,
+                            address: address,
+                            date: date,
+                            time: time,
+                            nonce: interviewNonce
+                        }
+                    }).done(function (response) {
+                        if (response.success && response.data) {
+                            const statusSlug = response.data.status_slug || interviewStatusSlug;
+                            if (activeSelect) {
+                                activeSelect.val(statusSlug);
+                                activeSelect.data('previous', statusSlug);
+                            }
+                            if (activeRow) {
+                                updateBadge(activeRow, statusSlug);
+                            }
+                            if (activeSelect) {
+                                showSuccess(activeSelect);
+                            }
+                            closeInterviewModal(false);
+                        } else {
+                            alert(response.data && response.data.message ? response.data.message : '<?php echo esc_js(__('Failed to save interview details.', 'job-posting-manager')); ?>');
+                        }
+                    }).fail(function () {
+                        alert('<?php echo esc_js(__('Error saving interview details. Please try again.', 'job-posting-manager')); ?>');
+                    }).always(function () {
+                        $submitBtn.prop('disabled', false).text('<?php echo esc_js(__('Save and Update Status', 'job-posting-manager')); ?>');
+                    });
+                });
+
+                $('.jpm-interview-cancel, #jpm-interview-modal .jpm-admin-modal__close, #jpm-interview-modal .jpm-admin-modal__backdrop').on('click', function () {
+                    closeInterviewModal(true);
                 });
 
                 // View Requirements functionality - Cache for requirements data
@@ -2824,6 +3013,141 @@ class JPM_Admin
             'message' => __('Rejection details saved and status updated.', 'job-posting-manager'),
             'status_slug' => $rejected_status_slug,
             'status_label' => $status_info ? $status_info['name'] : ucfirst($rejected_status_slug),
+            'details' => $details,
+        ]);
+    }
+
+    /**
+     * Get application interview details
+     */
+    public function get_application_interview_details($application_id)
+    {
+        $stored = get_option('jpm_application_interview_details_' . $application_id, []);
+        if (!is_array($stored)) {
+            $stored = [];
+        }
+
+        return [
+            'requirements' => isset($stored['requirements']) ? wp_kses_post($stored['requirements']) : '',
+            'address' => isset($stored['address']) ? sanitize_text_field($stored['address']) : '',
+            'date' => isset($stored['date']) ? sanitize_text_field($stored['date']) : '',
+            'time' => isset($stored['time']) ? sanitize_text_field($stored['time']) : '',
+            'updated_at' => isset($stored['updated_at']) ? sanitize_text_field($stored['updated_at']) : '',
+        ];
+    }
+
+    /**
+     * AJAX: Get interview details
+     */
+    public function get_interview_details_ajax()
+    {
+        check_ajax_referer('jpm_interview_details', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = absint($_REQUEST['application_id'] ?? 0);
+        if ($application_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        }
+
+        $details = $this->get_application_interview_details($application_id);
+
+        // Get interview status slug
+        $interview_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+                $interview_status_slug = $status['slug'];
+                break;
+            }
+        }
+
+        wp_send_json_success([
+            'details' => $details,
+            'status_slug' => $interview_status_slug,
+        ]);
+    }
+
+    /**
+     * AJAX: Save interview details and update status.
+     */
+    public function save_interview_details_ajax()
+    {
+        check_ajax_referer('jpm_interview_details', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        }
+
+        $application_id = absint($_POST['application_id'] ?? 0);
+        $requirements = isset($_POST['requirements']) ? wp_kses_post(wp_unslash($_POST['requirements'])) : '';
+        $address = isset($_POST['address']) ? sanitize_text_field(wp_unslash($_POST['address'])) : '';
+        $date = isset($_POST['date']) ? sanitize_text_field(wp_unslash($_POST['date'])) : '';
+        $time = isset($_POST['time']) ? sanitize_text_field(wp_unslash($_POST['time'])) : '';
+
+        if ($application_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        }
+
+        if (empty($requirements)) {
+            wp_send_json_error(['message' => __('Please enter the requirements.', 'job-posting-manager')]);
+        }
+
+        if (empty($address)) {
+            wp_send_json_error(['message' => __('Please enter the interview address.', 'job-posting-manager')]);
+        }
+
+        // Get interview status slug
+        $interview_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+                $interview_status_slug = $status['slug'];
+                break;
+            }
+        }
+
+        if (empty($interview_status_slug)) {
+            wp_send_json_error(['message' => __('The "For Interview" status is not configured.', 'job-posting-manager')]);
+        }
+
+        // Persist details
+        $details = [
+            'requirements' => $requirements,
+            'address' => $address,
+            'date' => $date,
+            'time' => $time,
+            'updated_at' => current_time('mysql'),
+        ];
+
+        update_option('jpm_application_interview_details_' . $application_id, $details, false);
+
+        // Update status
+        JPM_DB::update_status($application_id, $interview_status_slug);
+
+        // Send notification (reuse existing flow)
+        if (class_exists('JPM_Emails')) {
+            try {
+                JPM_Emails::send_status_update($application_id);
+            } catch (Exception $e) {
+                error_log('JPM Interview Email Error: ' . $e->getMessage());
+            }
+        }
+
+        $status_info = self::get_status_by_slug($interview_status_slug);
+
+        wp_send_json_success([
+            'message' => __('Interview details saved and status updated.', 'job-posting-manager'),
+            'status_slug' => $interview_status_slug,
+            'status_label' => $status_info ? $status_info['name'] : ucfirst($interview_status_slug),
             'details' => $details,
         ]);
     }
