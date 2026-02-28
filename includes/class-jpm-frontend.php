@@ -5136,6 +5136,12 @@ class JPM_Frontend
                                                                 </div>
                                                             <?php endif; ?>
                                                         </div>
+                                                        <div class="jpm-rejection-message"
+                                                            style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                                                            <p style="margin: 0; font-size: 14px; color: #856404; font-weight: 500;">
+                                                                <?php _e('You need to re-apply to this job. Please fix the issues in your application that caused the rejection before submitting a new application.', 'job-posting-manager'); ?>
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
