@@ -525,6 +525,19 @@ class JPM_Admin
 
         // Get medical status slug for checking
         $medical_status_slug = $this->get_medical_status_slug();
+        
+        // Get interview status slug for checking
+        $interview_status_slug = '';
+        $all_statuses = self::get_all_statuses_info();
+        foreach ($all_statuses as $status) {
+            $slug = strtolower($status['slug']);
+            $name = strtolower($status['name']);
+            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+                $interview_status_slug = $status['slug'];
+                break;
+            }
+        }
 
         ?>
         <div class="wrap">
@@ -727,6 +740,15 @@ class JPM_Admin
                                         <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
                                             <button type="button" class="button button-small jpm-view-requirements-btn"
                                                 data-application-id="<?php echo esc_attr($application->id); ?>"
+                                                data-requirements-type="medical"
+                                                style="text-decoration: none;">
+                                                <?php _e('View Requirements', 'job-posting-manager'); ?>
+                                            </button>
+                                        <?php endif; ?>
+                                        <?php if ($interview_status_slug && $application->status === $interview_status_slug): ?>
+                                            <button type="button" class="button button-small jpm-view-requirements-btn"
+                                                data-application-id="<?php echo esc_attr($application->id); ?>"
+                                                data-requirements-type="interview"
                                                 style="text-decoration: none;">
                                                 <?php _e('View Requirements', 'job-posting-manager'); ?>
                                             </button>
@@ -746,7 +768,7 @@ class JPM_Admin
                 aria-labelledby="jpm-view-requirements-modal-title" style="max-width: 600px;">
                 <button type="button" class="jpm-admin-modal__close"
                     aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
-                <h2 id="jpm-view-requirements-modal-title"><?php _e('Medical Requirements', 'job-posting-manager'); ?></h2>
+                <h2 id="jpm-view-requirements-modal-title"><?php _e('Requirements', 'job-posting-manager'); ?></h2>
                 <div id="jpm-view-requirements-content" style="margin-top: 20px;">
                     <div style="text-align: center; padding: 20px;">
                         <span class="spinner is-active" style="float: none; margin: 0;"></span>
@@ -1538,7 +1560,8 @@ class JPM_Admin
                     return month + ' ' + day + ', ' + year;
                 }
 
-                function renderRequirementsHTML(details) {
+                function renderRequirementsHTML(details, type) {
+                    type = type || 'medical';
                     let html = '<div class="jpm-view-requirements-details">';
 
                     if (details.requirements) {
@@ -1550,7 +1573,8 @@ class JPM_Admin
 
                     if (details.address) {
                         html += '<div class="jpm-admin-field" style="margin-bottom: 20px;">';
-                        html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;"><?php echo esc_js(__('Medical Address:', 'job-posting-manager')); ?></label>';
+                        const addressLabel = type === 'interview' ? '<?php echo esc_js(__('Interview Address:', 'job-posting-manager')); ?>' : '<?php echo esc_js(__('Medical Address:', 'job-posting-manager')); ?>';
+                        html += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #0073aa;">' + addressLabel + '</label>';
                         html += '<div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">' + $('<div>').text(details.address).html() + '</div>';
                         html += '</div>';
                     }
@@ -1581,14 +1605,24 @@ class JPM_Admin
                     return html;
                 }
 
-                function openViewRequirementsModal(applicationId) {
+                function openViewRequirementsModal(applicationId, type) {
+                    type = type || 'medical';
                     const $modal = $('#jpm-view-requirements-modal');
                     const $content = $('#jpm-view-requirements-content');
+                    const $title = $('#jpm-view-requirements-modal-title');
+
+                    // Update modal title based on type
+                    if (type === 'interview') {
+                        $title.text('<?php echo esc_js(__('Interview Requirements', 'job-posting-manager')); ?>');
+                    } else {
+                        $title.text('<?php echo esc_js(__('Medical Requirements', 'job-posting-manager')); ?>');
+                    }
 
                     // Check cache first
-                    if (requirementsCache[applicationId]) {
+                    const cacheKey = applicationId + '_' + type;
+                    if (requirementsCache[cacheKey]) {
                         // Use cached data - no loading needed
-                        $content.html(requirementsCache[applicationId].html);
+                        $content.html(requirementsCache[cacheKey].html);
                         $modal.show();
                         return;
                     }
@@ -1597,22 +1631,26 @@ class JPM_Admin
                     $content.html('<div style="text-align: center; padding: 20px;"><span class="spinner is-active" style="float: none; margin: 0;"></span><p><?php echo esc_js(__('Loading requirements...', 'job-posting-manager')); ?></p></div>');
                     $modal.show();
 
-                    // Fetch medical details
+                    // Determine which AJAX action and nonce to use
+                    const action = type === 'interview' ? 'jpm_get_interview_details' : 'jpm_get_medical_details';
+                    const nonce = type === 'interview' ? interviewNonce : medicalNonce;
+
+                    // Fetch details
                     $.ajax({
                         url: ajaxurl,
                         type: 'POST',
                         data: {
-                            action: 'jpm_get_medical_details',
+                            action: action,
                             application_id: applicationId,
-                            nonce: medicalNonce
+                            nonce: nonce
                         }
                     }).done(function (response) {
                         if (response.success && response.data && response.data.details) {
                             const details = response.data.details;
-                            const html = renderRequirementsHTML(details);
+                            const html = renderRequirementsHTML(details, type);
 
                             // Cache the rendered HTML
-                            requirementsCache[applicationId] = {
+                            requirementsCache[cacheKey] = {
                                 html: html,
                                 details: details
                             };
@@ -1629,8 +1667,9 @@ class JPM_Admin
                 // Handle View Requirements button click
                 $(document).on('click', '.jpm-view-requirements-btn', function () {
                     const applicationId = $(this).data('application-id');
+                    const requirementsType = $(this).data('requirements-type') || 'medical';
                     if (applicationId) {
-                        openViewRequirementsModal(applicationId);
+                        openViewRequirementsModal(applicationId, requirementsType);
                     }
                 });
 
@@ -3258,6 +3297,16 @@ class JPM_Admin
                                         placeholder="<?php esc_attr_e('Optional description for this status', 'job-posting-manager'); ?>"><?php echo $editing_status ? esc_textarea($editing_status['description']) : ''; ?></textarea>
                                 </td>
                             </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="status_ordering"><?php _e('Ordering', 'job-posting-manager'); ?></label>
+                                </th>
+                                <td>
+                                    <input type="number" id="status_ordering" name="status_ordering" class="small-text"
+                                        value="<?php echo $editing_status ? (isset($editing_status['ordering']) ? esc_attr($editing_status['ordering']) : '0') : '0'; ?>" min="0" step="1">
+                                    <p class="description"><?php _e('Lower numbers appear first in the status dropdown. Use 1, 2, 3, etc.', 'job-posting-manager'); ?></p>
+                                </td>
+                            </tr>
                         </table>
 
                         <p class="submit">
@@ -3282,10 +3331,11 @@ class JPM_Admin
                             <thead>
                                 <tr>
                                     <th style="width: 5%;"><?php _e('ID', 'job-posting-manager'); ?></th>
-                                    <th style="width: 20%;"><?php _e('Name', 'job-posting-manager'); ?></th>
+                                    <th style="width: 10%;"><?php _e('Ordering', 'job-posting-manager'); ?></th>
+                                    <th style="width: 18%;"><?php _e('Name', 'job-posting-manager'); ?></th>
                                     <th style="width: 15%;"><?php _e('Slug', 'job-posting-manager'); ?></th>
-                                    <th style="width: 20%;"><?php _e('Preview', 'job-posting-manager'); ?></th>
-                                    <th style="width: 30%;"><?php _e('Description', 'job-posting-manager'); ?></th>
+                                    <th style="width: 18%;"><?php _e('Preview', 'job-posting-manager'); ?></th>
+                                    <th style="width: 24%;"><?php _e('Description', 'job-posting-manager'); ?></th>
                                     <th style="width: 10%;"><?php _e('Actions', 'job-posting-manager'); ?></th>
                                 </tr>
                             </thead>
@@ -3293,6 +3343,7 @@ class JPM_Admin
                                 <?php foreach ($statuses as $status): ?>
                                     <tr>
                                         <td><?php echo esc_html($status['id']); ?></td>
+                                        <td><?php echo esc_html(isset($status['ordering']) ? $status['ordering'] : 0); ?></td>
                                         <td><strong><?php echo esc_html($status['name']); ?></strong></td>
                                         <td><code><?php echo esc_html($status['slug']); ?></code></td>
                                         <td>
@@ -3399,8 +3450,25 @@ class JPM_Admin
 
         // If no custom statuses, return default ones
         if (empty($statuses)) {
-            return $this->get_default_statuses();
+            $statuses = $this->get_default_statuses();
         }
+
+        // Ensure ordering field exists for all statuses and set default if missing
+        foreach ($statuses as $index => $status) {
+            if (!isset($status['ordering'])) {
+                $statuses[$index]['ordering'] = isset($status['id']) ? $status['id'] : 0;
+            }
+        }
+
+        // Sort by ordering, then by ID as fallback
+        usort($statuses, function($a, $b) {
+            $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
+            $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
+            if ($order_a == $order_b) {
+                return (isset($a['id']) ? $a['id'] : 0) - (isset($b['id']) ? $b['id'] : 0);
+            }
+            return $order_a - $order_b;
+        });
 
         return $statuses;
     }
@@ -3411,10 +3479,10 @@ class JPM_Admin
     private function get_default_statuses()
     {
         return [
-            ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
-            ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
-            ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
-            ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+            ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review', 'ordering' => 1],
+            ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed', 'ordering' => 2],
+            ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted', 'ordering' => 3],
+            ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected', 'ordering' => 4],
         ];
     }
 
@@ -3428,6 +3496,7 @@ class JPM_Admin
         $status_color = sanitize_hex_color($_POST['status_color'] ?? '#ffc107');
         $status_text_color = sanitize_hex_color($_POST['status_text_color'] ?? '#000000');
         $status_description = sanitize_textarea_field($_POST['status_description'] ?? '');
+        $status_ordering = isset($_POST['status_ordering']) ? absint($_POST['status_ordering']) : 0;
 
         if (empty($status_name)) {
             wp_die(__('Status name is required', 'job-posting-manager'));
@@ -3463,6 +3532,7 @@ class JPM_Admin
             'color' => $status_color,
             'text_color' => $status_text_color,
             'description' => $status_description,
+            'ordering' => $status_ordering,
         ];
 
         $statuses[] = $new_status;
@@ -3483,6 +3553,7 @@ class JPM_Admin
         $status_color = sanitize_hex_color($_POST['status_color'] ?? '#ffc107');
         $status_text_color = sanitize_hex_color($_POST['status_text_color'] ?? '#000000');
         $status_description = sanitize_textarea_field($_POST['status_description'] ?? '');
+        $status_ordering = isset($_POST['status_ordering']) ? absint($_POST['status_ordering']) : 0;
 
         if (!$status_id || empty($status_name)) {
             wp_die(__('Invalid data', 'job-posting-manager'));
@@ -3510,6 +3581,7 @@ class JPM_Admin
                     'color' => $status_color,
                     'text_color' => $status_text_color,
                     'description' => $status_description,
+                    'ordering' => $status_ordering,
                 ];
                 break;
             }
@@ -3578,13 +3650,30 @@ class JPM_Admin
         // If no custom statuses, return default ones
         if (empty($statuses)) {
             $default_statuses = [
-                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
-                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
-                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
-                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review', 'ordering' => 1],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed', 'ordering' => 2],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted', 'ordering' => 3],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected', 'ordering' => 4],
             ];
             $statuses = $default_statuses;
         }
+
+        // Ensure ordering field exists for all statuses and set default if missing
+        foreach ($statuses as $index => $status) {
+            if (!isset($status['ordering'])) {
+                $statuses[$index]['ordering'] = isset($status['id']) ? $status['id'] : 0;
+            }
+        }
+
+        // Sort by ordering, then by ID as fallback
+        usort($statuses, function($a, $b) {
+            $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
+            $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
+            if ($order_a == $order_b) {
+                return (isset($a['id']) ? $a['id'] : 0) - (isset($b['id']) ? $b['id'] : 0);
+            }
+            return $order_a - $order_b;
+        });
 
         $options = [];
         foreach ($statuses as $status) {
@@ -3605,13 +3694,30 @@ class JPM_Admin
         // If no custom statuses, return default ones
         if (empty($statuses)) {
             $default_statuses = [
-                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
-                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
-                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
-                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review', 'ordering' => 1],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed', 'ordering' => 2],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted', 'ordering' => 3],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected', 'ordering' => 4],
             ];
             $statuses = $default_statuses;
         }
+
+        // Ensure ordering field exists for all statuses and set default if missing
+        foreach ($statuses as $index => $status) {
+            if (!isset($status['ordering'])) {
+                $statuses[$index]['ordering'] = isset($status['id']) ? $status['id'] : 0;
+            }
+        }
+
+        // Sort by ordering, then by ID as fallback
+        usort($statuses, function($a, $b) {
+            $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
+            $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
+            if ($order_a == $order_b) {
+                return (isset($a['id']) ? $a['id'] : 0) - (isset($b['id']) ? $b['id'] : 0);
+            }
+            return $order_a - $order_b;
+        });
 
         return $statuses;
     }
@@ -3627,10 +3733,10 @@ class JPM_Admin
         // If no custom statuses, return default ones
         if (empty($statuses)) {
             $default_statuses = [
-                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review'],
-                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed'],
-                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted'],
-                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected'],
+                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review', 'ordering' => 1],
+                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed', 'ordering' => 2],
+                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted', 'ordering' => 3],
+                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected', 'ordering' => 4],
             ];
             $statuses = $default_statuses;
         }
