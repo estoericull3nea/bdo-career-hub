@@ -709,7 +709,7 @@ class JPM_Emails
 
             // For "Accepted" status, show congratulations message
             if ($is_accepted) {
-                $body .= '<div style="background: linear-gradient(to right, #d4edda 0%, #c3e6cb 100%); padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745;">';
+                $body .= '<div style="background: linear-gradient(to right, #d4edda 0%, #c3e6cb 100%); padding: 20px; border-radius: 5px; margin: 20px 0;">';
                 $body .= '<p style="margin: 0; font-size: 16px; color: #155724; font-weight: 600; line-height: 1.6;">';
                 $body .= __('Congratulations!', 'job-posting-manager') . ' ' . sprintf(__('We are pleased to inform you that your application for the position of %s has been accepted.', 'job-posting-manager'), '<strong>' . esc_html($job_title) . '</strong>');
                 $body .= '</p>';
