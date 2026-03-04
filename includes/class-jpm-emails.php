@@ -714,7 +714,7 @@ class JPM_Emails
                 $body .= __('Congratulations!', 'job-posting-manager') . ' ' . sprintf(__('We are pleased to inform you that your application for the position of %s has been accepted.', 'job-posting-manager'), '<strong>' . esc_html($job_title) . '</strong>');
                 $body .= '</p>';
                 $body .= '<p style="margin: 15px 0 0 0; font-size: 15px; color: #155724; line-height: 1.6;">';
-                $body .= __('Our team will contact you shortly with next steps and additional information regarding your new role. We look forward to welcoming you to our team!', 'job-posting-manager');
+                $body .= __('Our team will contact you with the next steps and additional information.', 'job-posting-manager');
                 $body .= '</p>';
                 $body .= '</div>';
             } elseif ($is_in_progress || $is_pending || $is_reviewed) {
