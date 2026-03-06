@@ -6,15 +6,7 @@ class JPM_Emails
      */
     private static function get_medical_status_slug()
     {
-        $statuses = JPM_Admin::get_all_statuses_info();
-        foreach ($statuses as $status) {
-            $slug = strtolower($status['slug']);
-            $name = strtolower($status['name']);
-            if ($slug === 'for-medical' || $slug === 'for_medical' || $name === 'for medical') {
-                return $status['slug'];
-            }
-        }
-        return '';
+        return JPM_Status_Manager::get_medical_status_slug();
     }
 
     /**
@@ -455,7 +447,7 @@ class JPM_Emails
         $rejection_details = [];
         $is_rejected = false;
         $rejected_status_slug = '';
-        $all_statuses = JPM_Admin::get_all_statuses_info();
+        $all_statuses = JPM_Status_Manager::get_all_statuses_info();
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);

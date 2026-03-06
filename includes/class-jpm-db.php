@@ -3685,41 +3685,11 @@ class JPM_Admin
 
     /**
      * Get all statuses with full information
+     * Delegates to JPM_Status_Manager for modularity
      */
     public static function get_all_statuses_info()
     {
-        // Get statuses from option
-        $statuses = get_option('jpm_application_statuses', []);
-
-        // If no custom statuses, return default ones
-        if (empty($statuses)) {
-            $default_statuses = [
-                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'Application is pending review', 'ordering' => 1],
-                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Application has been reviewed', 'ordering' => 2],
-                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Application has been accepted', 'ordering' => 3],
-                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'Application has been rejected', 'ordering' => 4],
-            ];
-            $statuses = $default_statuses;
-        }
-
-        // Ensure ordering field exists for all statuses and set default if missing
-        foreach ($statuses as $index => $status) {
-            if (!isset($status['ordering'])) {
-                $statuses[$index]['ordering'] = isset($status['id']) ? $status['id'] : 0;
-            }
-        }
-
-        // Sort by ordering, then by ID as fallback
-        usort($statuses, function($a, $b) {
-            $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
-            $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
-            if ($order_a == $order_b) {
-                return (isset($a['id']) ? $a['id'] : 0) - (isset($b['id']) ? $b['id'] : 0);
-            }
-            return $order_a - $order_b;
-        });
-
-        return $statuses;
+        return JPM_Status_Manager::get_all_statuses_info();
     }
 
     /**

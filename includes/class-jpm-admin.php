@@ -1,210 +1,54 @@
 <?php
+/**
+ * JPM_DB - Backward Compatibility Wrapper
+ * 
+ * This class maintains backward compatibility while using the new modular structure.
+ * All methods delegate to the new JPM_Database and JPM_Status_Manager classes.
+ */
 class JPM_DB
 {
+    /**
+     * Create database tables
+     * Delegates to JPM_Database
+     */
     public static function create_tables()
     {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'job_applications';
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            user_id bigint(20) NOT NULL,
-            job_id bigint(20) NOT NULL,
-            application_date datetime DEFAULT CURRENT_TIMESTAMP,
-            status varchar(50) DEFAULT 'pending',
-            resume_file_path varchar(255),
-            notes text,
-            PRIMARY KEY (id),
-            UNIQUE KEY unique_application (user_id, job_id)
-        ) $charset_collate;";
-
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
+        return JPM_Database::create_tables();
     }
 
+    /**
+     * Insert a new application
+     * Delegates to JPM_Database
+     */
     public static function insert_application($user_id, $job_id, $resume_path, $notes = '')
     {
-        global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
-        // Check for duplicate (only for logged-in users)
-        if ($user_id > 0) {
-            $existing = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d AND job_id = %d", $user_id, $job_id));
-            if ($existing) {
-                return new WP_Error('duplicate', __('You have already applied for this job.', 'job-posting-manager'));
-            }
-        }
-        return $wpdb->insert($table, [
-            'user_id' => $user_id,
-            'job_id' => $job_id,
-            'resume_file_path' => $resume_path,
-            'notes' => sanitize_textarea_field($notes),
-            'status' => 'pending', // Explicitly set status to pending
-        ]);
+        return JPM_Database::insert_application($user_id, $job_id, $resume_path, $notes);
     }
 
+    /**
+     * Update application status
+     * Delegates to JPM_Database
+     */
     public static function update_status($id, $status)
     {
-        global $wpdb;
-        return $wpdb->update($wpdb->prefix . 'job_applications', ['status' => sanitize_text_field($status)], ['id' => $id]);
+        return JPM_Database::update_status($id, $status);
     }
 
+    /**
+     * Get applications with filters
+     * Delegates to JPM_Database
+     */
     public static function get_applications($filters = [])
     {
-        global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
-        $where = '1=1';
-        if (!empty($filters['status']))
-            $where .= $wpdb->prepare(" AND status = %s", $filters['status']);
-        if (!empty($filters['job_id']))
-            $where .= $wpdb->prepare(" AND job_id = %d", $filters['job_id']);
-
-        // Get all applications matching status and job filters
-        $applications = $wpdb->get_results("SELECT * FROM $table WHERE $where ORDER BY application_date DESC");
-
-        // If search term is provided, filter by searching in form data
-        if (!empty($filters['search'])) {
-            $search_term = strtolower(trim($filters['search']));
-            $filtered_applications = [];
-
-            foreach ($applications as $application) {
-                $form_data = json_decode($application->notes, true);
-                if (!is_array($form_data)) {
-                    $form_data = [];
-                }
-
-                $match = false;
-
-                // Search in various fields
-                $search_fields = [
-                    // First name variations
-                    'first_name',
-                    'firstname',
-                    'fname',
-                    'first-name',
-                    'given_name',
-                    'givenname',
-                    'given-name',
-                    'given name',
-                    // Middle name variations
-                    'middle_name',
-                    'middlename',
-                    'mname',
-                    'middle-name',
-                    'middle name',
-                    // Last name variations
-                    'last_name',
-                    'lastname',
-                    'lname',
-                    'last-name',
-                    'surname',
-                    'family_name',
-                    'familyname',
-                    'family-name',
-                    'family name',
-                    // Email variations
-                    'email',
-                    'email_address',
-                    'e-mail',
-                    'email-address',
-                    // Application number
-                    'application_number'
-                ];
-
-                // Check each field
-                foreach ($search_fields as $field_name) {
-                    if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
-                        $field_value = strtolower(strval($form_data[$field_name]));
-                        if (strpos($field_value, $search_term) !== false) {
-                            $match = true;
-                            break;
-                        }
-                    }
-                }
-
-                // Also try case-insensitive partial matching on all form data
-                if (!$match) {
-                    foreach ($form_data as $field_name => $field_value) {
-                        $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
-                        $field_value_lower = strtolower(strval($field_value));
-
-                        // Check if field name matches search terms
-                        if (in_array($field_name_lower, ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email', 'applicationnumber'])) {
-                            if (strpos($field_value_lower, $search_term) !== false) {
-                                $match = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Also check user email if user_id exists
-                if (!$match && $application->user_id > 0) {
-                    $user = get_userdata($application->user_id);
-                    if ($user) {
-                        $user_email = strtolower($user->user_email);
-                        $user_first_name = strtolower($user->first_name);
-                        $user_last_name = strtolower($user->last_name);
-                        $user_display_name = strtolower($user->display_name);
-
-                        if (
-                            strpos($user_email, $search_term) !== false ||
-                            strpos($user_first_name, $search_term) !== false ||
-                            strpos($user_last_name, $search_term) !== false ||
-                            strpos($user_display_name, $search_term) !== false
-                        ) {
-                            $match = true;
-                        }
-                    }
-                }
-
-                if ($match) {
-                    $filtered_applications[] = $application;
-                }
-            }
-
-            return $filtered_applications;
-        }
-
-        return $applications;
+        return JPM_Database::get_applications($filters);
     }
 
     /**
      * Get all statuses with full information
+     * Delegates to JPM_Status_Manager
      */
     public static function get_all_statuses_info()
     {
-        // Get statuses from option
-        $statuses = get_option('jpm_application_statuses', []);
-
-        // If no custom statuses, return default ones
-        if (empty($statuses)) {
-            $default_statuses = [
-                ['id' => 1, 'name' => 'Pending', 'slug' => 'pending', 'color' => '#ffc107', 'text_color' => '#000000', 'description' => 'This means that your application was successfully submitted and is currently pending review by our hiring team. We will notify you once your application has been reviewed.', 'ordering' => 1],
-                ['id' => 2, 'name' => 'Reviewed', 'slug' => 'reviewed', 'color' => '#17a2b8', 'text_color' => '#ffffff', 'description' => 'Thank you. Your application has been reviewed by our hiring team and is currently under consideration. We will contact you with further updates.', 'ordering' => 2],
-                ['id' => 3, 'name' => 'Accepted', 'slug' => 'accepted', 'color' => '#28a745', 'text_color' => '#ffffff', 'description' => 'Congratulations! Your application has been accepted. Our team will contact you shortly with next steps and additional information.', 'ordering' => 3],
-                ['id' => 4, 'name' => 'Rejected', 'slug' => 'rejected', 'color' => '#dc3545', 'text_color' => '#ffffff', 'description' => 'We appreciate your interest in this position. Unfortunately, your application was not selected for this role at this time. We encourage you to apply for other positions that match your qualifications.', 'ordering' => 4],
-            ];
-            $statuses = $default_statuses;
-        }
-
-        // Ensure ordering field exists for all statuses and set default if missing
-        foreach ($statuses as $index => $status) {
-            if (!isset($status['ordering'])) {
-                $statuses[$index]['ordering'] = isset($status['id']) ? $status['id'] : 0;
-            }
-        }
-
-        // Sort by ordering, then by ID as fallback
-        usort($statuses, function($a, $b) {
-            $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
-            $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
-            if ($order_a == $order_b) {
-                return (isset($a['id']) ? $a['id'] : 0) - (isset($b['id']) ? $b['id'] : 0);
-            }
-            return $order_a - $order_b;
-        });
-
-        return $statuses;
+        return JPM_Status_Manager::get_all_statuses_info();
     }
 }
