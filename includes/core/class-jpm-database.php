@@ -156,6 +156,27 @@ class JPM_Database
             'application_number'
         ];
 
+        // Optimize: Batch fetch all user data to avoid N+1 queries
+        $user_ids = [];
+        foreach ($applications as $application) {
+            if ($application->user_id > 0) {
+                $user_ids[] = $application->user_id;
+            }
+        }
+        $user_ids = array_unique($user_ids);
+        $users_data = [];
+        if (!empty($user_ids)) {
+            $users = get_users(['include' => $user_ids]);
+            foreach ($users as $user) {
+                $users_data[$user->ID] = [
+                    'email' => strtolower($user->user_email),
+                    'first_name' => strtolower($user->first_name),
+                    'last_name' => strtolower($user->last_name),
+                    'display_name' => strtolower($user->display_name)
+                ];
+            }
+        }
+
         foreach ($applications as $application) {
             $form_data = json_decode($application->notes, true);
             if (!is_array($form_data)) {
@@ -190,23 +211,16 @@ class JPM_Database
                 }
             }
 
-            // Also check user email if user_id exists
-            if (!$match && $application->user_id > 0) {
-                $user = get_userdata($application->user_id);
-                if ($user) {
-                    $user_email = strtolower($user->user_email);
-                    $user_first_name = strtolower($user->first_name);
-                    $user_last_name = strtolower($user->last_name);
-                    $user_display_name = strtolower($user->display_name);
-
-                    if (
-                        strpos($user_email, $search_term) !== false ||
-                        strpos($user_first_name, $search_term) !== false ||
-                        strpos($user_last_name, $search_term) !== false ||
-                        strpos($user_display_name, $search_term) !== false
-                    ) {
-                        $match = true;
-                    }
+            // Also check user email if user_id exists (using pre-fetched data)
+            if (!$match && $application->user_id > 0 && isset($users_data[$application->user_id])) {
+                $user_data = $users_data[$application->user_id];
+                if (
+                    strpos($user_data['email'], $search_term) !== false ||
+                    strpos($user_data['first_name'], $search_term) !== false ||
+                    strpos($user_data['last_name'], $search_term) !== false ||
+                    strpos($user_data['display_name'], $search_term) !== false
+                ) {
+                    $match = true;
                 }
             }
 

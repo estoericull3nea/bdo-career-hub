@@ -25,6 +25,37 @@ class JPM_Admin
         add_action('wp_ajax_jpm_get_chart_data', [$this, 'get_chart_data_ajax']);
         add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
         add_action('admin_notices', [$this, 'display_expiration_duration_error']);
+        
+        // Clear caches when post status changes
+        add_action('transition_post_status', [$this, 'clear_caches_on_status_change'], 10, 3);
+        add_action('delete_post', [$this, 'clear_caches_on_delete']);
+    }
+    
+    /**
+     * Clear caches when post status changes
+     */
+    public function clear_caches_on_status_change($new_status, $old_status, $post)
+    {
+        if ($post->post_type === 'job_posting') {
+            // Clear stats cache
+            wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
+            // Clear filter caches
+            wp_cache_flush_group('jpm_filters');
+        }
+    }
+    
+    /**
+     * Clear caches when post is deleted
+     */
+    public function clear_caches_on_delete($post_id)
+    {
+        $post = get_post($post_id);
+        if ($post && $post->post_type === 'job_posting') {
+            // Clear stats cache
+            wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
+            // Clear filter caches
+            wp_cache_flush_group('jpm_filters');
+        }
     }
 
     /**
@@ -58,10 +89,15 @@ class JPM_Admin
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
 
-        // Total jobs by status
-        $total_published = wp_count_posts('job_posting')->publish ?? 0;
-        $total_draft = wp_count_posts('job_posting')->draft ?? 0;
-        $total_pending = wp_count_posts('job_posting')->pending ?? 0;
+        // Total jobs by status - Optimized: Cache wp_count_posts result
+        $post_counts = wp_cache_get('jpm_job_post_counts', 'jpm_stats');
+        if (false === $post_counts) {
+            $post_counts = wp_count_posts('job_posting');
+            wp_cache_set('jpm_job_post_counts', $post_counts, 'jpm_stats', 5 * MINUTE_IN_SECONDS);
+        }
+        $total_published = $post_counts->publish ?? 0;
+        $total_draft = $post_counts->draft ?? 0;
+        $total_pending = $post_counts->pending ?? 0;
         $total_jobs = $total_published + $total_draft + $total_pending;
 
         // Total applications
@@ -126,6 +162,29 @@ class JPM_Admin
         }
 
         $jobs = get_posts($args);
+
+        // Optimize: Pre-fetch all post meta and application counts to avoid N+1 queries
+        if (!empty($jobs)) {
+            $job_ids = wp_list_pluck($jobs, 'ID');
+            update_post_meta_cache($job_ids);
+            
+            // Batch fetch application counts for all jobs
+            $job_ids_placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
+            $application_counts_query = $wpdb->prepare(
+                "SELECT job_id, COUNT(*) as count 
+                FROM $table 
+                WHERE job_id IN ($job_ids_placeholders)
+                GROUP BY job_id",
+                ...$job_ids
+            );
+            $application_counts_results = $wpdb->get_results($application_counts_query, ARRAY_A);
+            $application_counts = [];
+            foreach ($application_counts_results as $row) {
+                $application_counts[$row['job_id']] = intval($row['count']);
+            }
+        } else {
+            $application_counts = [];
+        }
 
         ?>
         <div class="wrap">
@@ -450,11 +509,8 @@ class JPM_Admin
                         $company_name = get_post_meta($job->ID, 'company_name', true);
                         $location = get_post_meta($job->ID, 'location', true);
 
-                        // Get application count
-                        $application_count = $wpdb->get_var($wpdb->prepare(
-                            "SELECT COUNT(*) FROM $table WHERE job_id = %d",
-                            $job->ID
-                        ));
+                        // Get application count (from pre-fetched data)
+                        $application_count = isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0;
 
                         $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
                         $view_url = get_permalink($job->ID);
@@ -1810,7 +1866,8 @@ class JPM_Admin
         // Save job metadata
         if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce($_POST['jpm_job_nonce'], 'jpm_job_meta')) {
             // Validate required expiration duration field
-            if (empty($_POST['expiration_duration']) || empty($_POST['expiration_unit'])) {
+            $expiration_missing = empty($_POST['expiration_duration']) || empty($_POST['expiration_unit']);
+            if ($expiration_missing) {
                 // Set a transient error message
                 set_transient('jpm_expiration_duration_error', __('Expiration Duration is required. Please specify how long until this job posting expires.', 'job-posting-manager'), 30);
                 // Prevent saving if this is a new post or if explicitly saving (not autosave)
@@ -1882,15 +1939,37 @@ class JPM_Admin
                 // Save expiration date as timestamp and formatted date
                 update_post_meta($post_id, 'expiration_date', $expiration_timestamp);
                 update_post_meta($post_id, 'expiration_date_formatted', date('Y-m-d H:i:s', $expiration_timestamp));
-            } else {
-                // If required field is missing, don't delete existing values on autosave
-                // Only delete if explicitly saving (not autosave)
-                if (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE) {
-                    delete_post_meta($post_id, 'expiration_duration');
-                    delete_post_meta($post_id, 'expiration_unit');
-                    delete_post_meta($post_id, 'expiration_date');
-                    delete_post_meta($post_id, 'expiration_date_formatted');
+            }
+            
+            // Clear filter caches when location or company is updated
+            if (isset($_POST['location']) || isset($_POST['company_name'])) {
+                // Clear all location and company filter caches
+                global $wpdb;
+                $cache_keys = $wpdb->get_col(
+                    "SELECT option_name FROM {$wpdb->options} 
+                    WHERE option_name LIKE '_transient_jpm_locations_%' 
+                    OR option_name LIKE '_transient_jpm_companies_%' 
+                    OR option_name LIKE '_transient_timeout_jpm_locations_%' 
+                    OR option_name LIKE '_transient_timeout_jpm_companies_%'"
+                );
+                foreach ($cache_keys as $key) {
+                    $transient = str_replace('_transient_', '', $key);
+                    $transient = str_replace('_transient_timeout_', '', $transient);
+                    delete_transient($transient);
                 }
+                // Also clear object cache
+                wp_cache_flush_group('jpm_filters');
+            }
+            
+            // Clear stats cache when job is saved
+            wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
+            
+            // Handle case when expiration fields are missing (only if not already handled above)
+            if ($expiration_missing && (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE)) {
+                delete_post_meta($post_id, 'expiration_duration');
+                delete_post_meta($post_id, 'expiration_unit');
+                delete_post_meta($post_id, 'expiration_date');
+                delete_post_meta($post_id, 'expiration_date_formatted');
             }
         }
 
@@ -2304,57 +2383,111 @@ class JPM_Admin
                 $format = 'M j';
         }
 
-        // Generate date points based on interval
-        $current = strtotime($start);
-        $end_timestamp = strtotime($end);
-
-        while ($current <= $end_timestamp) {
-            $date_str = date('Y-m-d', $current);
-
-            // Query count for this date/period
-            if ($interval === 'day') {
-                $count = $wpdb->get_var(
-                    $wpdb->prepare(
-                        "SELECT COUNT(*) FROM $table WHERE DATE(application_date) = %s",
-                        $date_str
-                    )
-                );
-            } elseif ($interval === 'week') {
+        // Optimized: Use single query with GROUP BY instead of loop queries
+        $start_datetime = $start . ' 00:00:00';
+        $end_datetime = $end . ' 23:59:59';
+        
+        if ($interval === 'day') {
+            // Single query for all days
+            $results = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT DATE(application_date) as date, COUNT(*) as count 
+                    FROM $table 
+                    WHERE application_date >= %s AND application_date <= %s
+                    GROUP BY DATE(application_date)
+                    ORDER BY date ASC",
+                    $start_datetime,
+                    $end_datetime
+                ),
+                ARRAY_A
+            );
+            
+            // Create a map for quick lookup
+            $counts_map = [];
+            foreach ($results as $row) {
+                $counts_map[$row['date']] = intval($row['count']);
+            }
+            
+            // Generate all dates in range and fill in counts
+            $current = strtotime($start);
+            $end_timestamp = strtotime($end);
+            while ($current <= $end_timestamp) {
+                $date_str = date('Y-m-d', $current);
+                $count = isset($counts_map[$date_str]) ? $counts_map[$date_str] : 0;
+                $data[] = [
+                    'date' => date($format, $current),
+                    'count' => $count
+                ];
+                $current = strtotime('+1 day', $current);
+            }
+        } elseif ($interval === 'week') {
+            // Single query for all weeks
+            $results = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT YEARWEEK(application_date, 1) as week, COUNT(*) as count 
+                    FROM $table 
+                    WHERE application_date >= %s AND application_date <= %s
+                    GROUP BY YEARWEEK(application_date, 1)
+                    ORDER BY week ASC",
+                    $start_datetime,
+                    $end_datetime
+                ),
+                ARRAY_A
+            );
+            
+            // Create a map for quick lookup
+            $counts_map = [];
+            foreach ($results as $row) {
+                $counts_map[$row['week']] = intval($row['count']);
+            }
+            
+            // Generate all weeks in range
+            $current = strtotime($start);
+            $end_timestamp = strtotime($end);
+            while ($current <= $end_timestamp) {
                 $week_start = date('Y-m-d', strtotime('monday this week', $current));
                 $week_end = date('Y-m-d', strtotime('sunday this week', $current));
-                $count = $wpdb->get_var(
-                    $wpdb->prepare(
-                        "SELECT COUNT(*) FROM $table WHERE DATE(application_date) >= %s AND DATE(application_date) <= %s",
-                        $week_start,
-                        $week_end
-                    )
-                );
-                // Move to next week
+                $week_key = date('oW', $current); // ISO week number
+                $count = isset($counts_map[$week_key]) ? $counts_map[$week_key] : 0;
+                $data[] = [
+                    'date' => $week_start . ' - ' . $week_end,
+                    'count' => $count
+                ];
                 $current = strtotime('+1 week', $current);
-                $date_str = $week_start . ' - ' . $week_end;
-            } else { // month
-                $month_start = date('Y-m-01', $current);
-                $month_end = date('Y-m-t', $current);
-                $count = $wpdb->get_var(
-                    $wpdb->prepare(
-                        "SELECT COUNT(*) FROM $table WHERE DATE(application_date) >= %s AND DATE(application_date) <= %s",
-                        $month_start,
-                        $month_end
-                    )
-                );
-                // Move to next month
-                $current = strtotime('+1 month', $current);
-                $date_str = $month_start;
             }
-
-            $data[] = [
-                'date' => $interval === 'week' ? $date_str : date($format, strtotime($date_str)),
-                'count' => intval($count)
-            ];
-
-            // Move to next interval (already handled for week/month above)
-            if ($interval === 'day') {
-                $current = strtotime('+1 day', $current);
+        } else { // month
+            // Single query for all months
+            $results = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT DATE_FORMAT(application_date, '%%Y-%%m') as month, COUNT(*) as count 
+                    FROM $table 
+                    WHERE application_date >= %s AND application_date <= %s
+                    GROUP BY DATE_FORMAT(application_date, '%%Y-%%m')
+                    ORDER BY month ASC",
+                    $start_datetime,
+                    $end_datetime
+                ),
+                ARRAY_A
+            );
+            
+            // Create a map for quick lookup
+            $counts_map = [];
+            foreach ($results as $row) {
+                $counts_map[$row['month']] = intval($row['count']);
+            }
+            
+            // Generate all months in range
+            $current = strtotime($start);
+            $end_timestamp = strtotime($end);
+            while ($current <= $end_timestamp) {
+                $month_start = date('Y-m-01', $current);
+                $month_key = date('Y-m', $current);
+                $count = isset($counts_map[$month_key]) ? $counts_map[$month_key] : 0;
+                $data[] = [
+                    'date' => date($format, strtotime($month_start)),
+                    'count' => $count
+                ];
+                $current = strtotime('+1 month', $current);
             }
         }
 

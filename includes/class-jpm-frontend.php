@@ -140,6 +140,10 @@ class JPM_Frontend
             return '<p class="jpm-no-jobs">' . __('No jobs available at the moment.', 'job-posting-manager') . '</p>';
         }
 
+        // Optimize: Pre-fetch all post meta to avoid N+1 queries
+        $job_ids = wp_list_pluck($jobs, 'ID');
+        update_post_meta_cache($job_ids);
+
         ob_start();
         ?>
         <div class="jpm-latest-jobs">
@@ -429,29 +433,93 @@ class JPM_Frontend
         $jobs_query = new WP_Query($args);
 
         // Get unique locations and companies for filter dropdowns (only non-expired jobs)
-        $all_jobs = get_posts([
-            'post_type' => 'job_posting',
-            'posts_per_page' => -1,
-            'post_status' => 'publish',
-            'meta_query' => [
-                $this->get_expiration_filter()
-            ]
-        ]);
-
-        $locations = [];
-        $companies = [];
-        foreach ($all_jobs as $job) {
-            $location = get_post_meta($job->ID, 'location', true);
-            $company = get_post_meta($job->ID, 'company_name', true);
-            if (!empty($location) && !in_array($location, $locations)) {
-                $locations[] = $location;
-            }
-            if (!empty($company) && !in_array($company, $companies)) {
-                $companies[] = $company;
-            }
+        // Optimized: Use direct SQL query instead of fetching all posts
+        global $wpdb;
+        $expiration_filter = $this->get_expiration_filter();
+        $expiration_date = '';
+        if (!empty($expiration_filter) && isset($expiration_filter['value'])) {
+            $expiration_date = $expiration_filter['value'];
         }
-        sort($locations);
-        sort($companies);
+        
+        // Cache key for locations and companies
+        $cache_key_locations = 'jpm_locations_' . md5($expiration_date);
+        $cache_key_companies = 'jpm_companies_' . md5($expiration_date);
+        
+        $locations = wp_cache_get($cache_key_locations, 'jpm_filters');
+        $companies = wp_cache_get($cache_key_companies, 'jpm_filters');
+        
+        if (false === $locations || false === $companies) {
+            // Build expiration date condition
+            $expiration_condition = '';
+            if (!empty($expiration_date)) {
+                $expiration_condition = $wpdb->prepare(
+                    " AND pm_exp.meta_value >= %s",
+                    $expiration_date
+                );
+            }
+            
+            // Get unique locations
+            if (!empty($expiration_date)) {
+                $locations_query = $wpdb->prepare(
+                    "SELECT DISTINCT pm_loc.meta_value as location
+                    FROM {$wpdb->posts} p
+                    INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
+                    LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+                    WHERE p.post_type = 'job_posting'
+                    AND p.post_status = 'publish'
+                    AND pm_loc.meta_value != ''
+                    AND pm_loc.meta_value IS NOT NULL
+                    AND pm_exp.meta_value >= %s
+                    ORDER BY pm_loc.meta_value ASC",
+                    $expiration_date
+                );
+            } else {
+                $locations_query = "SELECT DISTINCT pm_loc.meta_value as location
+                    FROM {$wpdb->posts} p
+                    INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
+                    WHERE p.post_type = 'job_posting'
+                    AND p.post_status = 'publish'
+                    AND pm_loc.meta_value != ''
+                    AND pm_loc.meta_value IS NOT NULL
+                    ORDER BY pm_loc.meta_value ASC";
+            }
+            
+            $location_results = $wpdb->get_col($locations_query);
+            $locations = array_filter(array_map('trim', $location_results));
+            
+            // Get unique companies
+            if (!empty($expiration_date)) {
+                $companies_query = $wpdb->prepare(
+                    "SELECT DISTINCT pm_comp.meta_value as company
+                    FROM {$wpdb->posts} p
+                    INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
+                    LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+                    WHERE p.post_type = 'job_posting'
+                    AND p.post_status = 'publish'
+                    AND pm_comp.meta_value != ''
+                    AND pm_comp.meta_value IS NOT NULL
+                    AND pm_exp.meta_value >= %s
+                    ORDER BY pm_comp.meta_value ASC",
+                    $expiration_date
+                );
+            } else {
+                $companies_query = "SELECT DISTINCT pm_comp.meta_value as company
+                    FROM {$wpdb->posts} p
+                    INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
+                    WHERE p.post_type = 'job_posting'
+                    AND p.post_status = 'publish'
+                    AND pm_comp.meta_value != ''
+                    AND pm_comp.meta_value IS NOT NULL
+                    ORDER BY pm_comp.meta_value ASC";
+            }
+            
+            $company_results = $wpdb->get_col($companies_query);
+            $companies = array_filter(array_map('trim', $company_results));
+            
+            // Cache for 1 hour
+            wp_cache_set($cache_key_locations, $locations, 'jpm_filters', HOUR_IN_SECONDS);
+            wp_cache_set($cache_key_companies, $companies, 'jpm_filters', HOUR_IN_SECONDS);
+        }
 
         ob_start();
         ?>
@@ -529,7 +597,18 @@ class JPM_Frontend
             </div>
 
             <!-- Jobs Grid -->
-            <?php if ($jobs_query->have_posts()): ?>
+            <?php if ($jobs_query->have_posts()): 
+                // Optimize: Pre-fetch all post meta to avoid N+1 queries
+                $job_ids = [];
+                while ($jobs_query->have_posts()) {
+                    $jobs_query->the_post();
+                    $job_ids[] = get_the_ID();
+                }
+                $jobs_query->rewind_posts();
+                if (!empty($job_ids)) {
+                    update_post_meta_cache($job_ids);
+                }
+            ?>
                 <div class="jpm-latest-jobs">
                     <?php while ($jobs_query->have_posts()):
                         $jobs_query->the_post();
@@ -817,6 +896,17 @@ class JPM_Frontend
 
         ob_start();
         if ($jobs_query->have_posts()):
+            // Optimize: Pre-fetch all post meta to avoid N+1 queries
+            $job_ids = [];
+            while ($jobs_query->have_posts()) {
+                $jobs_query->the_post();
+                $job_ids[] = get_the_ID();
+            }
+            $jobs_query->rewind_posts();
+            if (!empty($job_ids)) {
+                update_post_meta_cache($job_ids);
+            }
+            
             while ($jobs_query->have_posts()):
                 $jobs_query->the_post();
                 $job_id = get_the_ID();
