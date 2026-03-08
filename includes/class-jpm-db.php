@@ -25,12 +25,12 @@ class JPM_Admin
         add_action('wp_ajax_jpm_get_chart_data', [$this, 'get_chart_data_ajax']);
         add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
         add_action('admin_notices', [$this, 'display_expiration_duration_error']);
-        
+
         // Clear caches when post status changes
         add_action('transition_post_status', [$this, 'clear_caches_on_status_change'], 10, 3);
         add_action('delete_post', [$this, 'clear_caches_on_delete']);
     }
-    
+
     /**
      * Clear caches when post status changes
      */
@@ -43,7 +43,7 @@ class JPM_Admin
             wp_cache_flush_group('jpm_filters');
         }
     }
-    
+
     /**
      * Clear caches when post is deleted
      */
@@ -167,7 +167,7 @@ class JPM_Admin
         if (!empty($jobs)) {
             $job_ids = wp_list_pluck($jobs, 'ID');
             update_post_meta_cache($job_ids);
-            
+
             // Batch fetch application counts for all jobs
             $job_ids_placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
             $application_counts_query = $wpdb->prepare(
@@ -581,15 +581,17 @@ class JPM_Admin
 
         // Get medical status slug for checking
         $medical_status_slug = $this->get_medical_status_slug();
-        
+
         // Get interview status slug for checking
         $interview_status_slug = '';
         $all_statuses = self::get_all_statuses_info();
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);
-            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
-                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+            if (
+                $slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' ||
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false
+            ) {
                 $interview_status_slug = $status['slug'];
                 break;
             }
@@ -796,16 +798,14 @@ class JPM_Admin
                                         <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
                                             <button type="button" class="button button-small jpm-view-requirements-btn"
                                                 data-application-id="<?php echo esc_attr($application->id); ?>"
-                                                data-requirements-type="medical"
-                                                style="text-decoration: none;">
+                                                data-requirements-type="medical" style="text-decoration: none;">
                                                 <?php _e('View Requirements', 'job-posting-manager'); ?>
                                             </button>
                                         <?php endif; ?>
                                         <?php if ($interview_status_slug && $application->status === $interview_status_slug): ?>
                                             <button type="button" class="button button-small jpm-view-requirements-btn"
                                                 data-application-id="<?php echo esc_attr($application->id); ?>"
-                                                data-requirements-type="interview"
-                                                style="text-decoration: none;">
+                                                data-requirements-type="interview" style="text-decoration: none;">
                                                 <?php _e('View Requirements', 'job-posting-manager'); ?>
                                             </button>
                                         <?php endif; ?>
@@ -912,11 +912,13 @@ class JPM_Admin
                         </label>
                         <select id="jpm-rejection-problem-area" name="problem_area" required>
                             <option value=""><?php _e('-- Select --', 'job-posting-manager'); ?></option>
-                            <option value="personal_information"><?php _e('Personal Information', 'job-posting-manager'); ?></option>
+                            <option value="personal_information"><?php _e('Personal Information', 'job-posting-manager'); ?>
+                            </option>
                             <option value="education"><?php _e('Education', 'job-posting-manager'); ?></option>
                             <option value="employment"><?php _e('Employment', 'job-posting-manager'); ?></option>
                         </select>
-                        <small class="description"><?php _e('Select the area where the problem was found.', 'job-posting-manager'); ?></small>
+                        <small
+                            class="description"><?php _e('Select the area where the problem was found.', 'job-posting-manager'); ?></small>
                     </div>
                     <div class="jpm-admin-field">
                         <label for="jpm-rejection-notes">
@@ -924,7 +926,8 @@ class JPM_Admin
                         </label>
                         <textarea id="jpm-rejection-notes" name="notes" rows="6" required
                             placeholder="<?php esc_attr_e('Provide detailed notes about the rejection reason...', 'job-posting-manager'); ?>"></textarea>
-                        <small class="description"><?php _e('These notes will be sent to the applicant via email.', 'job-posting-manager'); ?></small>
+                        <small
+                            class="description"><?php _e('These notes will be sent to the applicant via email.', 'job-posting-manager'); ?></small>
                     </div>
                     <div class="jpm-admin-field" style="margin-top: 15px; display: flex; gap: 10px;">
                         <button type="submit" class="button button-primary">
@@ -1150,8 +1153,10 @@ class JPM_Admin
             if ($slug === 'rejected' || $name === 'rejected') {
                 $rejected_status_slug = $status['slug'];
             }
-            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
-                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+            if (
+                $slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' ||
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false
+            ) {
                 $interview_status_slug = $status['slug'];
             }
         }
@@ -1806,20 +1811,25 @@ class JPM_Admin
             </tr>
             <tr>
                 <th scope="row">
-                    <label for="expiration_duration"><?php _e('Expiration Duration', 'job-posting-manager'); ?> <span class="required">*</span></label>
+                    <label for="expiration_duration"><?php _e('Expiration Duration', 'job-posting-manager'); ?> <span
+                            class="required">*</span></label>
                 </th>
                 <td>
-                    <input type="number" id="expiration_duration" name="expiration_duration" class="small-text" 
-                        value="<?php echo esc_attr($expiration_duration); ?>" 
-                        min="1" step="1" required />
+                    <input type="number" id="expiration_duration" name="expiration_duration" class="small-text"
+                        value="<?php echo esc_attr($expiration_duration); ?>" min="1" step="1" required />
                     <select id="expiration_unit" name="expiration_unit" required>
                         <option value=""><?php _e('Select unit', 'job-posting-manager'); ?></option>
-                        <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>><?php _e('Minutes', 'job-posting-manager'); ?></option>
-                        <option value="hours" <?php selected($expiration_unit, 'hours'); ?>><?php _e('Hours', 'job-posting-manager'); ?></option>
-                        <option value="days" <?php selected($expiration_unit, 'days'); ?>><?php _e('Days', 'job-posting-manager'); ?></option>
-                        <option value="months" <?php selected($expiration_unit, 'months'); ?>><?php _e('Months', 'job-posting-manager'); ?></option>
+                        <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>>
+                            <?php _e('Minutes', 'job-posting-manager'); ?></option>
+                        <option value="hours" <?php selected($expiration_unit, 'hours'); ?>>
+                            <?php _e('Hours', 'job-posting-manager'); ?></option>
+                        <option value="days" <?php selected($expiration_unit, 'days'); ?>>
+                            <?php _e('Days', 'job-posting-manager'); ?></option>
+                        <option value="months" <?php selected($expiration_unit, 'months'); ?>>
+                            <?php _e('Months', 'job-posting-manager'); ?></option>
                     </select>
-                    <p class="description"><?php _e('Required: How long until this job posting expires', 'job-posting-manager'); ?></p>
+                    <p class="description">
+                        <?php _e('Required: How long until this job posting expires', 'job-posting-manager'); ?></p>
                 </td>
             </tr>
             <tr>
@@ -1901,25 +1911,27 @@ class JPM_Admin
             }
 
             // Handle expiration duration (required field)
-            if (isset($_POST['expiration_duration']) && isset($_POST['expiration_unit']) && 
-                !empty($_POST['expiration_duration']) && !empty($_POST['expiration_unit'])) {
+            if (
+                isset($_POST['expiration_duration']) && isset($_POST['expiration_unit']) &&
+                !empty($_POST['expiration_duration']) && !empty($_POST['expiration_unit'])
+            ) {
                 $expiration_duration = absint($_POST['expiration_duration']);
                 $expiration_unit = sanitize_text_field($_POST['expiration_unit']);
-                
+
                 // Validate unit
                 $allowed_units = ['minutes', 'hours', 'days', 'months'];
                 if (!in_array($expiration_unit, $allowed_units)) {
                     $expiration_unit = 'days'; // Default to days if invalid
                 }
-                
+
                 // Save expiration duration and unit
                 update_post_meta($post_id, 'expiration_duration', $expiration_duration);
                 update_post_meta($post_id, 'expiration_unit', $expiration_unit);
-                
+
                 // Calculate expiration date based on current time
                 $current_time = current_time('timestamp');
                 $expiration_timestamp = $current_time;
-                
+
                 switch ($expiration_unit) {
                     case 'minutes':
                         $expiration_timestamp = $current_time + ($expiration_duration * 60);
@@ -1935,12 +1947,12 @@ class JPM_Admin
                         $expiration_timestamp = strtotime('+' . $expiration_duration . ' months', $current_time);
                         break;
                 }
-                
+
                 // Save expiration date as timestamp and formatted date
                 update_post_meta($post_id, 'expiration_date', $expiration_timestamp);
                 update_post_meta($post_id, 'expiration_date_formatted', date('Y-m-d H:i:s', $expiration_timestamp));
             }
-            
+
             // Clear filter caches when location or company is updated
             if (isset($_POST['location']) || isset($_POST['company_name'])) {
                 // Clear all location and company filter caches
@@ -1960,10 +1972,10 @@ class JPM_Admin
                 // Also clear object cache
                 wp_cache_flush_group('jpm_filters');
             }
-            
+
             // Clear stats cache when job is saved
             wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
-            
+
             // Handle case when expiration fields are missing (only if not already handled above)
             if ($expiration_missing && (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE)) {
                 delete_post_meta($post_id, 'expiration_duration');
@@ -2187,7 +2199,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                             });
+                                                                     });
         </script>
         <?php
     }
@@ -2386,7 +2398,7 @@ class JPM_Admin
         // Optimized: Use single query with GROUP BY instead of loop queries
         $start_datetime = $start . ' 00:00:00';
         $end_datetime = $end . ' 23:59:59';
-        
+
         if ($interval === 'day') {
             // Single query for all days
             $results = $wpdb->get_results(
@@ -2401,13 +2413,13 @@ class JPM_Admin
                 ),
                 ARRAY_A
             );
-            
+
             // Create a map for quick lookup
             $counts_map = [];
             foreach ($results as $row) {
                 $counts_map[$row['date']] = intval($row['count']);
             }
-            
+
             // Generate all dates in range and fill in counts
             $current = strtotime($start);
             $end_timestamp = strtotime($end);
@@ -2434,13 +2446,13 @@ class JPM_Admin
                 ),
                 ARRAY_A
             );
-            
+
             // Create a map for quick lookup
             $counts_map = [];
             foreach ($results as $row) {
                 $counts_map[$row['week']] = intval($row['count']);
             }
-            
+
             // Generate all weeks in range
             $current = strtotime($start);
             $end_timestamp = strtotime($end);
@@ -2469,13 +2481,13 @@ class JPM_Admin
                 ),
                 ARRAY_A
             );
-            
+
             // Create a map for quick lookup
             $counts_map = [];
             foreach ($results as $row) {
                 $counts_map[$row['month']] = intval($row['count']);
             }
-            
+
             // Generate all months in range
             $current = strtotime($start);
             $end_timestamp = strtotime($end);
@@ -2555,22 +2567,22 @@ class JPM_Admin
     private function get_time_remaining($job_id)
     {
         $expiration_date = get_post_meta($job_id, 'expiration_date', true);
-        
+
         if (empty($expiration_date)) {
             return false;
         }
-        
+
         $current_time = current_time('timestamp');
         $expiration_timestamp = intval($expiration_date);
-        
+
         // If already expired, return false
         if ($expiration_timestamp <= $current_time) {
             return false;
         }
-        
+
         $seconds_remaining = $expiration_timestamp - $current_time;
         $expiration_unit = get_post_meta($job_id, 'expiration_unit', true);
-        
+
         // If the original unit was minutes, always show minutes
         if ($expiration_unit === 'minutes') {
             $minutes_remaining = floor($seconds_remaining / 60);
@@ -2582,7 +2594,7 @@ class JPM_Admin
                 $minutes_remaining
             );
         }
-        
+
         // Otherwise, show days (convert hours, days, months all to days)
         $days_remaining = floor($seconds_remaining / 86400);
         if ($days_remaining <= 0) {
@@ -2604,7 +2616,7 @@ class JPM_Admin
                 );
             }
         }
-        
+
         return sprintf(
             _n('%d day left', '%d days left', $days_remaining, 'job-posting-manager'),
             $days_remaining
@@ -2669,7 +2681,8 @@ class JPM_Admin
                 <?php if ($time_remaining): ?>
                     <li class="jpm-job-detail-item jpm-job-expiration">
                         <strong><?php _e('Expiration:', 'job-posting-manager'); ?></strong>
-                        <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i> <?php echo esc_html($time_remaining); ?></span>
+                        <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i>
+                            <?php echo esc_html($time_remaining); ?></span>
                     </li>
                 <?php endif; ?>
             </ul>
@@ -3232,8 +3245,10 @@ class JPM_Admin
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);
-            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
-                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+            if (
+                $slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' ||
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false
+            ) {
                 $interview_status_slug = $status['slug'];
                 break;
             }
@@ -3280,8 +3295,10 @@ class JPM_Admin
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);
-            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
-                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+            if (
+                $slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' ||
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false
+            ) {
                 $interview_status_slug = $status['slug'];
                 break;
             }
@@ -3436,8 +3453,11 @@ class JPM_Admin
                                 </th>
                                 <td>
                                     <input type="number" id="status_ordering" name="status_ordering" class="small-text"
-                                        value="<?php echo $editing_status ? (isset($editing_status['ordering']) ? esc_attr($editing_status['ordering']) : '0') : '0'; ?>" min="0" step="1">
-                                    <p class="description"><?php _e('Lower numbers appear first in the status dropdown. Use 1, 2, 3, etc.', 'job-posting-manager'); ?></p>
+                                        value="<?php echo $editing_status ? (isset($editing_status['ordering']) ? esc_attr($editing_status['ordering']) : '0') : '0'; ?>"
+                                        min="0" step="1">
+                                    <p class="description">
+                                        <?php _e('Lower numbers appear first in the status dropdown. Use 1, 2, 3, etc.', 'job-posting-manager'); ?>
+                                    </p>
                                 </td>
                             </tr>
                         </table>
@@ -3594,7 +3614,7 @@ class JPM_Admin
         }
 
         // Sort by ordering, then by ID as fallback
-        usort($statuses, function($a, $b) {
+        usort($statuses, function ($a, $b) {
             $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
             $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
             if ($order_a == $order_b) {
@@ -3799,7 +3819,7 @@ class JPM_Admin
         }
 
         // Sort by ordering, then by ID as fallback
-        usort($statuses, function($a, $b) {
+        usort($statuses, function ($a, $b) {
             $order_a = isset($a['ordering']) ? intval($a['ordering']) : (isset($a['id']) ? $a['id'] : 0);
             $order_b = isset($b['ordering']) ? intval($b['ordering']) : (isset($b['id']) ? $b['id'] : 0);
             if ($order_a == $order_b) {
@@ -4989,7 +5009,7 @@ class JPM_Admin
 
         $medical_details = $this->get_application_medical_details($application_id);
         $medical_status_slug = $this->get_medical_status_slug();
-        
+
         // Get rejection details if status is rejected
         $rejection_details = [];
         $rejected_status_slug = '';
@@ -5002,7 +5022,7 @@ class JPM_Admin
                 break;
             }
         }
-        
+
         if ($rejected_status_slug && $application->status === $rejected_status_slug) {
             $stored = get_option('jpm_application_rejection_details_' . $application_id, []);
             if (is_array($stored) && !empty($stored)) {
@@ -5724,7 +5744,7 @@ class JPM_Admin
                 <?php
                 $has_rejection_details = $rejected_status_slug && ($application->status === $rejected_status_slug) && !empty($rejection_details['notes']);
                 if ($has_rejection_details):
-                ?>
+                    ?>
                     <div class="divider"></div>
                     <div class="section">
                         <div class="section-title"><?php _e('Rejection Details', 'job-posting-manager'); ?></div>
@@ -5862,11 +5882,26 @@ class JPM_Admin
                 <?php
                 $has_education = false;
                 $education_fields = [
-                    'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
-                    'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
-                    'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status'
+                    'edu_primary_school_name',
+                    'edu_primary_school_address',
+                    'edu_primary_start_year',
+                    'edu_primary_end_year',
+                    'edu_primary_completed',
+                    'edu_secondary_school_name',
+                    'edu_secondary_school_address',
+                    'edu_secondary_school_type',
+                    'edu_secondary_start_year',
+                    'edu_secondary_end_year',
+                    'edu_secondary_completed',
+                    'edu_tertiary_institution_name',
+                    'edu_tertiary_school_address',
+                    'edu_tertiary_program',
+                    'edu_tertiary_degree_level',
+                    'edu_tertiary_start_year',
+                    'edu_tertiary_end_year',
+                    'edu_tertiary_status'
                 ];
-                
+
                 foreach ($education_fields as $edu_field) {
                     if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
                         $has_education = true;
@@ -5875,14 +5910,15 @@ class JPM_Admin
                 }
 
                 if ($has_education):
-                ?>
+                    ?>
                     <div class="section">
                         <div class="section-title"><?php _e('Education', 'job-posting-manager'); ?></div>
                         <div class="info-grid">
                             <!-- Primary Education -->
                             <?php if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])): ?>
                                 <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px;">
-                                    <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                    <div class="info-label"
+                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
                                         <?php _e('Primary Education', 'job-posting-manager'); ?>
                                     </div>
                                 </div>
@@ -5920,8 +5956,10 @@ class JPM_Admin
 
                             <!-- Secondary Education -->
                             <?php if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])): ?>
-                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                                    <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                <div class="info-row"
+                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                    <div class="info-label"
+                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
                                         <?php _e('Secondary Education', 'job-posting-manager'); ?>
                                     </div>
                                 </div>
@@ -5965,8 +6003,10 @@ class JPM_Admin
 
                             <!-- Tertiary Education -->
                             <?php if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])): ?>
-                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                                    <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                <div class="info-row"
+                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                    <div class="info-label"
+                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
                                         <?php _e('Tertiary Education', 'job-posting-manager'); ?>
                                     </div>
                                 </div>
@@ -6021,10 +6061,12 @@ class JPM_Admin
                 <!-- Employment Section -->
                 <?php
                 $has_employment = false;
-                if ((isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
+                if (
+                    (isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
                     (isset($form_data['emp_position']) && !empty($form_data['emp_position'])) ||
                     (isset($form_data['emp_years']) && !empty($form_data['emp_years'])) ||
-                    (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))) {
+                    (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))
+                ) {
                     $has_employment = true;
                 }
 
@@ -6038,7 +6080,7 @@ class JPM_Admin
                         $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
                         $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
                         $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
-                        
+
                         $max_count = max(count($company_names), count($positions), count($years));
                         for ($i = 0; $i < $max_count; $i++) {
                             if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
@@ -6050,17 +6092,21 @@ class JPM_Admin
                             }
                         }
                     }
-                ?>
+                    ?>
                     <div class="section">
                         <div class="section-title"><?php _e('Employment History', 'job-posting-manager'); ?></div>
                         <div class="info-grid">
                             <?php if (!empty($employment_entries)): ?>
                                 <?php foreach ($employment_entries as $index => $entry): ?>
                                     <?php if ($index > 0): ?>
-                                        <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;"></div>
+                                        <div class="info-row"
+                                            style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                        </div>
                                     <?php endif; ?>
-                                    <div class="info-row" style="grid-column: 1 / -1; margin-top: <?php echo $index > 0 ? '15px' : '0'; ?>;">
-                                        <div class="info-label" style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                    <div class="info-row"
+                                        style="grid-column: 1 / -1; margin-top: <?php echo $index > 0 ? '15px' : '0'; ?>;">
+                                        <div class="info-label"
+                                            style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
                                             <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
                                         </div>
                                     </div>
@@ -6098,12 +6144,32 @@ class JPM_Admin
                         <?php
                         // Exclude internal fields from display
                         $excluded_fields = [
-                            'application_number', 'date_of_registration', 'applicant_number',
+                            'application_number',
+                            'date_of_registration',
+                            'applicant_number',
                             // Exclude education and employment fields as they are shown in dedicated sections above
-                            'edu_primary_school_name', 'edu_primary_school_address', 'edu_primary_start_year', 'edu_primary_end_year', 'edu_primary_completed',
-                            'edu_secondary_school_name', 'edu_secondary_school_address', 'edu_secondary_school_type', 'edu_secondary_start_year', 'edu_secondary_end_year', 'edu_secondary_completed',
-                            'edu_tertiary_institution_name', 'edu_tertiary_school_address', 'edu_tertiary_program', 'edu_tertiary_degree_level', 'edu_tertiary_start_year', 'edu_tertiary_end_year', 'edu_tertiary_status',
-                            'emp_company_name', 'emp_position', 'emp_years', 'employment_entries'
+                            'edu_primary_school_name',
+                            'edu_primary_school_address',
+                            'edu_primary_start_year',
+                            'edu_primary_end_year',
+                            'edu_primary_completed',
+                            'edu_secondary_school_name',
+                            'edu_secondary_school_address',
+                            'edu_secondary_school_type',
+                            'edu_secondary_start_year',
+                            'edu_secondary_end_year',
+                            'edu_secondary_completed',
+                            'edu_tertiary_institution_name',
+                            'edu_tertiary_school_address',
+                            'edu_tertiary_program',
+                            'edu_tertiary_degree_level',
+                            'edu_tertiary_start_year',
+                            'edu_tertiary_end_year',
+                            'edu_tertiary_status',
+                            'emp_company_name',
+                            'emp_position',
+                            'emp_years',
+                            'employment_entries'
                         ];
 
                         // Skip if already displayed in applicant information

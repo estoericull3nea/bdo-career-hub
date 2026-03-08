@@ -440,14 +440,14 @@ class JPM_Frontend
         if (!empty($expiration_filter) && isset($expiration_filter['value'])) {
             $expiration_date = $expiration_filter['value'];
         }
-        
+
         // Cache key for locations and companies
         $cache_key_locations = 'jpm_locations_' . md5($expiration_date);
         $cache_key_companies = 'jpm_companies_' . md5($expiration_date);
-        
+
         $locations = wp_cache_get($cache_key_locations, 'jpm_filters');
         $companies = wp_cache_get($cache_key_companies, 'jpm_filters');
-        
+
         if (false === $locations || false === $companies) {
             // Build expiration date condition
             $expiration_condition = '';
@@ -457,7 +457,7 @@ class JPM_Frontend
                     $expiration_date
                 );
             }
-            
+
             // Get unique locations
             if (!empty($expiration_date)) {
                 $locations_query = $wpdb->prepare(
@@ -483,10 +483,10 @@ class JPM_Frontend
                     AND pm_loc.meta_value IS NOT NULL
                     ORDER BY pm_loc.meta_value ASC";
             }
-            
+
             $location_results = $wpdb->get_col($locations_query);
             $locations = array_filter(array_map('trim', $location_results));
-            
+
             // Get unique companies
             if (!empty($expiration_date)) {
                 $companies_query = $wpdb->prepare(
@@ -512,10 +512,10 @@ class JPM_Frontend
                     AND pm_comp.meta_value IS NOT NULL
                     ORDER BY pm_comp.meta_value ASC";
             }
-            
+
             $company_results = $wpdb->get_col($companies_query);
             $companies = array_filter(array_map('trim', $company_results));
-            
+
             // Cache for 1 hour
             wp_cache_set($cache_key_locations, $locations, 'jpm_filters', HOUR_IN_SECONDS);
             wp_cache_set($cache_key_companies, $companies, 'jpm_filters', HOUR_IN_SECONDS);
@@ -597,7 +597,7 @@ class JPM_Frontend
             </div>
 
             <!-- Jobs Grid -->
-            <?php if ($jobs_query->have_posts()): 
+            <?php if ($jobs_query->have_posts()):
                 // Optimize: Pre-fetch all post meta to avoid N+1 queries
                 $job_ids = [];
                 while ($jobs_query->have_posts()) {
@@ -608,7 +608,7 @@ class JPM_Frontend
                 if (!empty($job_ids)) {
                     update_post_meta_cache($job_ids);
                 }
-            ?>
+                ?>
                 <div class="jpm-latest-jobs">
                     <?php while ($jobs_query->have_posts()):
                         $jobs_query->the_post();
@@ -906,7 +906,7 @@ class JPM_Frontend
             if (!empty($job_ids)) {
                 update_post_meta_cache($job_ids);
             }
-            
+
             while ($jobs_query->have_posts()):
                 $jobs_query->the_post();
                 $job_id = get_the_ID();

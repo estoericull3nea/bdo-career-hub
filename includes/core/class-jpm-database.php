@@ -44,7 +44,7 @@ class JPM_Database
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
-        
+
         // Check for duplicate (only for logged-in users)
         if ($user_id > 0) {
             $existing = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d AND job_id = %d", $user_id, $job_id));
@@ -52,7 +52,7 @@ class JPM_Database
                 return new WP_Error('duplicate', __('You have already applied for this job.', 'job-posting-manager'));
             }
         }
-        
+
         $result = $wpdb->insert($table, [
             'user_id' => $user_id,
             'job_id' => $job_id,
@@ -60,11 +60,11 @@ class JPM_Database
             'notes' => sanitize_textarea_field($notes),
             'status' => 'pending',
         ]);
-        
+
         if ($result === false) {
             return new WP_Error('db_error', __('Failed to insert application.', 'job-posting-manager'));
         }
-        
+
         return $wpdb->insert_id;
     }
 
@@ -102,19 +102,19 @@ class JPM_Database
             $where[] = "status = %s";
             $where_values[] = $filters['status'];
         }
-        
+
         if (!empty($filters['job_id'])) {
             $where[] = "job_id = %d";
             $where_values[] = $filters['job_id'];
         }
-        
+
         if (!empty($filters['user_id'])) {
             $where[] = "user_id = %d";
             $where_values[] = $filters['user_id'];
         }
 
         $where_clause = implode(' AND ', $where);
-        
+
         if (!empty($where_values)) {
             $query = $wpdb->prepare(
                 "SELECT * FROM $table WHERE $where_clause ORDER BY application_date DESC",
@@ -147,12 +147,32 @@ class JPM_Database
         $filtered_applications = [];
 
         $search_fields = [
-            'first_name', 'firstname', 'fname', 'first-name',
-            'given_name', 'givenname', 'given-name', 'given name',
-            'middle_name', 'middlename', 'mname', 'middle-name', 'middle name',
-            'last_name', 'lastname', 'lname', 'last-name',
-            'surname', 'family_name', 'familyname', 'family-name', 'family name',
-            'email', 'email_address', 'e-mail', 'email-address',
+            'first_name',
+            'firstname',
+            'fname',
+            'first-name',
+            'given_name',
+            'givenname',
+            'given-name',
+            'given name',
+            'middle_name',
+            'middlename',
+            'mname',
+            'middle-name',
+            'middle name',
+            'last_name',
+            'lastname',
+            'lname',
+            'last-name',
+            'surname',
+            'family_name',
+            'familyname',
+            'family-name',
+            'family name',
+            'email',
+            'email_address',
+            'e-mail',
+            'email-address',
             'application_number'
         ];
 
@@ -242,7 +262,7 @@ class JPM_Database
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
-        
+
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
     }
 
