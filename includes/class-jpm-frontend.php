@@ -67,20 +67,80 @@ class JPM_Frontend
 
     public function handle_application()
     {
-        check_ajax_referer('jpm_nonce');
-        if (!is_user_logged_in())
-            wp_die(__('Please log in.', 'job-posting-manager'));
-        $job_id = intval($_POST['job_id']);
-        $cover_letter = sanitize_textarea_field($_POST['cover_letter']);
-        // Handle file upload
-        $upload = wp_handle_upload($_FILES['resume'], ['upload_error_handler' => 'jpm_upload_error']);
-        if (isset($upload['error']))
-            wp_die($upload['error']);
-        $result = JPM_DB::insert_application(get_current_user_id(), $job_id, $upload['file'], $cover_letter);
-        if (is_wp_error($result))
-            wp_die($result->get_error_message());
-        JPM_Emails::send_confirmation($result); // Pass insert ID
-        wp_die(__('Application submitted. ID: ' . $result, 'job-posting-manager'));
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_nonce', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Check rate limit
+        $rate_limit = JPM_Security::check_rate_limit('application');
+        if (!$rate_limit['allowed']) {
+            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            wp_send_json_error([
+                'message' => sprintf(__('Too many applications. Please try again in %s.', 'job-posting-manager'), $reset_time)
+            ]);
+            return;
+        }
+
+        // Check if user is logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(['message' => __('Please log in.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Validate and sanitize inputs
+        $job_id = JPM_Security::validate_int($_POST['job_id'] ?? 0, 1);
+        if (!$job_id) {
+            wp_send_json_error(['message' => __('Invalid job posting.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Verify job exists and is published
+        $job = get_post($job_id);
+        if (!$job || $job->post_type !== 'job_posting' || $job->post_status !== 'publish') {
+            wp_send_json_error(['message' => __('Job posting not found or not available.', 'job-posting-manager')]);
+            return;
+        }
+
+        $cover_letter = JPM_Security::validate_textarea($_POST['cover_letter'] ?? '', 5000);
+
+        // Validate file upload
+        if (empty($_FILES['resume']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error(['message' => __('Please upload a valid resume file.', 'job-posting-manager')]);
+            return;
+        }
+
+        $file_validation = JPM_Security::validate_file_upload($_FILES['resume'], [], 5242880); // 5MB max
+        if (!$file_validation['valid']) {
+            wp_send_json_error(['message' => $file_validation['error']]);
+            return;
+        }
+
+        // Handle file upload with validated file
+        $upload = wp_handle_upload($file_validation['file'], ['test_form' => false]);
+        if (isset($upload['error'])) {
+            JPM_Security::log_security_event('file_upload_error', 'Failed to upload resume', ['error' => $upload['error']]);
+            wp_send_json_error(['message' => __('Failed to upload file. Please try again.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Insert application
+        $result = JPM_Database::insert_application(get_current_user_id(), $job_id, $upload['file'], $cover_letter);
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+            return;
+        }
+
+        // Send confirmation email
+        if (class_exists('JPM_Emails')) {
+            JPM_Emails::send_confirmation($result);
+        }
+
+        wp_send_json_success([
+            'message' => __('Application submitted successfully!', 'job-posting-manager'),
+            'application_id' => $result
+        ]);
     }
 
     public function get_status()
@@ -2353,20 +2413,36 @@ class JPM_Frontend
      */
     public function handle_send_otp()
     {
-        check_ajax_referer('jpm_register', 'nonce');
-
-        // Get email from request and normalize it (lowercase, trim)
-        $email = sanitize_email($_POST['email'] ?? '');
-        $email = strtolower(trim($email));
-
-        // Validate email
-        if (empty($email) || !is_email($email)) {
-            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
         }
+
+        // Check rate limit
+        $rate_limit = JPM_Security::check_rate_limit('otp_send');
+        if (!$rate_limit['allowed']) {
+            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            wp_send_json_error([
+                'message' => sprintf(__('Too many OTP requests. Please try again in %s.', 'job-posting-manager'), $reset_time)
+            ]);
+            return;
+        }
+
+        // Validate and sanitize email
+        $email = JPM_Security::validate_email($_POST['email'] ?? '');
+        if (!$email) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Normalize email (lowercase, trim)
+        $email = strtolower(trim($email));
 
         // Check if email already exists
         if (email_exists($email)) {
             wp_send_json_error(['message' => __('An account with this email address already exists. Please login instead.', 'job-posting-manager')]);
+            return;
         }
 
         // Generate 6-digit OTP
@@ -2405,20 +2481,39 @@ class JPM_Frontend
      */
     public function handle_verify_otp()
     {
-        check_ajax_referer('jpm_register', 'nonce');
-
-        // Get email and OTP from request and normalize email (lowercase, trim)
-        $email = sanitize_email($_POST['email'] ?? '');
-        $email = strtolower(trim($email));
-        $otp = sanitize_text_field($_POST['otp'] ?? '');
-
-        // Validate inputs
-        if (empty($email) || !is_email($email)) {
-            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
         }
+
+        // Check rate limit
+        $rate_limit = JPM_Security::check_rate_limit('otp_verify');
+        if (!$rate_limit['allowed']) {
+            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            wp_send_json_error([
+                'message' => sprintf(__('Too many OTP verification attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
+            ]);
+            return;
+        }
+
+        // Validate and sanitize email
+        $email = JPM_Security::validate_email($_POST['email'] ?? '');
+        if (!$email) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Normalize email (lowercase, trim)
+        $email = strtolower(trim($email));
+
+        // Validate OTP
+        $otp = sanitize_text_field($_POST['otp'] ?? '');
+        $otp = preg_replace('/[^0-9]/', '', $otp); // Remove non-numeric characters
 
         if (empty($otp) || strlen($otp) !== 6 || !is_numeric($otp)) {
             wp_send_json_error(['message' => __('Please enter a valid 6-digit OTP.', 'job-posting-manager')]);
+            return;
         }
 
         // Get stored OTP (use normalized email for key)
@@ -2456,36 +2551,64 @@ class JPM_Frontend
      */
     public function handle_registration()
     {
-        check_ajax_referer('jpm_register', 'nonce');
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Check rate limit
+        $rate_limit = JPM_Security::check_rate_limit('register');
+        if (!$rate_limit['allowed']) {
+            $reset_time = date('H:i', $rate_limit['reset_time'] - time());
+            wp_send_json_error([
+                'message' => sprintf(__('Too many registration attempts. Please try again after %s.', 'job-posting-manager'), $reset_time)
+            ]);
+            return;
+        }
 
         // If user is already logged in
         if (is_user_logged_in()) {
             wp_send_json_error(['message' => __('You are already logged in.', 'job-posting-manager')]);
+            return;
         }
 
-        // Get form data and normalize email (lowercase, trim)
-        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
-        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
-        $email = sanitize_email($_POST['email'] ?? '');
-        $email = strtolower(trim($email));
+        // Validate and sanitize inputs
+        $first_name = JPM_Security::validate_text($_POST['first_name'] ?? '', 50);
+        $last_name = JPM_Security::validate_text($_POST['last_name'] ?? '', 50);
+        $email = JPM_Security::validate_email($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
-        $redirect_url = esc_url_raw($_POST['redirect_url'] ?? '');
+        $redirect_url = JPM_Security::validate_url($_POST['redirect_url'] ?? '');
 
         // Validate required fields
         if (empty($first_name)) {
             wp_send_json_error(['message' => __('First name is required.', 'job-posting-manager')]);
+            return;
         }
 
         if (empty($last_name)) {
             wp_send_json_error(['message' => __('Last name is required.', 'job-posting-manager')]);
+            return;
         }
 
-        if (empty($email) || !is_email($email)) {
+        if (!$email) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
+            return;
         }
 
+        // Normalize email
+        $email = strtolower(trim($email));
+
+        // Validate password strength
         if (empty($password) || strlen($password) < 8) {
             wp_send_json_error(['message' => __('Password must be at least 8 characters long.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Additional password validation
+        if (strlen($password) > 128) {
+            wp_send_json_error(['message' => __('Password is too long.', 'job-posting-manager')]);
+            return;
         }
 
         // Check if email already exists
@@ -6733,26 +6856,49 @@ class JPM_Frontend
      */
     public function handle_login()
     {
-        check_ajax_referer('jpm_login', 'nonce');
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_login', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Check rate limit
+        $rate_limit = JPM_Security::check_rate_limit('login');
+        if (!$rate_limit['allowed']) {
+            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            wp_send_json_error([
+                'message' => sprintf(__('Too many login attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
+            ]);
+            return;
+        }
 
         // If user is already logged in
         if (is_user_logged_in()) {
             wp_send_json_error(['message' => __('You are already logged in.', 'job-posting-manager')]);
+            return;
         }
 
-        // Get form data
-        $login = sanitize_text_field($_POST['email'] ?? '');
+        // Validate and sanitize inputs
+        $login = JPM_Security::validate_text($_POST['email'] ?? '', 100);
         $password = $_POST['password'] ?? '';
-        $remember = isset($_POST['remember']) && $_POST['remember'] == '1';
-        $redirect_url = esc_url_raw($_POST['redirect_url'] ?? '');
+        $remember = isset($_POST['remember']) && JPM_Security::validate_int($_POST['remember'], 0, 1) === 1;
+        $redirect_url = JPM_Security::validate_url($_POST['redirect_url'] ?? '');
 
         // Validate required fields
         if (empty($login)) {
             wp_send_json_error(['message' => __('Please enter your username or email address.', 'job-posting-manager')]);
+            return;
         }
 
         if (empty($password)) {
             wp_send_json_error(['message' => __('Password is required.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Prevent password length attacks
+        if (strlen($password) > 128) {
+            wp_send_json_error(['message' => __('Invalid credentials.', 'job-posting-manager')]);
+            return;
         }
 
         // Find user by email or username
@@ -6773,7 +6919,13 @@ class JPM_Frontend
 
         // Verify password
         if (!wp_check_password($password, $user->user_pass, $user->ID)) {
+            // Log failed login attempt
+            JPM_Security::log_security_event('failed_login', 'Failed login attempt', [
+                'login' => $login,
+                'user_id' => $user->ID
+            ]);
             wp_send_json_error(['message' => __('Invalid email or password.', 'job-posting-manager')]);
+            return;
         }
 
         // Login user

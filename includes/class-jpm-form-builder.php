@@ -1562,14 +1562,33 @@ class JPM_Form_Builder
     public function handle_form_submission()
     {
         // Verify nonce
-        if (!isset($_POST['jpm_application_nonce']) || !wp_verify_nonce($_POST['jpm_application_nonce'], 'jpm_application_form')) {
+        if (!JPM_Security::verify_nonce($_POST['jpm_application_nonce'] ?? '', 'jpm_application_form', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'job-posting-manager')]);
+            return;
         }
 
-        // Allow both logged in and non-logged-in users to apply
-        $job_id = intval($_POST['job_id'] ?? 0);
+        // Check rate limit
+        $rate_limit = JPM_Security::check_rate_limit('application');
+        if (!$rate_limit['allowed']) {
+            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            wp_send_json_error([
+                'message' => sprintf(__('Too many applications. Please try again in %s.', 'job-posting-manager'), $reset_time)
+            ]);
+            return;
+        }
+
+        // Validate job ID
+        $job_id = JPM_Security::validate_int($_POST['job_id'] ?? 0, 1);
         if (!$job_id) {
             wp_send_json_error(['message' => __('Invalid job posting.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Verify job exists and is published
+        $job = get_post($job_id);
+        if (!$job || $job->post_type !== 'job_posting' || $job->post_status !== 'publish') {
+            wp_send_json_error(['message' => __('Job posting not found or not available.', 'job-posting-manager')]);
+            return;
         }
 
         $form_fields = get_post_meta($job_id, '_jpm_form_fields', true);
@@ -1698,7 +1717,7 @@ class JPM_Form_Builder
             $field_name = $field['name'];
 
             if ($field['type'] === 'file') {
-                // Handle file upload
+                // Handle file upload with security validation
                 if (!empty($_FILES['jpm_fields']['name'][$field_name])) {
                     $file = [
                         'name' => $_FILES['jpm_fields']['name'][$field_name],
@@ -1707,10 +1726,22 @@ class JPM_Form_Builder
                         'error' => $_FILES['jpm_fields']['error'][$field_name],
                         'size' => $_FILES['jpm_fields']['size'][$field_name]
                     ];
-                    $upload = wp_handle_upload($file, ['test_form' => false]);
-                    if (isset($upload['error'])) {
-                        wp_send_json_error(['message' => $upload['error']]);
+                    
+                    // Validate file upload
+                    $file_validation = JPM_Security::validate_file_upload($file, [], 10485760); // 10MB max
+                    if (!$file_validation['valid']) {
+                        wp_send_json_error(['message' => sprintf(__('File upload error for %s: %s', 'job-posting-manager'), $field['label'], $file_validation['error'])]);
+                        return;
                     }
+                    
+                    // Use validated file data
+                    $upload = wp_handle_upload($file_validation['file'], ['test_form' => false]);
+                    if (isset($upload['error'])) {
+                        JPM_Security::log_security_event('file_upload_error', 'Failed to upload file', ['error' => $upload['error'], 'field' => $field_name]);
+                        wp_send_json_error(['message' => __('Failed to upload file. Please try again.', 'job-posting-manager')]);
+                        return;
+                    }
+                    
                     if ($field_name === 'resume' || strpos($field_name, 'resume') !== false) {
                         $resume_path = $upload['file'];
                     }

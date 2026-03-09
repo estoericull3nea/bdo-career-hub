@@ -22,6 +22,7 @@ define('JPM_VERSION', '1.0.0');
 // Include core modular classes first
 require_once JPM_PLUGIN_DIR . 'includes/core/class-jpm-database.php';
 require_once JPM_PLUGIN_DIR . 'includes/core/class-jpm-status-manager.php';
+require_once JPM_PLUGIN_DIR . 'includes/core/class-jpm-security.php';
 require_once JPM_PLUGIN_DIR . 'includes/emails/class-jpm-email-base.php';
 
 // Include legacy classes (maintain backward compatibility)

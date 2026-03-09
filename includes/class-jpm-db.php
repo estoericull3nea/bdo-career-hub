@@ -2857,17 +2857,32 @@ class JPM_Admin
      */
     public function update_application_status()
     {
-        check_ajax_referer('jpm_update_status', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_update_status', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
         }
 
-        $application_id = intval($_POST['application_id'] ?? 0);
-        $status = sanitize_text_field($_POST['status'] ?? '');
+        // Check capability
+        if (!JPM_Security::check_capability('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Validate inputs
+        $application_id = JPM_Security::validate_int($_POST['application_id'] ?? 0, 1);
+        $status = JPM_Security::validate_text($_POST['status'] ?? '', 50);
 
         if (!$application_id || !$status) {
-            wp_send_json_error(['message' => __('Invalid data', 'job-posting-manager')]);
+            wp_send_json_error(['message' => __('Invalid data.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Verify application exists
+        $application = JPM_Database::get_application($application_id);
+        if (!$application) {
+            wp_send_json_error(['message' => __('Application not found.', 'job-posting-manager')]);
+            return;
         }
 
         $result = JPM_DB::update_status($application_id, $status);
@@ -3011,24 +3026,46 @@ class JPM_Admin
      */
     public function save_medical_details_ajax()
     {
-        check_ajax_referer('jpm_medical_details', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
+        // Verify nonce
+        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_medical_details', 'ajax')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
         }
 
-        $application_id = absint($_POST['application_id'] ?? 0);
-        $requirements = isset($_POST['requirements']) ? wp_kses_post(wp_unslash($_POST['requirements'])) : '';
-        $address = isset($_POST['address']) ? sanitize_text_field(wp_unslash($_POST['address'])) : '';
-        $date = isset($_POST['date']) ? sanitize_text_field(wp_unslash($_POST['date'])) : '';
-        $time = isset($_POST['time']) ? sanitize_text_field(wp_unslash($_POST['time'])) : '';
+        // Check capability
+        if (!JPM_Security::check_capability('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'job-posting-manager')]);
+            return;
+        }
 
-        if ($application_id <= 0) {
-            wp_send_json_error(['message' => __('Invalid application ID', 'job-posting-manager')]);
+        // Validate inputs
+        $application_id = JPM_Security::validate_int($_POST['application_id'] ?? 0, 1);
+        $requirements = isset($_POST['requirements']) ? wp_kses_post(wp_unslash($_POST['requirements'])) : '';
+        $address = JPM_Security::validate_text($_POST['address'] ?? '', 255);
+        $date = JPM_Security::validate_text($_POST['date'] ?? '', 50);
+        $time = JPM_Security::validate_text($_POST['time'] ?? '', 50);
+
+        if (!$application_id) {
+            wp_send_json_error(['message' => __('Invalid application ID.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Verify application exists
+        $application = JPM_Database::get_application($application_id);
+        if (!$application) {
+            wp_send_json_error(['message' => __('Application not found.', 'job-posting-manager')]);
+            return;
         }
 
         if (empty($requirements)) {
             wp_send_json_error(['message' => __('Please enter the requirements.', 'job-posting-manager')]);
+            return;
+        }
+
+        // Validate requirements length
+        if (strlen($requirements) > 10000) {
+            wp_send_json_error(['message' => __('Requirements text is too long.', 'job-posting-manager')]);
+            return;
         }
 
         $medical_status_slug = $this->get_medical_status_slug();
