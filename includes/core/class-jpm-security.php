@@ -8,10 +8,14 @@ class JPM_Security
 {
     /**
      * Rate limit configuration
+     *
+     * Note: Registration is intentionally not rate-limited at this layer
+     * to avoid blocking legitimate sign-ups. Use external tools (e.g. WAF,
+     * CAPTCHA, or firewall rules) if you want to throttle registrations.
      */
     private static $rate_limits = [
         'login' => ['limit' => 5, 'window' => 900], // 5 attempts per 15 minutes
-        'register' => ['limit' => 3, 'window' => 3600], // 3 attempts per hour
+        // 'register' => ['limit' => 3, 'window' => 3600], // Removed registration rate limit
         'otp_send' => ['limit' => 5, 'window' => 300], // 5 attempts per 5 minutes
         'otp_verify' => ['limit' => 10, 'window' => 300], // 10 attempts per 5 minutes
         'application' => ['limit' => 10, 'window' => 3600], // 10 applications per hour
