@@ -1,7 +1,6 @@
 <?php
 /**
  * Plugin Name: Job Posting Manager
- * Plugin URI: https://example.com/job-posting-manager
  * Description: A plugin for managing job postings, applications, and notifications.
  * Version: 5.1.1
  * Author: Ericson Palisoc
