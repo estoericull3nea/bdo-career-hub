@@ -68,7 +68,7 @@ class JPM_Frontend
     public function handle_application()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_nonce', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_nonce', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -76,7 +76,7 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('application');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
                 /* translators: %s: Time remaining before next attempt is allowed. */
                 'message' => sprintf(__('Too many applications. Please try again in %s.', 'job-posting-manager'), $reset_time)
@@ -91,7 +91,7 @@ class JPM_Frontend
         }
 
         // Validate and sanitize inputs
-        $job_id = JPM_Security::validate_int($_POST['job_id'] ?? 0, 1);
+        $job_id = JPM_Security::validate_int(isset($_POST['job_id']) ? wp_unslash($_POST['job_id']) : 0, 1);
         if (!$job_id) {
             wp_send_json_error(['message' => __('Invalid job posting.', 'job-posting-manager')]);
             return;
@@ -104,10 +104,10 @@ class JPM_Frontend
             return;
         }
 
-        $cover_letter = JPM_Security::validate_textarea($_POST['cover_letter'] ?? '', 5000);
+        $cover_letter = JPM_Security::validate_textarea(isset($_POST['cover_letter']) ? wp_unslash($_POST['cover_letter']) : '', 5000);
 
         // Validate file upload
-        if (empty($_FILES['resume']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
+        if (!isset($_FILES['resume'], $_FILES['resume']['error']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
             wp_send_json_error(['message' => __('Please upload a valid resume file.', 'job-posting-manager')]);
             return;
         }
@@ -320,11 +320,11 @@ class JPM_Frontend
     public function get_job_details()
     {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $job_id = intval($_POST['job_id'] ?? 0);
+        $job_id = isset($_POST['job_id']) ? absint(wp_unslash($_POST['job_id'])) : 0;
 
         if ($job_id <= 0) {
             wp_send_json_error(['message' => __('Invalid job ID.', 'job-posting-manager')]);
@@ -436,12 +436,12 @@ class JPM_Frontend
         }
 
         // Get current page
-        $paged = isset($_GET['jpm_page']) ? max(1, intval($_GET['jpm_page'])) : 1;
+        $paged = isset($_GET['jpm_page']) ? max(1, absint(wp_unslash($_GET['jpm_page']))) : 1;
 
         // Get filter values
-        $search = isset($_GET['jpm_search']) ? sanitize_text_field($_GET['jpm_search']) : '';
-        $location_filter = isset($_GET['jpm_location']) ? sanitize_text_field($_GET['jpm_location']) : '';
-        $company_filter = isset($_GET['jpm_company']) ? sanitize_text_field($_GET['jpm_company']) : '';
+        $search = isset($_GET['jpm_search']) ? sanitize_text_field(wp_unslash($_GET['jpm_search'])) : '';
+        $location_filter = isset($_GET['jpm_location']) ? sanitize_text_field(wp_unslash($_GET['jpm_location'])) : '';
+        $company_filter = isset($_GET['jpm_company']) ? sanitize_text_field(wp_unslash($_GET['jpm_company'])) : '';
 
         // Query jobs with filters
         $args = [
@@ -900,15 +900,15 @@ class JPM_Frontend
     public function filter_jobs_ajax()
     {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $per_page = intval($_POST['per_page'] ?? 12);
-        $paged = max(1, intval($_POST['paged'] ?? 1));
-        $search = sanitize_text_field($_POST['search'] ?? '');
-        $location_filter = sanitize_text_field($_POST['location'] ?? '');
-        $company_filter = sanitize_text_field($_POST['company'] ?? '');
+        $per_page = isset($_POST['per_page']) ? absint(wp_unslash($_POST['per_page'])) : 12;
+        $paged = isset($_POST['paged']) ? max(1, absint(wp_unslash($_POST['paged']))) : 1;
+        $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
+        $location_filter = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
+        $company_filter = isset($_POST['company']) ? sanitize_text_field(wp_unslash($_POST['company'])) : '';
 
         $args = [
             'post_type' => 'job_posting',
@@ -1208,11 +1208,11 @@ class JPM_Frontend
     public function track_application_ajax()
     {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $application_number_input = isset($_POST['application_number']) ? sanitize_text_field($_POST['application_number']) : '';
+        $application_number_input = isset($_POST['application_number']) ? sanitize_text_field(wp_unslash($_POST['application_number'])) : '';
 
         if (empty($application_number_input)) {
             wp_send_json_error(['message' => __('Please enter a valid application number.', 'job-posting-manager')]);
@@ -1243,14 +1243,14 @@ class JPM_Frontend
 
         // First try exact match with common field names
         $applications = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table WHERE notes LIKE %s",
+            "SELECT * FROM {$table} WHERE notes LIKE %s",
             '%"application_number":"' . $wpdb->esc_like($application_number_input) . '"%'
         ));
 
         // If not found, try other field name variations
         if (empty($applications)) {
             $applications = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM $table WHERE notes LIKE %s",
+                "SELECT * FROM {$table} WHERE notes LIKE %s",
                 $search_term
             ));
         }
@@ -2424,7 +2424,7 @@ class JPM_Frontend
     public function handle_send_otp()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_register', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2432,7 +2432,7 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('otp_send');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
                 /* translators: %s: Time remaining before next OTP request is allowed. */
                 'message' => sprintf(__('Too many OTP requests. Please try again in %s.', 'job-posting-manager'), $reset_time)
@@ -2441,7 +2441,7 @@ class JPM_Frontend
         }
 
         // Validate and sanitize email
-        $email = JPM_Security::validate_email($_POST['email'] ?? '');
+        $email = JPM_Security::validate_email(isset($_POST['email']) ? wp_unslash($_POST['email']) : '');
         if (!$email) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
             return;
@@ -2479,7 +2479,7 @@ class JPM_Frontend
                     wp_send_json_error(['message' => __('Failed to send OTP email. Please try again.', 'job-posting-manager')]);
                 }
             } catch (Exception $e) {
-                error_log('JPM: Failed to send OTP email - ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM: Failed to send OTP email - ' . $e->getMessage());
                 wp_send_json_error(['message' => __('Failed to send OTP email. Please try again.', 'job-posting-manager')]);
             }
         } else {
@@ -2493,7 +2493,7 @@ class JPM_Frontend
     public function handle_verify_otp()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_register', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2501,7 +2501,7 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('otp_verify');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
                 /* translators: %s: Time remaining before next OTP verification attempt is allowed. */
                 'message' => sprintf(__('Too many OTP verification attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
@@ -2510,7 +2510,7 @@ class JPM_Frontend
         }
 
         // Validate and sanitize email
-        $email = JPM_Security::validate_email($_POST['email'] ?? '');
+        $email = JPM_Security::validate_email(isset($_POST['email']) ? wp_unslash($_POST['email']) : '');
         if (!$email) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
             return;
@@ -2520,7 +2520,7 @@ class JPM_Frontend
         $email = strtolower(trim($email));
 
         // Validate OTP
-        $otp = sanitize_text_field($_POST['otp'] ?? '');
+        $otp = isset($_POST['otp']) ? sanitize_text_field(wp_unslash($_POST['otp'])) : '';
         $otp = preg_replace('/[^0-9]/', '', $otp); // Remove non-numeric characters
 
         if (empty($otp) || strlen($otp) !== 6 || !is_numeric($otp)) {
@@ -2564,7 +2564,7 @@ class JPM_Frontend
     public function handle_registration()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_register', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2572,7 +2572,7 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('register');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('H:i', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('H:i', $rate_limit['reset_time'] - time());
             wp_send_json_error([
                 /* translators: %s: Time when registration can be attempted again. */
                 'message' => sprintf(__('Too many registration attempts. Please try again after %s.', 'job-posting-manager'), $reset_time)
@@ -2587,11 +2587,11 @@ class JPM_Frontend
         }
 
         // Validate and sanitize inputs
-        $first_name = JPM_Security::validate_text($_POST['first_name'] ?? '', 50);
-        $last_name = JPM_Security::validate_text($_POST['last_name'] ?? '', 50);
-        $email = JPM_Security::validate_email($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $redirect_url = JPM_Security::validate_url($_POST['redirect_url'] ?? '');
+        $first_name = JPM_Security::validate_text(isset($_POST['first_name']) ? wp_unslash($_POST['first_name']) : '', 50);
+        $last_name = JPM_Security::validate_text(isset($_POST['last_name']) ? wp_unslash($_POST['last_name']) : '', 50);
+        $email = JPM_Security::validate_email(isset($_POST['email']) ? wp_unslash($_POST['email']) : '');
+        $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+        $redirect_url = JPM_Security::validate_url(isset($_POST['redirect_url']) ? wp_unslash($_POST['redirect_url']) : '');
 
         // Validate required fields
         if (empty($first_name)) {
@@ -2683,7 +2683,7 @@ class JPM_Frontend
             try {
                 JPM_Emails::send_account_creation_notification($user_id, $email, $password, $first_name, $last_name);
             } catch (Exception $e) {
-                error_log('JPM: Failed to send account creation email - ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM: Failed to send account creation email - ' . $e->getMessage());
             }
         }
 
@@ -2694,7 +2694,7 @@ class JPM_Frontend
                 $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
                 JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email);
             } catch (Exception $e) {
-                error_log('JPM: Failed to send new customer notification - ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM: Failed to send new customer notification - ' . $e->getMessage());
             }
         }
 
@@ -3571,8 +3571,8 @@ class JPM_Frontend
         }
 
         // Get reset key and login from URL
-        $key = isset($_GET['key']) ? sanitize_text_field($_GET['key']) : '';
-        $login = isset($_GET['login']) ? sanitize_user($_GET['login']) : '';
+        $key = isset($_GET['key']) ? sanitize_text_field(wp_unslash($_GET['key'])) : '';
+        $login = isset($_GET['login']) ? sanitize_user(wp_unslash($_GET['login'])) : '';
 
         // Validate reset key
         $user = null;
@@ -4295,7 +4295,7 @@ class JPM_Frontend
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
         $applications = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table WHERE user_id = %d ORDER BY application_date DESC",
+            "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC",
             $user_id
         ));
 
@@ -5333,7 +5333,7 @@ class JPM_Frontend
                                                                         $date_value = $medical_details['date'];
                                                                         $timestamp = strtotime($date_value);
                                                                         if ($timestamp !== false) {
-                                                                            echo esc_html(date('F j, Y', $timestamp));
+                                                                            echo esc_html(gmdate('F j, Y', $timestamp));
                                                                         } else {
                                                                             echo esc_html($date_value);
                                                                         }
@@ -5403,7 +5403,7 @@ class JPM_Frontend
                                                                         $date_value = $interview_details['date'];
                                                                         $timestamp = strtotime($date_value);
                                                                         if ($timestamp !== false) {
-                                                                            echo esc_html(date('F j, Y', $timestamp));
+                                                                            echo esc_html(gmdate('F j, Y', $timestamp));
                                                                         } else {
                                                                             echo esc_html($date_value);
                                                                         }
@@ -6881,7 +6881,7 @@ class JPM_Frontend
     public function handle_login()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_login', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_login', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -6889,7 +6889,7 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('login');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
                 /* translators: %s: Time remaining before next login attempt is allowed. */
                 'message' => sprintf(__('Too many login attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
@@ -6904,10 +6904,10 @@ class JPM_Frontend
         }
 
         // Validate and sanitize inputs
-        $login = JPM_Security::validate_text($_POST['email'] ?? '', 100);
-        $password = $_POST['password'] ?? '';
-        $remember = isset($_POST['remember']) && JPM_Security::validate_int($_POST['remember'], 0, 1) === 1;
-        $redirect_url = JPM_Security::validate_url($_POST['redirect_url'] ?? '');
+        $login = JPM_Security::validate_text(isset($_POST['email']) ? wp_unslash($_POST['email']) : '', 100);
+        $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+        $remember = isset($_POST['remember']) && JPM_Security::validate_int(wp_unslash($_POST['remember']), 0, 1) === 1;
+        $redirect_url = JPM_Security::validate_url(isset($_POST['redirect_url']) ? wp_unslash($_POST['redirect_url']) : '');
 
         // Validate required fields
         if (empty($login)) {
@@ -6995,7 +6995,7 @@ class JPM_Frontend
         }
 
         // Get redirect URL
-        $redirect_url = esc_url_raw($_POST['redirect_url'] ?? home_url('/sign-in/'));
+        $redirect_url = isset($_POST['redirect_url']) ? esc_url_raw(wp_unslash($_POST['redirect_url'])) : home_url('/sign-in/');
 
         // Logout user
         wp_logout();
@@ -7358,7 +7358,7 @@ class JPM_Frontend
         }
 
         // Get form data
-        $email = sanitize_email($_POST['email'] ?? '');
+        $email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
 
         // Validate required fields
         if (empty($email) || !is_email($email)) {
@@ -7400,10 +7400,10 @@ class JPM_Frontend
         }
 
         // Get form data
-        $key = sanitize_text_field($_POST['key'] ?? '');
-        $login = sanitize_user($_POST['login'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $password_confirm = $_POST['password_confirm'] ?? '';
+        $key = isset($_POST['key']) ? sanitize_text_field(wp_unslash($_POST['key'])) : '';
+        $login = isset($_POST['login']) ? sanitize_user(wp_unslash($_POST['login'])) : '';
+        $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+        $password_confirm = isset($_POST['password_confirm']) ? wp_unslash($_POST['password_confirm']) : '';
 
         // Validate required fields
         if (empty($key) || empty($login)) {
@@ -7468,9 +7468,9 @@ class JPM_Frontend
         }
 
         // Get and sanitize form data
-        $display_name = sanitize_text_field($_POST['display_name'] ?? '');
-        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
-        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
+        $display_name = isset($_POST['display_name']) ? sanitize_text_field(wp_unslash($_POST['display_name'])) : '';
+        $first_name = isset($_POST['first_name']) ? sanitize_text_field(wp_unslash($_POST['first_name'])) : '';
+        $last_name = isset($_POST['last_name']) ? sanitize_text_field(wp_unslash($_POST['last_name'])) : '';
 
         // Validate required fields
         if (empty($display_name)) {
