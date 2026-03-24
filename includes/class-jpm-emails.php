@@ -2,6 +2,24 @@
 class JPM_Emails
 {
     /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private static function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
+    /**
      * Fetch and cache a job application row by ID.
      *
      * @param int $app_id Application ID.
@@ -21,7 +39,7 @@ class JPM_Emails
         }
 
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = self::get_validated_applications_table();
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
         wp_cache_set($cache_key, $application, 'jpm_emails', 5 * MINUTE_IN_SECONDS);
 
