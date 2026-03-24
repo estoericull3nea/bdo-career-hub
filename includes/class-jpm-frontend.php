@@ -646,7 +646,7 @@ class JPM_Frontend
                     if ($total > 0) {
                         /* translators: 1: First result number, 2: last result number, 3: total number of jobs. */
                         printf(
-                            __('Showing %d-%d of %d jobs', 'job-posting-manager'),
+                            __('Showing %1$d-%2$d of %3$d jobs', 'job-posting-manager'),
                             $start,
                             $end,
                             $total
@@ -4525,8 +4525,7 @@ class JPM_Frontend
                                                     <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
                                                     </h4>
                                                     <?php if ($application_number): ?>
-                                                        <span
-                                                            <?php /* translators: %s: Application number. */ ?>
+                                                        <span <?php /* translators: %s: Application number. */ ?>
                                                             class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
                                                     <?php endif; ?>
                                                 </div>
@@ -4679,8 +4678,7 @@ class JPM_Frontend
                                                 <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
                                                 </h4>
                                                 <?php if ($application_number): ?>
-                                                    <span
-                                                        <?php /* translators: %s: Application number. */ ?>
+                                                    <span <?php /* translators: %s: Application number. */ ?>
                                                         class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
                                                 <?php endif; ?>
                                             </div>
