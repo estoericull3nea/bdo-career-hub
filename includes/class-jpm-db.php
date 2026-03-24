@@ -2213,7 +2213,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                     });
+                                                                                                                                                                                             });
         </script>
         <?php
     }
@@ -4385,7 +4385,7 @@ class JPM_Admin
                         /* translators: %d: Number of imported applications. */
                         $message = sprintf(__('Successfully imported all %d application(s).', 'job-posting-manager'), $success_count);
                     }
-                    echo '<div class="notice notice-success is-dismissible"><p><strong>' . esc_html__('Import Success:', 'job-posting-manager') . '</strong> ' . $message . '</p></div>';
+                    echo '<div class="notice notice-success is-dismissible"><p><strong>' . esc_html__('Import Success:', 'job-posting-manager') . '</strong> ' . esc_html($message) . '</p></div>';
                 });
             }
 
@@ -4408,7 +4408,7 @@ class JPM_Admin
                 }
 
                 add_action('admin_notices', function () use ($error_message) {
-                    echo '<div class="notice notice-error is-dismissible"><p>' . $error_message . '</p></div>';
+                    echo '<div class="notice notice-error is-dismissible"><p>' . wp_kses_post($error_message) . '</p></div>';
                 });
             }
         } else {
@@ -5124,7 +5124,7 @@ class JPM_Admin
             <meta charset="<?php bloginfo('charset'); ?>">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <?php /* translators: %d: Application ID. */ ?>
-            <title><?php printf(__('Application #%d - Print', 'job-posting-manager'), $application_id); ?></title>
+            <title><?php printf(__('Application #%d - Print', 'job-posting-manager'), absint($application_id)); ?></title>
             <style>
                 /* Hide all WordPress admin elements */
                 #wpadminbar,
@@ -5712,7 +5712,7 @@ class JPM_Admin
                 <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important;">
                     <h1><?php esc_html_e('Job Application', 'job-posting-manager'); ?></h1>
                     <?php /* translators: %d: Application ID. */ ?>
-                    <div class="subtitle"><?php printf(__('Application #%d', 'job-posting-manager'), $application_id); ?></div>
+                    <div class="subtitle"><?php printf(__('Application #%d', 'job-posting-manager'), absint($application_id)); ?></div>
                     <?php if (get_bloginfo('name')): ?>
                         <div class="company-info"><?php echo esc_html(get_bloginfo('name')); ?></div>
                     <?php endif; ?>
@@ -6181,11 +6181,11 @@ class JPM_Admin
                                         </div>
                                     <?php endif; ?>
                                     <div class="info-row"
-                                        style="grid-column: 1 / -1; margin-top: <?php echo $index > 0 ? '15px' : '0'; ?>;">
+                                        style="grid-column: 1 / -1; margin-top: <?php echo esc_attr($index > 0 ? '15px' : '0'); ?>;">
                                         <div class="info-label"
                                             style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
                                             <?php /* translators: %d: Employment entry number. */ ?>
-                                            <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
+                                            <?php printf(__('Employment #%d', 'job-posting-manager'), absint($index + 1)); ?>
                                         </div>
                                     </div>
                                     <?php if (!empty($entry['company_name'])): ?>
@@ -6315,11 +6315,11 @@ class JPM_Admin
                                             } elseif (strlen($field_value) > 200) {
                                                 // Handle long text - preserve line breaks and format nicely
                                                 $formatted_value = nl2br(esc_html($field_value));
-                                                echo '<div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0;">' . $formatted_value . '</div>';
+                                                echo '<div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0;">' . wp_kses_post($formatted_value) . '</div>';
                                             } else {
                                                 // Regular text - preserve line breaks
                                                 $formatted_value = nl2br(esc_html($field_value));
-                                                echo $formatted_value;
+                                                echo wp_kses_post($formatted_value);
                                             }
                                             ?>
                                         </div>
@@ -6336,7 +6336,7 @@ class JPM_Admin
 
                 <div class="footer">
                     <?php /* translators: 1: Printed date/time, 2: Site name. */ ?>
-                    <p><?php printf(__('Printed on %1$s from %2$s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')), get_bloginfo('name')); ?>
+                    <p><?php printf(__('Printed on %1$s from %2$s', 'job-posting-manager'), esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'))), esc_html(get_bloginfo('name'))); ?>
                     </p>
                 </div>
             </div>
