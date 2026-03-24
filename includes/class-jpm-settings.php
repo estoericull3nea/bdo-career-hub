@@ -922,8 +922,10 @@ class JPM_Settings
         $body .= __('If you received this email, your SMTP settings are configured correctly!', 'job-posting-manager');
         $body .= '</p>';
         $body .= '<p style="color: #666; font-size: 12px;">';
+        /* translators: %s: Site name. */
         $body .= sprintf(__('Sent from: %s', 'job-posting-manager'), get_bloginfo('name'));
         $body .= '<br>';
+        /* translators: %s: Current server time in mysql format. */
         $body .= sprintf(__('Time: %s', 'job-posting-manager'), current_time('mysql'));
         $body .= '</p>';
         $body .= '</div>';
@@ -961,6 +963,7 @@ class JPM_Settings
 
         if ($result) {
             wp_send_json_success([
+                /* translators: %s: Recipient email address used for the test email. */
                 'message' => sprintf(__('Test email sent successfully to %s!', 'job-posting-manager'), $test_email)
             ]);
         } else {
