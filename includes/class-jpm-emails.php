@@ -2,6 +2,33 @@
 class JPM_Emails
 {
     /**
+     * Fetch and cache a job application row by ID.
+     *
+     * @param int $app_id Application ID.
+     * @return object|null
+     */
+    private static function get_application_row($app_id)
+    {
+        $app_id = absint($app_id);
+        if ($app_id <= 0) {
+            return null;
+        }
+
+        $cache_key = 'jpm_email_app_' . $app_id;
+        $cached = wp_cache_get($cache_key, 'jpm_emails');
+        if (false !== $cached) {
+            return $cached;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
+        wp_cache_set($cache_key, $application, 'jpm_emails', 5 * MINUTE_IN_SECONDS);
+
+        return $application;
+    }
+
+    /**
      * Detect the slug used for the "For Medical" status.
      */
     private static function get_medical_status_slug()
@@ -143,9 +170,7 @@ class JPM_Emails
         }
 
         // Get application status from database
-        global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
+        $application = self::get_application_row($app_id);
 
         // Get status information
         $status_slug = 'pending'; // Default status
@@ -303,11 +328,8 @@ class JPM_Emails
             do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
-        global $wpdb;
-
         // Get application details
-        $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
+        $application = self::get_application_row($app_id);
 
         if (!$application) {
             do_action('jpm_log_error', 'JPM: Application not found for ID: ' . $app_id);
