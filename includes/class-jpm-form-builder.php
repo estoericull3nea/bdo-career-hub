@@ -8,6 +8,24 @@ class JPM_Form_Builder
     private $current_job_id = 0;
     private $current_job_title = '';
 
+    /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
     public function __construct()
     {
         add_action('add_meta_boxes', [$this, 'add_form_builder_meta_box']);
@@ -601,7 +619,7 @@ class JPM_Form_Builder
                         } else {
                             // Fallback: Get user's most recent application data
                             global $wpdb;
-                            $table = $wpdb->prefix . 'job_applications';
+                            $table = $this->get_validated_applications_table();
                             $cache_key = 'jpm_latest_application_' . absint($user_id);
                             $latest_application = wp_cache_get($cache_key, 'jpm_form_builder');
                             if (false === $latest_application) {
