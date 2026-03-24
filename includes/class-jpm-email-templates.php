@@ -123,7 +123,7 @@ class JPM_Email_Templates
 
             update_option('jpm_email_templates', $templates);
 
-            wp_redirect(admin_url('admin.php?page=jpm-email-templates&saved=1'));
+            wp_safe_redirect(admin_url('admin.php?page=jpm-email-templates&saved=1'));
             exit;
         }
     }
@@ -360,7 +360,8 @@ class JPM_Email_Templates
                             </tr>
                             <tr>
                                 <th scope="row">
-                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
+                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label>
+                                </th>
                                 <td><input type="color" name="confirmation_footer_bg_color"
                                         value="<?php echo esc_attr($confirmation['footer_bg_color']); ?>" /></td>
                             </tr>
@@ -479,7 +480,8 @@ class JPM_Email_Templates
                             </tr>
                             <tr>
                                 <th scope="row">
-                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
+                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label>
+                                </th>
                                 <td><input type="color" name="status_update_footer_bg_color"
                                         value="<?php echo esc_attr($status_update['footer_bg_color']); ?>" /></td>
                             </tr>
@@ -617,7 +619,8 @@ class JPM_Email_Templates
                             </tr>
                             <tr>
                                 <th scope="row">
-                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
+                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label>
+                                </th>
                                 <td><input type="color" name="admin_notification_footer_bg_color"
                                         value="<?php echo esc_attr($admin_notification['footer_bg_color']); ?>" /></td>
                             </tr>
