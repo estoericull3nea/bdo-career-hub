@@ -64,7 +64,7 @@ class JPM_Admin
      */
     public function redirect_job_postings_list()
     {
-        if (isset($_GET['post_type']) && $_GET['post_type'] === 'job_posting') {
+        if (isset($_GET['post_type']) && sanitize_text_field(wp_unslash($_GET['post_type'])) === 'job_posting') {
             wp_redirect(admin_url('admin.php?page=jpm-dashboard'));
             exit;
         }
@@ -171,6 +171,7 @@ class JPM_Admin
             // Batch fetch application counts for all jobs
             $job_ids_placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
             $application_counts_results = $wpdb->get_results(
+                // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Dynamic IN placeholders are built from validated IDs above.
                 $wpdb->prepare(
                     "SELECT job_id, COUNT(*) as count 
                     FROM {$table} 
@@ -797,7 +798,7 @@ class JPM_Admin
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . $application->id)); ?>"
+                                        <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
                                             target="_blank" class="button button-small" style="text-decoration: none;">
                                             <?php esc_html_e('View Details', 'job-posting-manager'); ?>
                                         </a>
@@ -1890,7 +1891,7 @@ class JPM_Admin
         }
 
         // Save job metadata
-        if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce($_POST['jpm_job_nonce'], 'jpm_job_meta')) {
+        if (isset($_POST['jpm_job_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['jpm_job_nonce'])), 'jpm_job_meta')) {
             // Validate required expiration duration field
             $expiration_missing = empty($_POST['expiration_duration']) || empty($_POST['expiration_unit']);
             if ($expiration_missing) {
@@ -1903,25 +1904,25 @@ class JPM_Admin
                 }
             }
             if (isset($_POST['company_name'])) {
-                update_post_meta($post_id, 'company_name', sanitize_text_field($_POST['company_name']));
+                update_post_meta($post_id, 'company_name', sanitize_text_field(wp_unslash($_POST['company_name'])));
             } else {
                 delete_post_meta($post_id, 'company_name');
             }
 
             if (isset($_POST['location'])) {
-                update_post_meta($post_id, 'location', sanitize_text_field($_POST['location']));
+                update_post_meta($post_id, 'location', sanitize_text_field(wp_unslash($_POST['location'])));
             } else {
                 delete_post_meta($post_id, 'location');
             }
 
             if (isset($_POST['salary'])) {
-                update_post_meta($post_id, 'salary', sanitize_text_field($_POST['salary']));
+                update_post_meta($post_id, 'salary', sanitize_text_field(wp_unslash($_POST['salary'])));
             } else {
                 delete_post_meta($post_id, 'salary');
             }
 
             if (isset($_POST['duration'])) {
-                update_post_meta($post_id, 'duration', sanitize_text_field($_POST['duration']));
+                update_post_meta($post_id, 'duration', sanitize_text_field(wp_unslash($_POST['duration'])));
             } else {
                 delete_post_meta($post_id, 'duration');
             }
@@ -1931,8 +1932,8 @@ class JPM_Admin
                 isset($_POST['expiration_duration']) && isset($_POST['expiration_unit']) &&
                 !empty($_POST['expiration_duration']) && !empty($_POST['expiration_unit'])
             ) {
-                $expiration_duration = absint($_POST['expiration_duration']);
-                $expiration_unit = sanitize_text_field($_POST['expiration_unit']);
+                $expiration_duration = absint(wp_unslash($_POST['expiration_duration']));
+                $expiration_unit = sanitize_text_field(wp_unslash($_POST['expiration_unit']));
 
                 // Validate unit
                 $allowed_units = ['minutes', 'hours', 'days', 'months'];
@@ -2002,9 +2003,9 @@ class JPM_Admin
         }
 
         // Save company image (separate nonce check)
-        if (isset($_POST['jpm_company_image_nonce']) && wp_verify_nonce($_POST['jpm_company_image_nonce'], 'jpm_company_image')) {
+        if (isset($_POST['jpm_company_image_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['jpm_company_image_nonce'])), 'jpm_company_image')) {
             if (isset($_POST['company_image']) && !empty($_POST['company_image'])) {
-                update_post_meta($post_id, 'company_image', absint($_POST['company_image']));
+                update_post_meta($post_id, 'company_image', absint(wp_unslash($_POST['company_image'])));
             } else {
                 delete_post_meta($post_id, 'company_image');
             }
@@ -2215,9 +2216,9 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                     });
-        </script>
-        <?php
+                                                                                                                                                                                                                         });
+                </script>
+                <?php
     }
 
     /**
@@ -2534,9 +2535,9 @@ class JPM_Admin
             return;
         }
 
-        $period = isset($_POST['period']) ? sanitize_text_field($_POST['period']) : '7days';
-        $start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '';
-        $end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '';
+        $period = isset($_POST['period']) ? sanitize_text_field(wp_unslash($_POST['period'])) : '7days';
+        $start_date = isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '';
+        $end_date = isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : '';
 
         $data = $this->get_chart_data($period, $start_date, $end_date);
 
@@ -2546,27 +2547,27 @@ class JPM_Admin
             $max_count = max(array_column($data, 'count'));
             $max_count = $max_count > 0 ? $max_count : 1;
             ?>
-            <div
-                style="display: flex; align-items: flex-end; justify-content: space-around; height: 200px; border-bottom: 2px solid #ddd; padding-bottom: 10px; position: relative;">
-                <?php foreach ($data as $day):
-                    $height_px = ($day['count'] / $max_count) * 180; // 180px max height
-                    ?>
-                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; margin: 0 5px; height: 100%;">
-                        <div class="jpm-chart-bar"
-                            style="width: 100%; max-width: 40px; background: #0073aa; border-radius: 4px 4px 0 0; margin-bottom: 10px; transition: all 0.3s ease; height: <?php echo esc_attr($height_px); ?>px; min-height: <?php echo $day['count'] > 0 ? '5px' : '0'; ?>;"
-                            title="<?php echo esc_attr($day['date'] . ': ' . $day['count'] . ' applications'); ?>">
-                        </div>
                         <div
-                            style="font-size: 11px; color: #666; text-align: center; transform: rotate(-45deg); transform-origin: center; white-space: nowrap; margin-top: 5px;">
-                            <?php echo esc_html($day['date']); ?>
+                            style="display: flex; align-items: flex-end; justify-content: space-around; height: 200px; border-bottom: 2px solid #ddd; padding-bottom: 10px; position: relative;">
+                            <?php foreach ($data as $day):
+                                $height_px = ($day['count'] / $max_count) * 180; // 180px max height
+                                ?>
+                                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; margin: 0 5px; height: 100%;">
+                                        <div class="jpm-chart-bar"
+                                            style="width: 100%; max-width: 40px; background: #0073aa; border-radius: 4px 4px 0 0; margin-bottom: 10px; transition: all 0.3s ease; height: <?php echo esc_attr($height_px); ?>px; min-height: <?php echo $day['count'] > 0 ? '5px' : '0'; ?>;"
+                                            title="<?php echo esc_attr($day['date'] . ': ' . $day['count'] . ' applications'); ?>">
+                                        </div>
+                                        <div
+                                            style="font-size: 11px; color: #666; text-align: center; transform: rotate(-45deg); transform-origin: center; white-space: nowrap; margin-top: 5px;">
+                                            <?php echo esc_html($day['date']); ?>
+                                        </div>
+                                        <div style="font-size: 12px; font-weight: bold; color: #333; margin-top: 5px;">
+                                            <?php echo esc_html($day['count']); ?>
+                                        </div>
+                                    </div>
+                            <?php endforeach; ?>
                         </div>
-                        <div style="font-size: 12px; font-weight: bold; color: #333; margin-top: 5px;">
-                            <?php echo esc_html($day['count']); ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-            <?php
+                        <?php
         } else {
             echo '<p style="text-align: center; padding: 40px; color: #666;">' . esc_html__('No data available for the selected period.', 'job-posting-manager') . '</p>';
         }
@@ -2662,51 +2663,51 @@ class JPM_Admin
         // Always display job details section (at minimum, it will show posted date)
 
         ob_start(); ?>
-        <div class="jpm-job-details">
-            <h3><?php esc_html_e('Job Details', 'job-posting-manager'); ?></h3>
-            <ul class="jpm-job-details-list">
-                <?php if (!empty($company_name)): ?>
-                    <li class="jpm-job-detail-item jpm-job-company">
-                        <strong><?php esc_html_e('Company:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($company_name); ?></span>
-                    </li>
-                <?php endif; ?>
-                <?php if (!empty($location)): ?>
-                    <li class="jpm-job-detail-item jpm-job-location">
-                        <strong><?php esc_html_e('Location:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($location); ?></span>
-                    </li>
-                <?php endif; ?>
-                <?php if (!empty($salary)): ?>
-                    <li class="jpm-job-detail-item jpm-job-salary">
-                        <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($salary); ?></span>
-                    </li>
-                <?php endif; ?>
-                <?php if (!empty($duration)): ?>
-                    <li class="jpm-job-detail-item jpm-job-duration">
-                        <strong><?php esc_html_e('Duration:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($duration); ?></span>
-                    </li>
-                <?php endif; ?>
-                <li class="jpm-job-detail-item jpm-job-posted-date">
-                    <strong><?php esc_html_e('Posted Date:', 'job-posting-manager'); ?></strong>
-                    <span><?php echo esc_html(get_the_date('', $post->ID)); ?></span>
-                </li>
-                <?php if ($time_remaining): ?>
-                    <li class="jpm-job-detail-item jpm-job-expiration">
-                        <strong><?php esc_html_e('Expiration:', 'job-posting-manager'); ?></strong>
-                        <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i>
-                            <?php echo esc_html($time_remaining); ?></span>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </div>
-        <?php
-        $job_details = ob_get_clean();
+                <div class="jpm-job-details">
+                    <h3><?php esc_html_e('Job Details', 'job-posting-manager'); ?></h3>
+                    <ul class="jpm-job-details-list">
+                        <?php if (!empty($company_name)): ?>
+                                <li class="jpm-job-detail-item jpm-job-company">
+                                    <strong><?php esc_html_e('Company:', 'job-posting-manager'); ?></strong>
+                                    <span><?php echo esc_html($company_name); ?></span>
+                                </li>
+                        <?php endif; ?>
+                        <?php if (!empty($location)): ?>
+                                <li class="jpm-job-detail-item jpm-job-location">
+                                    <strong><?php esc_html_e('Location:', 'job-posting-manager'); ?></strong>
+                                    <span><?php echo esc_html($location); ?></span>
+                                </li>
+                        <?php endif; ?>
+                        <?php if (!empty($salary)): ?>
+                                <li class="jpm-job-detail-item jpm-job-salary">
+                                    <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
+                                    <span><?php echo esc_html($salary); ?></span>
+                                </li>
+                        <?php endif; ?>
+                        <?php if (!empty($duration)): ?>
+                                <li class="jpm-job-detail-item jpm-job-duration">
+                                    <strong><?php esc_html_e('Duration:', 'job-posting-manager'); ?></strong>
+                                    <span><?php echo esc_html($duration); ?></span>
+                                </li>
+                        <?php endif; ?>
+                        <li class="jpm-job-detail-item jpm-job-posted-date">
+                            <strong><?php esc_html_e('Posted Date:', 'job-posting-manager'); ?></strong>
+                            <span><?php echo esc_html(get_the_date('', $post->ID)); ?></span>
+                        </li>
+                        <?php if ($time_remaining): ?>
+                                <li class="jpm-job-detail-item jpm-job-expiration">
+                                    <strong><?php esc_html_e('Expiration:', 'job-posting-manager'); ?></strong>
+                                    <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i>
+                                        <?php echo esc_html($time_remaining); ?></span>
+                                </li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+                <?php
+                $job_details = ob_get_clean();
 
-        // Prepend job details to content
-        return $job_details . $content;
+                // Prepend job details to content
+                return $job_details . $content;
     }
 
     /**
@@ -2859,10 +2860,12 @@ class JPM_Admin
         check_ajax_referer('jpm_nonce');
         if (!current_user_can('manage_options'))
             wp_die();
-        foreach ($_POST['applications'] as $id) {
-            JPM_DB::update_status($id, sanitize_text_field($_POST['status']));
+        $applications = isset($_POST['applications']) && is_array($_POST['applications']) ? wp_unslash($_POST['applications']) : [];
+        $status = isset($_POST['status']) ? sanitize_text_field(wp_unslash($_POST['status'])) : '';
+        foreach ($applications as $id) {
+            JPM_DB::update_status(absint($id), $status);
             // Send email
-            JPM_Emails::send_status_update($id);
+            JPM_Emails::send_status_update(absint($id));
         }
         wp_die(__('Updated', 'job-posting-manager'));
     }
@@ -2873,7 +2876,7 @@ class JPM_Admin
     public function update_application_status()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_update_status', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_update_status', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2885,8 +2888,8 @@ class JPM_Admin
         }
 
         // Validate inputs
-        $application_id = JPM_Security::validate_int($_POST['application_id'] ?? 0, 1);
-        $status = JPM_Security::validate_text($_POST['status'] ?? '', 50);
+        $application_id = JPM_Security::validate_int(isset($_POST['application_id']) ? wp_unslash($_POST['application_id']) : 0, 1);
+        $status = JPM_Security::validate_text(isset($_POST['status']) ? wp_unslash($_POST['status']) : '', 50);
 
         if (!$application_id || !$status) {
             wp_send_json_error(['message' => __('Invalid data.', 'job-posting-manager')]);
@@ -2909,7 +2912,7 @@ class JPM_Admin
                     JPM_Emails::send_status_update($application_id);
                 } catch (Exception $e) {
                     // Log error but don't fail the request
-                    error_log('JPM Email Error: ' . $e->getMessage());
+                    do_action('jpm_log_error', 'JPM Email Error: ' . $e->getMessage());
                 }
             }
             wp_send_json_success(['message' => __('Status updated successfully', 'job-posting-manager')]);
@@ -3042,7 +3045,7 @@ class JPM_Admin
     public function save_medical_details_ajax()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_medical_details', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_medical_details', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -3054,11 +3057,11 @@ class JPM_Admin
         }
 
         // Validate inputs
-        $application_id = JPM_Security::validate_int($_POST['application_id'] ?? 0, 1);
+        $application_id = JPM_Security::validate_int(isset($_POST['application_id']) ? wp_unslash($_POST['application_id']) : 0, 1);
         $requirements = isset($_POST['requirements']) ? wp_kses_post(wp_unslash($_POST['requirements'])) : '';
-        $address = JPM_Security::validate_text($_POST['address'] ?? '', 255);
-        $date = JPM_Security::validate_text($_POST['date'] ?? '', 50);
-        $time = JPM_Security::validate_text($_POST['time'] ?? '', 50);
+        $address = JPM_Security::validate_text(isset($_POST['address']) ? wp_unslash($_POST['address']) : '', 255);
+        $date = JPM_Security::validate_text(isset($_POST['date']) ? wp_unslash($_POST['date']) : '', 50);
+        $time = JPM_Security::validate_text(isset($_POST['time']) ? wp_unslash($_POST['time']) : '', 50);
 
         if (!$application_id) {
             wp_send_json_error(['message' => __('Invalid application ID.', 'job-posting-manager')]);
@@ -3107,7 +3110,7 @@ class JPM_Admin
             try {
                 JPM_Emails::send_status_update($application_id);
             } catch (Exception $e) {
-                error_log('JPM Medical Email Error: ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM Medical Email Error: ' . $e->getMessage());
             }
         }
 
@@ -3185,7 +3188,7 @@ class JPM_Admin
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $application_id = absint($_POST['application_id'] ?? 0);
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
         $problem_area = isset($_POST['problem_area']) ? sanitize_text_field(wp_unslash($_POST['problem_area'])) : '';
         $notes = isset($_POST['notes']) ? wp_kses_post(wp_unslash($_POST['notes'])) : '';
 
@@ -3240,7 +3243,7 @@ class JPM_Admin
             try {
                 JPM_Emails::send_status_update($application_id);
             } catch (Exception $e) {
-                error_log('JPM Rejection Email Error: ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM Rejection Email Error: ' . $e->getMessage());
             }
         }
 
@@ -3323,7 +3326,7 @@ class JPM_Admin
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $application_id = absint($_POST['application_id'] ?? 0);
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
         $requirements = isset($_POST['requirements']) ? wp_kses_post(wp_unslash($_POST['requirements'])) : '';
         $address = isset($_POST['address']) ? sanitize_text_field(wp_unslash($_POST['address'])) : '';
         $date = isset($_POST['date']) ? sanitize_text_field(wp_unslash($_POST['date'])) : '';
@@ -3379,7 +3382,7 @@ class JPM_Admin
             try {
                 JPM_Emails::send_status_update($application_id);
             } catch (Exception $e) {
-                error_log('JPM Interview Email Error: ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM Interview Email Error: ' . $e->getMessage());
             }
         }
 
@@ -3400,7 +3403,7 @@ class JPM_Admin
     {
         // Get all statuses
         $statuses = $this->get_all_statuses();
-        $editing_id = isset($_GET['edit']) ? intval($_GET['edit']) : 0;
+        $editing_id = isset($_GET['edit']) ? absint(wp_unslash($_GET['edit'])) : 0;
         $editing_status = null;
 
         if ($editing_id > 0) {
@@ -3413,216 +3416,216 @@ class JPM_Admin
         }
 
         ?>
-        <div class="wrap">
-            <h1><?php esc_html_e('Status Management', 'job-posting-manager'); ?></h1>
+                <div class="wrap">
+                    <h1><?php esc_html_e('Status Management', 'job-posting-manager'); ?></h1>
 
-            <?php if (isset($_GET['status_saved'])): ?>
-                <div class="notice notice-success is-dismissible">
-                    <p><?php esc_html_e('Status saved successfully!', 'job-posting-manager'); ?></p>
-                </div>
-            <?php endif; ?>
+                    <?php if (isset($_GET['status_saved'])): ?>
+                            <div class="notice notice-success is-dismissible">
+                                <p><?php esc_html_e('Status saved successfully!', 'job-posting-manager'); ?></p>
+                            </div>
+                    <?php endif; ?>
 
-            <?php if (isset($_GET['status_deleted'])): ?>
-                <div class="notice notice-success is-dismissible">
-                    <p><?php esc_html_e('Status deleted successfully!', 'job-posting-manager'); ?></p>
-                </div>
-            <?php endif; ?>
+                    <?php if (isset($_GET['status_deleted'])): ?>
+                            <div class="notice notice-success is-dismissible">
+                                <p><?php esc_html_e('Status deleted successfully!', 'job-posting-manager'); ?></p>
+                            </div>
+                    <?php endif; ?>
 
-            <div class="jpm-status-management">
-                <div class="jpm-status-form-section"
-                    style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 4px;">
-                    <h2><?php echo $editing_status ? esc_html__('Edit Status', 'job-posting-manager') : esc_html__('Add New Status', 'job-posting-manager'); ?>
-                    </h2>
+                    <div class="jpm-status-management">
+                        <div class="jpm-status-form-section"
+                            style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 4px;">
+                            <h2><?php echo $editing_status ? esc_html__('Edit Status', 'job-posting-manager') : esc_html__('Add New Status', 'job-posting-manager'); ?>
+                            </h2>
 
-                    <form method="post" action="">
-                        <?php wp_nonce_field('jpm_status_management'); ?>
-                        <input type="hidden" name="jpm_action" value="<?php echo $editing_status ? 'edit' : 'add'; ?>">
-                        <?php if ($editing_status): ?>
-                            <input type="hidden" name="status_id" value="<?php echo esc_attr($editing_status['id']); ?>">
-                        <?php endif; ?>
+                            <form method="post" action="">
+                                <?php wp_nonce_field('jpm_status_management'); ?>
+                                <input type="hidden" name="jpm_action" value="<?php echo $editing_status ? 'edit' : 'add'; ?>">
+                                <?php if ($editing_status): ?>
+                                        <input type="hidden" name="status_id" value="<?php echo esc_attr($editing_status['id']); ?>">
+                                <?php endif; ?>
 
-                        <table class="form-table">
-                            <tr>
-                                <th scope="row">
-                                    <label for="status_name"><?php esc_html_e('Status Name', 'job-posting-manager'); ?> <span
-                                            class="required">*</span></label>
-                                </th>
-                                <td>
-                                    <input type="text" id="status_name" name="status_name" class="regular-text"
-                                        value="<?php echo $editing_status ? esc_attr($editing_status['name']) : ''; ?>" required
-                                        placeholder="<?php esc_attr_e('e.g., Pending, Reviewed, Accepted', 'job-posting-manager'); ?>">
-                                    <p class="description">
-                                        <?php esc_html_e('The display name of the status', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">
-                                    <label for="status_slug"><?php esc_html_e('Status Slug', 'job-posting-manager'); ?></label>
-                                </th>
-                                <td>
-                                    <input type="text" id="status_slug" name="status_slug" class="regular-text"
-                                        value="<?php echo $editing_status ? esc_attr($editing_status['slug']) : ''; ?>"
-                                        placeholder="<?php esc_attr_e('Leave empty to auto-generate from the name', 'job-posting-manager'); ?>">
-                                    <p class="description">
-                                        <?php esc_html_e('Lowercase, hyphenated identifier. Left blank, it is generated from the status name.', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">
-                                    <label
-                                        for="status_color"><?php esc_html_e('Status Color', 'job-posting-manager'); ?></label>
-                                </th>
-                                <td>
-                                    <input type="color" id="status_color" name="status_color"
-                                        value="<?php echo $editing_status ? esc_attr($editing_status['color']) : '#ffc107'; ?>">
-                                    <p class="description">
-                                        <?php esc_html_e('Color for the status badge', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">
-                                    <label
-                                        for="status_text_color"><?php esc_html_e('Text Color', 'job-posting-manager'); ?></label>
-                                </th>
-                                <td>
-                                    <input type="color" id="status_text_color" name="status_text_color"
-                                        value="<?php echo $editing_status ? esc_attr($editing_status['text_color']) : '#000000'; ?>">
-                                    <p class="description">
-                                        <?php esc_html_e('Text color for the status badge', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">
-                                    <label
-                                        for="status_description"><?php esc_html_e('Description', 'job-posting-manager'); ?></label>
-                                </th>
-                                <td>
-                                    <textarea id="status_description" name="status_description" rows="3" class="large-text"
-                                        placeholder="<?php esc_attr_e('Optional description for this status', 'job-posting-manager'); ?>"><?php echo $editing_status ? esc_textarea($editing_status['description']) : ''; ?></textarea>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">
-                                    <label for="status_ordering"><?php esc_html_e('Ordering', 'job-posting-manager'); ?></label>
-                                </th>
-                                <td>
-                                    <input type="number" id="status_ordering" name="status_ordering" class="small-text"
-                                        value="<?php echo $editing_status ? (isset($editing_status['ordering']) ? esc_attr($editing_status['ordering']) : '0') : '0'; ?>"
-                                        min="0" step="1">
-                                    <p class="description">
-                                        <?php esc_html_e('Lower numbers appear first in the status dropdown. Use 1, 2, 3, etc.', 'job-posting-manager'); ?>
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <p class="submit">
-                            <input type="submit" name="submit" class="button button-primary"
-                                value="<?php echo $editing_status ? esc_attr__('Update Status', 'job-posting-manager') : esc_attr__('Add Status', 'job-posting-manager'); ?>">
-                            <?php if ($editing_status): ?>
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management')); ?>" class="button">
-                                    <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
-                                </a>
-                            <?php endif; ?>
-                        </p>
-                    </form>
-                </div>
-
-                <div class="jpm-status-list-section">
-                    <h2><?php esc_html_e('Existing Statuses', 'job-posting-manager'); ?></h2>
-
-                    <?php if (empty($statuses)): ?>
-                        <p><?php esc_html_e('No statuses found. Add your first status above.', 'job-posting-manager'); ?></p>
-                    <?php else: ?>
-                        <table class="wp-list-table widefat fixed striped">
-                            <thead>
-                                <tr>
-                                    <th style="width: 5%;"><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
-                                    <th style="width: 10%;"><?php esc_html_e('Ordering', 'job-posting-manager'); ?></th>
-                                    <th style="width: 18%;"><?php esc_html_e('Name', 'job-posting-manager'); ?></th>
-                                    <th style="width: 15%;"><?php esc_html_e('Slug', 'job-posting-manager'); ?></th>
-                                    <th style="width: 18%;"><?php esc_html_e('Preview', 'job-posting-manager'); ?></th>
-                                    <th style="width: 24%;"><?php esc_html_e('Description', 'job-posting-manager'); ?></th>
-                                    <th style="width: 10%;"><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($statuses as $status): ?>
+                                <table class="form-table">
                                     <tr>
-                                        <td><?php echo esc_html($status['id']); ?></td>
-                                        <td><?php echo esc_html(isset($status['ordering']) ? $status['ordering'] : 0); ?></td>
-                                        <td><strong><?php echo esc_html($status['name']); ?></strong></td>
-                                        <td><code><?php echo esc_html($status['slug']); ?></code></td>
+                                        <th scope="row">
+                                            <label for="status_name"><?php esc_html_e('Status Name', 'job-posting-manager'); ?> <span
+                                                    class="required">*</span></label>
+                                        </th>
                                         <td>
-                                            <span class="jpm-status-badge-preview"
-                                                style="background-color: <?php echo esc_attr($status['color']); ?>; color: <?php echo esc_attr($status['text_color']); ?>; padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
-                                                <?php echo esc_html($status['name']); ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo esc_html($status['description']); ?></td>
-                                        <td>
-                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management&edit=' . $status['id'])); ?>"
-                                                class="button button-small"><?php esc_html_e('Edit', 'job-posting-manager'); ?></a>
-                                            <form method="post" action="" style="display: inline-block; margin-left: 5px;"
-                                                onsubmit="return confirm('<?php esc_attr_e('Are you sure you want to delete this status?', 'job-posting-manager'); ?>');">
-                                                <?php wp_nonce_field('jpm_status_management'); ?>
-                                                <input type="hidden" name="jpm_action" value="delete">
-                                                <input type="hidden" name="status_id" value="<?php echo esc_attr($status['id']); ?>">
-                                                <input type="submit" class="button button-small button-link-delete"
-                                                    value="<?php esc_attr_e('Delete', 'job-posting-manager'); ?>">
-                                            </form>
+                                            <input type="text" id="status_name" name="status_name" class="regular-text"
+                                                value="<?php echo $editing_status ? esc_attr($editing_status['name']) : ''; ?>" required
+                                                placeholder="<?php esc_attr_e('e.g., Pending, Reviewed, Accepted', 'job-posting-manager'); ?>">
+                                            <p class="description">
+                                                <?php esc_html_e('The display name of the status', 'job-posting-manager'); ?>
+                                            </p>
                                         </td>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
+                                    <tr>
+                                        <th scope="row">
+                                            <label for="status_slug"><?php esc_html_e('Status Slug', 'job-posting-manager'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" id="status_slug" name="status_slug" class="regular-text"
+                                                value="<?php echo $editing_status ? esc_attr($editing_status['slug']) : ''; ?>"
+                                                placeholder="<?php esc_attr_e('Leave empty to auto-generate from the name', 'job-posting-manager'); ?>">
+                                            <p class="description">
+                                                <?php esc_html_e('Lowercase, hyphenated identifier. Left blank, it is generated from the status name.', 'job-posting-manager'); ?>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">
+                                            <label
+                                                for="status_color"><?php esc_html_e('Status Color', 'job-posting-manager'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="color" id="status_color" name="status_color"
+                                                value="<?php echo $editing_status ? esc_attr($editing_status['color']) : '#ffc107'; ?>">
+                                            <p class="description">
+                                                <?php esc_html_e('Color for the status badge', 'job-posting-manager'); ?>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">
+                                            <label
+                                                for="status_text_color"><?php esc_html_e('Text Color', 'job-posting-manager'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="color" id="status_text_color" name="status_text_color"
+                                                value="<?php echo $editing_status ? esc_attr($editing_status['text_color']) : '#000000'; ?>">
+                                            <p class="description">
+                                                <?php esc_html_e('Text color for the status badge', 'job-posting-manager'); ?>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">
+                                            <label
+                                                for="status_description"><?php esc_html_e('Description', 'job-posting-manager'); ?></label>
+                                        </th>
+                                        <td>
+                                            <textarea id="status_description" name="status_description" rows="3" class="large-text"
+                                                placeholder="<?php esc_attr_e('Optional description for this status', 'job-posting-manager'); ?>"><?php echo $editing_status ? esc_textarea($editing_status['description']) : ''; ?></textarea>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">
+                                            <label for="status_ordering"><?php esc_html_e('Ordering', 'job-posting-manager'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="number" id="status_ordering" name="status_ordering" class="small-text"
+                                                value="<?php echo $editing_status ? (isset($editing_status['ordering']) ? esc_attr($editing_status['ordering']) : '0') : '0'; ?>"
+                                                min="0" step="1">
+                                            <p class="description">
+                                                <?php esc_html_e('Lower numbers appear first in the status dropdown. Use 1, 2, 3, etc.', 'job-posting-manager'); ?>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p class="submit">
+                                    <input type="submit" name="submit" class="button button-primary"
+                                        value="<?php echo $editing_status ? esc_attr__('Update Status', 'job-posting-manager') : esc_attr__('Add Status', 'job-posting-manager'); ?>">
+                                    <?php if ($editing_status): ?>
+                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management')); ?>" class="button">
+                                                <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                                            </a>
+                                    <?php endif; ?>
+                                </p>
+                            </form>
+                        </div>
+
+                        <div class="jpm-status-list-section">
+                            <h2><?php esc_html_e('Existing Statuses', 'job-posting-manager'); ?></h2>
+
+                            <?php if (empty($statuses)): ?>
+                                    <p><?php esc_html_e('No statuses found. Add your first status above.', 'job-posting-manager'); ?></p>
+                            <?php else: ?>
+                                    <table class="wp-list-table widefat fixed striped">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 5%;"><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
+                                                <th style="width: 10%;"><?php esc_html_e('Ordering', 'job-posting-manager'); ?></th>
+                                                <th style="width: 18%;"><?php esc_html_e('Name', 'job-posting-manager'); ?></th>
+                                                <th style="width: 15%;"><?php esc_html_e('Slug', 'job-posting-manager'); ?></th>
+                                                <th style="width: 18%;"><?php esc_html_e('Preview', 'job-posting-manager'); ?></th>
+                                                <th style="width: 24%;"><?php esc_html_e('Description', 'job-posting-manager'); ?></th>
+                                                <th style="width: 10%;"><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($statuses as $status): ?>
+                                                    <tr>
+                                                        <td><?php echo esc_html($status['id']); ?></td>
+                                                        <td><?php echo esc_html(isset($status['ordering']) ? $status['ordering'] : 0); ?></td>
+                                                        <td><strong><?php echo esc_html($status['name']); ?></strong></td>
+                                                        <td><code><?php echo esc_html($status['slug']); ?></code></td>
+                                                        <td>
+                                                            <span class="jpm-status-badge-preview"
+                                                                style="background-color: <?php echo esc_attr($status['color']); ?>; color: <?php echo esc_attr($status['text_color']); ?>; padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                                                                <?php echo esc_html($status['name']); ?>
+                                                            </span>
+                                                        </td>
+                                                        <td><?php echo esc_html($status['description']); ?></td>
+                                                        <td>
+                                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management&edit=' . $status['id'])); ?>"
+                                                                class="button button-small"><?php esc_html_e('Edit', 'job-posting-manager'); ?></a>
+                                                            <form method="post" action="" style="display: inline-block; margin-left: 5px;"
+                                                                onsubmit="return confirm('<?php esc_attr_e('Are you sure you want to delete this status?', 'job-posting-manager'); ?>');">
+                                                                <?php wp_nonce_field('jpm_status_management'); ?>
+                                                                <input type="hidden" name="jpm_action" value="delete">
+                                                                <input type="hidden" name="status_id" value="<?php echo esc_attr($status['id']); ?>">
+                                                                <input type="submit" class="button button-small button-link-delete"
+                                                                    value="<?php esc_attr_e('Delete', 'job-posting-manager'); ?>">
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <style>
-            .jpm-status-badge-preview {
-                display: inline-block;
-            }
-        </style>
-        <script>
-            (function ($) {
-                const $name = $('#status_name');
-                const $slug = $('#status_slug');
-                let slugManuallyEdited = $slug.val().length > 0;
-
-                const buildSlug = (text) => {
-                    return text
-                        .toString()
-                        .toLowerCase()
-                        .trim()
-                        .replace(/[^a-z0-9\s-]/g, '')
-                        .replace(/\s+/g, '-')
-                        .replace(/-+/g, '-');
-                };
-
-                const maybeFillSlug = () => {
-                    if (slugManuallyEdited) {
-                        return;
+                <style>
+                    .jpm-status-badge-preview {
+                        display: inline-block;
                     }
-                    const generated = buildSlug($name.val());
-                    $slug.val(generated);
-                };
+                </style>
+                <script>
+                    (function ($) {
+                        const $name = $('#status_name');
+                        const $slug = $('#status_slug');
+                        let slugManuallyEdited = $slug.val().length > 0;
 
-                $name.on('input', maybeFillSlug);
-                $slug.on('input', function () {
-                    slugManuallyEdited = $(this).val().length > 0;
-                });
+                        const buildSlug = (text) => {
+                            return text
+                                .toString()
+                                .toLowerCase()
+                                .trim()
+                                .replace(/[^a-z0-9\s-]/g, '')
+                                .replace(/\s+/g, '-')
+                                .replace(/-+/g, '-');
+                        };
 
-                $(document).ready(maybeFillSlug);
-            })(jQuery);
-        </script>
-        <?php
+                        const maybeFillSlug = () => {
+                            if (slugManuallyEdited) {
+                                return;
+                            }
+                            const generated = buildSlug($name.val());
+                            $slug.val(generated);
+                        };
+
+                        $name.on('input', maybeFillSlug);
+                        $slug.on('input', function () {
+                            slugManuallyEdited = $(this).val().length > 0;
+                        });
+
+                        $(document).ready(maybeFillSlug);
+                    })(jQuery);
+                </script>
+                <?php
     }
 
     /**
@@ -3630,7 +3633,7 @@ class JPM_Admin
      */
     public function handle_status_actions()
     {
-        $is_status_page = isset($_GET['page']) && $_GET['page'] === 'jpm-status-management';
+        $is_status_page = isset($_GET['page']) && sanitize_text_field(wp_unslash($_GET['page'])) === 'jpm-status-management';
         if (!$is_status_page || !isset($_POST['jpm_action'])) {
             return;
         }
@@ -3641,7 +3644,7 @@ class JPM_Admin
             wp_die(__('Permission denied', 'job-posting-manager'));
         }
 
-        $action = sanitize_text_field($_POST['jpm_action']);
+        $action = sanitize_text_field(wp_unslash($_POST['jpm_action']));
 
         if ($action === 'add') {
             $this->add_status();
@@ -3702,12 +3705,12 @@ class JPM_Admin
      */
     private function add_status()
     {
-        $status_name = sanitize_text_field($_POST['status_name'] ?? '');
-        $status_slug = sanitize_text_field($_POST['status_slug'] ?? '');
-        $status_color = sanitize_hex_color($_POST['status_color'] ?? '#ffc107');
-        $status_text_color = sanitize_hex_color($_POST['status_text_color'] ?? '#000000');
-        $status_description = sanitize_textarea_field($_POST['status_description'] ?? '');
-        $status_ordering = isset($_POST['status_ordering']) ? absint($_POST['status_ordering']) : 0;
+        $status_name = isset($_POST['status_name']) ? sanitize_text_field(wp_unslash($_POST['status_name'])) : '';
+        $status_slug = isset($_POST['status_slug']) ? sanitize_text_field(wp_unslash($_POST['status_slug'])) : '';
+        $status_color = isset($_POST['status_color']) ? sanitize_hex_color(wp_unslash($_POST['status_color'])) : '#ffc107';
+        $status_text_color = isset($_POST['status_text_color']) ? sanitize_hex_color(wp_unslash($_POST['status_text_color'])) : '#000000';
+        $status_description = isset($_POST['status_description']) ? sanitize_textarea_field(wp_unslash($_POST['status_description'])) : '';
+        $status_ordering = isset($_POST['status_ordering']) ? absint(wp_unslash($_POST['status_ordering'])) : 0;
 
         if (empty($status_name)) {
             wp_die(__('Status name is required', 'job-posting-manager'));
@@ -3758,13 +3761,13 @@ class JPM_Admin
      */
     private function update_status_item()
     {
-        $status_id = intval($_POST['status_id'] ?? 0);
-        $status_name = sanitize_text_field($_POST['status_name'] ?? '');
-        $status_slug = sanitize_text_field($_POST['status_slug'] ?? '');
-        $status_color = sanitize_hex_color($_POST['status_color'] ?? '#ffc107');
-        $status_text_color = sanitize_hex_color($_POST['status_text_color'] ?? '#000000');
-        $status_description = sanitize_textarea_field($_POST['status_description'] ?? '');
-        $status_ordering = isset($_POST['status_ordering']) ? absint($_POST['status_ordering']) : 0;
+        $status_id = isset($_POST['status_id']) ? absint(wp_unslash($_POST['status_id'])) : 0;
+        $status_name = isset($_POST['status_name']) ? sanitize_text_field(wp_unslash($_POST['status_name'])) : '';
+        $status_slug = isset($_POST['status_slug']) ? sanitize_text_field(wp_unslash($_POST['status_slug'])) : '';
+        $status_color = isset($_POST['status_color']) ? sanitize_hex_color(wp_unslash($_POST['status_color'])) : '#ffc107';
+        $status_text_color = isset($_POST['status_text_color']) ? sanitize_hex_color(wp_unslash($_POST['status_text_color'])) : '#000000';
+        $status_description = isset($_POST['status_description']) ? sanitize_textarea_field(wp_unslash($_POST['status_description'])) : '';
+        $status_ordering = isset($_POST['status_ordering']) ? absint(wp_unslash($_POST['status_ordering'])) : 0;
 
         if (!$status_id || empty($status_name)) {
             wp_die(__('Invalid data', 'job-posting-manager'));
@@ -3825,7 +3828,7 @@ class JPM_Admin
      */
     private function delete_status_item()
     {
-        $status_id = intval($_POST['status_id'] ?? 0);
+        $status_id = isset($_POST['status_id']) ? absint(wp_unslash($_POST['status_id'])) : 0;
 
         if (!$status_id) {
             wp_die(__('Invalid status ID', 'job-posting-manager'));
@@ -4260,7 +4263,7 @@ class JPM_Admin
     public function handle_import()
     {
         // Check if import is requested
-        if (!isset($_POST['jpm_import_action']) || $_POST['jpm_import_action'] !== 'import') {
+        if (!isset($_POST['jpm_import_action']) || sanitize_text_field(wp_unslash($_POST['jpm_import_action'])) !== 'import') {
             return;
         }
 
@@ -4270,7 +4273,7 @@ class JPM_Admin
         }
 
         // Verify nonce
-        if (!isset($_POST['jpm_import_nonce']) || !wp_verify_nonce($_POST['jpm_import_nonce'], 'jpm_import_applications')) {
+        if (!isset($_POST['jpm_import_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['jpm_import_nonce'])), 'jpm_import_applications')) {
             wp_die(__('Security check failed. Please try again.', 'job-posting-manager'));
         }
 
@@ -4321,7 +4324,7 @@ class JPM_Admin
             return;
         }
 
-        $format = sanitize_text_field($_POST['jpm_import_format'] ?? '');
+        $format = isset($_POST['jpm_import_format']) ? sanitize_text_field(wp_unslash($_POST['jpm_import_format'])) : '';
 
         if (empty($format)) {
             add_action('admin_notices', function () {
@@ -4689,7 +4692,7 @@ class JPM_Admin
                         ]);
                     } else {
                         // Log user creation error but continue as guest
-                        error_log('JPM Import: Failed to create user for email ' . $email . ' - ' . $user_id->get_error_message());
+                        do_action('jpm_log_error', 'JPM Import: Failed to create user for email ' . $email . ' - ' . $user_id->get_error_message());
                         $user_id = 0; // Continue as guest if user creation fails
                     }
                 }
@@ -4859,7 +4862,7 @@ class JPM_Admin
                         ]);
                     } else {
                         // Log user creation error but continue as guest
-                        error_log('JPM Import: Failed to create user for email ' . $email . ' - ' . $user_id->get_error_message());
+                        do_action('jpm_log_error', 'JPM Import: Failed to create user for email ' . $email . ' - ' . $user_id->get_error_message());
                         $user_id = 0; // Continue as guest if user creation fails
                     }
                 }
@@ -4954,8 +4957,19 @@ class JPM_Admin
     public function handle_print()
     {
         // Check if print is requested
-        if (!isset($_GET['page']) || $_GET['page'] !== 'jpm-applications' || !isset($_GET['action']) || $_GET['action'] !== 'print' || !isset($_GET['application_id'])) {
+        if (
+            !isset($_GET['page']) || sanitize_text_field(wp_unslash($_GET['page'])) !== 'jpm-applications' ||
+            !isset($_GET['action']) || sanitize_text_field(wp_unslash($_GET['action'])) !== 'print' ||
+            !isset($_GET['application_id'])
+        ) {
             return;
+        }
+
+        if (
+            !isset($_GET['jpm_print_nonce']) ||
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_print_nonce'])), 'jpm_print_application')
+        ) {
+            wp_die(__('Security check failed.', 'job-posting-manager'));
         }
 
         // Prevent WordPress admin from loading - must be defined before admin template loads
@@ -4968,7 +4982,7 @@ class JPM_Admin
             wp_die(__('You do not have permission to view this page.', 'job-posting-manager'));
         }
 
-        $application_id = absint($_GET['application_id'] ?? 0);
+        $application_id = isset($_GET['application_id']) ? absint(wp_unslash($_GET['application_id'])) : 0;
 
         if ($application_id <= 0) {
             wp_die(__('Invalid application ID.', 'job-posting-manager'));
@@ -4976,7 +4990,7 @@ class JPM_Admin
 
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $application_id));
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $application_id));
 
         if (!$application) {
             wp_die(__('Application not found.', 'job-posting-manager'));
@@ -5121,1116 +5135,850 @@ class JPM_Admin
         // Print page - standalone HTML without WordPress admin
         // Send headers to prevent caching
         nocache_headers(); ?>
-        <!DOCTYPE html>
-        <html <?php language_attributes(); ?>>
-
-        <head>
-            <meta charset="<?php bloginfo('charset'); ?>">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <?php /* translators: %d: Application ID. */ ?>
-            <title><?php printf(__('Application #%d - Print', 'job-posting-manager'), absint($application_id)); ?></title>
-            <style>
-                /* Hide all WordPress admin elements */
-                #wpadminbar,
-                #adminmenumain,
-                #adminmenuback,
-                #adminmenuwrap,
-                #wpcontent,
-                #wpfooter,
-                .wp-core-ui,
-                .wp-admin,
-                body.wp-admin,
-                body.admin-bar {
-                    display: none !important;
-                    visibility: hidden !important;
-                    height: 0 !important;
-                    width: 0 !important;
-                    overflow: hidden !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-
-                html,
-                body {
-                    width: 100% !important;
-                    height: 100% !important;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-                    font-size: 10pt !important;
-                    line-height: 1.5 !important;
-                    color: #2c3e50 !important;
-                    background: #fff !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    border: 0 !important;
-                    overflow: visible !important;
-                }
-
-                /* Remove all top spacing */
-                body>* {
-                    margin-top: 0 !important;
-                    padding-top: 0 !important;
-                }
-
-                /* Ensure print container starts at top */
-                body>.print-container {
-                    margin-top: 0 !important;
-                    padding-top: 0 !important;
-                }
-
-                body>.print-container>.print-header {
-                    margin-top: 0 !important;
-                    padding-top: 0 !important;
-                }
-
-                @media print {
-
-                    html,
-                    body {
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        border: 0 !important;
-                    }
-
-                    body>* {
-                        margin-top: 0 !important;
-                        padding-top: 0 !important;
-                    }
-
-                    body>.print-container {
-                        margin-top: 0 !important;
-                        padding-top: 0 !important;
-                    }
-
-                    body>.print-container>.print-header {
-                        margin-top: 0 !important;
-                        padding-top: 0 !important;
-                        margin-bottom: 15px !important;
-                    }
-
-                    body>.print-container>.print-header>h1 {
-                        margin-top: 0 !important;
-                        padding-top: 0 !important;
-                    }
-
-                    .no-print {
-                        display: none !important;
-                    }
-
-                    @page {
-                        size: A4;
-                        margin: 0.3cm 0.5cm 0.3cm 0.5cm;
-                    }
-
-                    .section {
-                        page-break-inside: auto;
-                        margin-bottom: 4px !important;
-                        padding-bottom: 0 !important;
-                    }
-
-                    .print-header {
-                        page-break-after: avoid;
-                        margin-top: 0 !important;
-                        margin-bottom: 5px !important;
-                        padding-top: 0 !important;
-                        padding-bottom: 3px !important;
-                        border-bottom-width: 1px !important;
-                    }
-
-                    .print-header h1 {
-                        margin-top: 0 !important;
-                        padding-top: 0 !important;
-                        margin-bottom: 2px !important;
-                        font-size: 16pt !important;
-                        line-height: 1.0 !important;
-                    }
-
-                    .print-header .subtitle {
-                        font-size: 9pt !important;
-                        margin-bottom: 1px !important;
-                        line-height: 1.2 !important;
-                    }
-
-                    .print-header .company-info {
-                        font-size: 8pt !important;
-                        margin-top: 2px !important;
-                        line-height: 1.2 !important;
-                    }
-
-                    .print-container {
-                        padding: 0 5px 5px 5px !important;
-                        padding-top: 0 !important;
-                        margin-top: 0 !important;
-                        max-width: 100%;
-                    }
-
-                    .section-title {
-                        font-size: 9.5pt !important;
-                        margin-bottom: 3px !important;
-                        padding-bottom: 2px !important;
-                        border-bottom-width: 1px !important;
-                        line-height: 1.2 !important;
-                    }
-
-                    .info-grid {
-                        margin: 0 !important;
-                        border-width: 1px !important;
-                    }
-
-                    .info-row {
-                        page-break-inside: avoid;
-                    }
-
-                    .info-row:last-child {
-                        border-bottom: none !important;
-                    }
-
-                    .info-label {
-                        padding: 4px 8px !important;
-                        font-size: 8.5pt !important;
-                        line-height: 1.3 !important;
-                        width: 32% !important;
-                    }
-
-                    .info-value {
-                        padding: 4px 8px !important;
-                        font-size: 9pt !important;
-                        line-height: 1.4 !important;
-                    }
-
-                    .divider {
-                        margin: 3px 0 !important;
-                        border-top-width: 0.5px !important;
-                    }
-
-                    .form-field {
-                        page-break-inside: avoid;
-                        margin-bottom: 6px !important;
-                        padding: 6px 8px !important;
-                    }
-
-                    .form-data-section {
-                        margin-top: 4px !important;
-                    }
-
-                    .footer {
-                        margin-top: 10px !important;
-                        padding-top: 5px !important;
-                        border-top-width: 0.5px !important;
-                        font-size: 7.5pt !important;
-                        line-height: 1.3 !important;
-                    }
-
-                    /* Reduce line heights for compact printing */
-                    .info-value ul {
-                        margin: 2px 0 !important;
-                        padding-left: 15px !important;
-                    }
-
-                    .info-value li {
-                        margin-bottom: 1px !important;
-                        line-height: 1.3 !important;
-                    }
-
-                    /* Optimize long text boxes */
-                    .info-value div[style*="max-height"] {
-                        max-height: 150px !important;
-                        padding: 5px !important;
-                        font-size: 8.5pt !important;
-                        line-height: 1.3 !important;
-                    }
-
-                    /* Reduce overall body font size for print */
-                    body {
-                        font-size: 9pt !important;
-                        line-height: 1.3 !important;
-                    }
-
-                    /* Optimize status badge for print */
-                    .status-badge {
-                        padding: 3px 10px !important;
-                        font-size: 8pt !important;
-                        margin: 0 !important;
-                        line-height: 1.2 !important;
-                    }
-
-                    /* Better page break control - allow grids to break but keep rows together */
-                    .info-grid {
-                        page-break-inside: auto;
-                    }
-
-                    .info-row {
-                        page-break-inside: avoid;
-                        page-break-after: auto;
-                        break-inside: avoid;
-                    }
-
-                    /* Prevent orphaned section titles */
-                    .section-title {
-                        page-break-after: avoid;
-                        orphans: 3;
-                        widows: 3;
-                    }
-
-                    /* Optimize table cell spacing */
-                    .info-label,
-                    .info-value {
-                        page-break-inside: avoid;
-                    }
-
-                    /* MAXIMUM DENSITY - Reduce all spacing to absolute minimum */
-                    .section+.section {
-                        margin-top: 4px !important;
-                    }
-
-                    .section+.divider {
-                        margin-top: 4px !important;
-                        margin-bottom: 4px !important;
-                    }
-
-                    /* Remove spacing after section titles */
-                    .section-title+.info-grid {
-                        margin-top: 0 !important;
-                    }
-
-                    /* Ultra-compact table borders */
-                    .info-grid {
-                        border-width: 0.5px !important;
-                    }
-
-                    .info-row {
-                        border-bottom-width: 0.5px !important;
-                    }
-
-                    .info-label {
-                        border-right-width: 0.5px !important;
-                    }
-
-                    /* Ultra-compact cell padding - MAXIMUM DENSITY */
-                    .info-label,
-                    .info-value {
-                        padding: 3px 6px !important;
-                    }
-
-                    /* Minimal section spacing */
-                    .section {
-                        margin-top: 0 !important;
-                        margin-bottom: 4px !important;
-                    }
-
-                    .section-title {
-                        margin-top: 0 !important;
-                        margin-bottom: 3px !important;
-                    }
-
-                    .divider {
-                        margin: 3px 0 !important;
-                    }
-
-                    .footer {
-                        margin-top: 6px !important;
-                        padding-top: 2px !important;
-                    }
-
-                    /* Remove all top margins from text elements */
-                    p,
-                    div,
-                    span,
-                    h1,
-                    h2,
-                    h3,
-                    h4,
-                    h5,
-                    h6 {
-                        margin-top: 0 !important;
-                    }
-
-                    /* Compact header - no spacing */
-                    .print-header h1,
-                    .print-header .subtitle,
-                    .print-header .company-info {
-                        margin-top: 0 !important;
-                    }
-                }
-
-                .print-container {
-                    max-width: 210mm;
-                    margin: 0 auto !important;
-                    padding: 0 20px 20px 20px !important;
-                    padding-top: 0 !important;
-                    margin-top: 0 !important;
-                    background: #fff;
-                }
-
-                .print-actions {
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    z-index: 1000;
-                    background: #fff;
-                    padding: 15px;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                }
-
-                .print-actions button {
-                    padding: 10px 20px;
-                    font-size: 14px;
-                    background: #2c3e50;
-                    color: #fff;
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    margin: 0 5px;
-                    font-weight: 500;
-                    transition: background 0.3s;
-                }
-
-                .print-actions button:hover {
-                    background: #34495e;
-                }
-
-                .print-actions button.print-btn {
-                    background: #27ae60;
-                }
-
-                .print-actions button.print-btn:hover {
-                    background: #229954;
-                }
-
-                .print-header {
-                    text-align: center;
-                    border-bottom: 2px solid #2c3e50;
-                    padding-bottom: 15px;
-                    padding-top: 0 !important;
-                    margin-top: 0 !important;
-                    margin-bottom: 25px;
-                    position: relative;
-                }
-
-                .print-header::after {
-                    content: '';
-                    position: absolute;
-                    bottom: -3px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 120px;
-                    height: 3px;
-                    background: #3498db;
-                }
-
-                .print-header h1 {
-                    font-size: 24pt;
-                    margin-top: 0 !important;
-                    margin-bottom: 6px;
-                    padding-top: 0 !important;
-                    color: #2c3e50;
-                    font-weight: 700;
-                    letter-spacing: -0.3px;
-                    line-height: 1.1;
-                }
-
-                .print-header .subtitle {
-                    font-size: 12pt;
-                    color: #7f8c8d;
-                    font-weight: 400;
-                    margin-bottom: 5px;
-                }
-
-                .print-header .company-info {
-                    margin-top: 8px;
-                    font-size: 10pt;
-                    color: #95a5a6;
-                    font-weight: 500;
-                }
-
-                .section {
-                    margin-bottom: 25px;
-                    page-break-inside: avoid;
-                }
-
-                .section-title {
-                    font-size: 13pt;
-                    font-weight: 700;
-                    color: #2c3e50;
-                    border-bottom: 2px solid #3498db;
-                    padding-bottom: 8px;
-                    margin-bottom: 15px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.6px;
-                    line-height: 1.3;
-                }
-
-                .info-grid {
-                    display: table;
-                    width: 100%;
-                    border-collapse: collapse;
-                    border: 1px solid #e0e0e0;
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-
-                .info-row {
-                    display: table-row;
-                    border-bottom: 1px solid #e8e8e8;
-                }
-
-                .info-row:last-child {
-                    border-bottom: none;
-                }
-
-                .info-label {
-                    display: table-cell;
-                    width: 35%;
-                    padding: 10px 14px;
-                    font-weight: 600;
-                    color: #34495e;
-                    background: #f5f7fa;
-                    vertical-align: middle;
-                    border-right: 1px solid #e8e8e8;
-                    font-size: 10pt;
-                    line-height: 1.4;
-                }
-
-                .info-value {
-                    display: table-cell;
-                    padding: 10px 14px;
-                    color: #2c3e50;
-                    vertical-align: middle;
-                    font-size: 10.5pt;
-                    line-height: 1.5;
-                }
-
-                .status-badge {
-                    display: inline-block;
-                    padding: 7px 20px;
-                    border-radius: 20px;
-                    font-weight: 600;
-                    font-size: 10pt;
-                    text-transform: uppercase;
-                    letter-spacing: 0.8px;
-                    line-height: 1.2;
-                }
-
-                .form-data-section {
-                    margin-top: 20px;
-                }
-
-                .form-field {
-                    margin-bottom: 18px;
-                    padding: 18px 20px;
-                    background: #f8f9fa;
-                    border-left: 4px solid #3498db;
-                    border-radius: 4px;
-                    transition: box-shadow 0.3s;
-                    page-break-inside: avoid;
-                }
-
-                .form-field:hover {
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                }
-
-                .form-field-label {
-                    font-weight: 600;
-                    color: #34495e;
-                    margin-bottom: 10px;
-                    display: block;
-                    font-size: 10.5pt;
-                    text-transform: uppercase;
-                    letter-spacing: 0.8px;
-                    line-height: 1.3;
-                }
-
-                .form-field-value {
-                    color: #2c3e50;
-                    font-size: 11pt;
-                    line-height: 1.7;
-                    word-wrap: break-word;
-                }
-
-                .footer {
-                    margin-top: 30px;
-                    padding-top: 15px;
-                    border-top: 1px solid #e0e0e0;
-                    text-align: center;
-                    font-size: 9pt;
-                    color: #95a5a6;
-                    line-height: 1.5;
-                }
-
-                .divider {
-                    height: 0;
-                    border: none;
-                    border-top: 1px solid #e0e0e0;
-                    margin: 20px 0;
-                }
-
-                @media screen {
-                    body {
-                        background: #f5f6fa;
-                        padding: 20px;
-                        min-height: 100vh;
-                    }
-
-                    .print-container {
-                        background: #fff;
-                        box-shadow: 0 0 25px rgba(0, 0, 0, 0.08);
-                        border-radius: 8px;
-                        padding: 40px 50px;
-                        margin-bottom: 30px;
-                    }
-                }
-
-                /* Remove extra whitespace */
-                .print-container>*:first-child {
-                    margin-top: 0;
-                }
-
-                .print-container>*:last-child {
-                    margin-bottom: 0;
-                }
-
-                /* Better spacing for nested elements */
-                .section>*:first-child {
-                    margin-top: 0;
-                }
-
-                .section>*:last-child {
-                    margin-bottom: 0;
-                }
-            </style>
-        </head>
-
-        <body style="margin: 0 !important; padding: 0 !important; border: 0 !important;">
-            <div class="print-actions no-print">
-                <button class="print-btn" onclick="window.print()"><?php esc_html_e('Print', 'job-posting-manager'); ?></button>
-                <button onclick="window.close()"><?php esc_html_e('Close', 'job-posting-manager'); ?></button>
-            </div>
-
-            <div class="print-container" style="margin-top: 0 !important; padding-top: 0 !important;">
-                <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important;">
-                    <h1><?php esc_html_e('Job Application', 'job-posting-manager'); ?></h1>
+                <!DOCTYPE html>
+                <html <?php language_attributes(); ?>>
+
+                <head>
+                    <meta charset="<?php bloginfo('charset'); ?>">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
                     <?php /* translators: %d: Application ID. */ ?>
-                    <div class="subtitle">
-                        <?php printf(__('Application #%d', 'job-posting-manager'), absint($application_id)); ?></div>
-                    <?php if (get_bloginfo('name')): ?>
-                        <div class="company-info"><?php echo esc_html(get_bloginfo('name')); ?></div>
-                    <?php endif; ?>
-                </div>
+                    <title><?php printf(__('Application #%d - Print', 'job-posting-manager'), absint($application_id)); ?></title>
+                    <style>
+                        /* Hide all WordPress admin elements */
+                        #wpadminbar,
+                        #adminmenumain,
+                        #adminmenuback,
+                        #adminmenuwrap,
+                        #wpcontent,
+                        #wpfooter,
+                        .wp-core-ui,
+                        .wp-admin,
+                        body.wp-admin,
+                        body.admin-bar {
+                            display: none !important;
+                            visibility: hidden !important;
+                            height: 0 !important;
+                            width: 0 !important;
+                            overflow: hidden !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                        }
 
-                <!-- Application Information -->
-                <div class="section">
-                    <div class="section-title"><?php esc_html_e('Application Information', 'job-posting-manager'); ?></div>
-                    <div class="info-grid">
-                        <div class="info-row">
-                            <div class="info-label"><?php esc_html_e('Application ID', 'job-posting-manager'); ?></div>
-                            <div class="info-value"><strong
-                                    style="color: #2c3e50; font-size: 11.5pt;">#<?php echo esc_html($application_id); ?></strong>
-                            </div>
-                        </div>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
 
-                        <?php if (!empty($application_number)): ?>
-                            <div class="info-row">
-                                <div class="info-label"><?php esc_html_e('Application Number', 'job-posting-manager'); ?></div>
-                                <div class="info-value" style="font-weight: 500;"><?php echo esc_html($application_number); ?></div>
-                            </div>
-                        <?php endif; ?>
+                        html,
+                        body {
+                            width: 100% !important;
+                            height: 100% !important;
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+                            font-size: 10pt !important;
+                            line-height: 1.5 !important;
+                            color: #2c3e50 !important;
+                            background: #fff !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            border: 0 !important;
+                            overflow: visible !important;
+                        }
 
-                        <div class="info-row">
-                            <div class="info-label"><?php esc_html_e('Application Date', 'job-posting-manager'); ?></div>
-                            <div class="info-value">
-                                <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
-                            </div>
-                        </div>
+                        /* Remove all top spacing */
+                        body>* {
+                            margin-top: 0 !important;
+                            padding-top: 0 !important;
+                        }
 
-                        <div class="info-row">
-                            <div class="info-label"><?php esc_html_e('Status', 'job-posting-manager'); ?></div>
-                            <div class="info-value">
-                                <span class="status-badge"
-                                    style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
-                                    <?php echo esc_html($status_name); ?>
-                                </span>
-                            </div>
-                        </div>
+                        /* Ensure print container starts at top */
+                        body>.print-container {
+                            margin-top: 0 !important;
+                            padding-top: 0 !important;
+                        }
 
-                        <?php if (!empty($date_of_registration)): ?>
-                            <div class="info-row">
-                                <div class="info-label"><?php esc_html_e('Date of Registration', 'job-posting-manager'); ?></div>
-                                <div class="info-value"><?php echo esc_html($date_of_registration); ?></div>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
+                        body>.print-container>.print-header {
+                            margin-top: 0 !important;
+                            padding-top: 0 !important;
+                        }
 
-                <?php
-                $has_medical_details = $medical_status_slug && ($application->status === $medical_status_slug) && (trim(implode('', $medical_details)) !== '');
-                if ($has_medical_details):
-                    ?>
-                    <div class="divider"></div>
-                    <div class="section">
-                        <div class="section-title"><?php esc_html_e('Medical Requirements & Schedule', 'job-posting-manager'); ?>
-                        </div>
-                        <div class="info-grid">
-                            <?php if (!empty($medical_details['requirements'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('Requirements', 'job-posting-manager'); ?></div>
-                                    <div class="info-value">
-                                        <?php echo nl2br(wp_kses_post($medical_details['requirements'])); ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                        @media print {
 
-                            <?php if (!empty($medical_details['address'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('Address', 'job-posting-manager'); ?></div>
-                                    <div class="info-value"><?php echo esc_html($medical_details['address']); ?></div>
-                                </div>
-                            <?php endif; ?>
+                            html,
+                            body {
+                                padding: 0 !important;
+                                margin: 0 !important;
+                                border: 0 !important;
+                            }
 
-                            <?php if (!empty($medical_details['date']) || !empty($medical_details['time'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('Schedule', 'job-posting-manager'); ?></div>
-                                    <div class="info-value">
-                                        <?php if (!empty($medical_details['date'])): ?>
-                                            <div><?php esc_html_e('Date:', 'job-posting-manager'); ?>
-                                                <strong><?php echo esc_html($this->format_medical_date($medical_details['date'])); ?></strong>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($medical_details['time'])): ?>
-                                            <div><?php esc_html_e('Time:', 'job-posting-manager'); ?>
-                                                <strong><?php echo esc_html($medical_details['time']); ?></strong>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                            body>* {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                            }
 
-                            <?php if (!empty($medical_details['updated_at'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('Last Updated', 'job-posting-manager'); ?></div>
-                                    <div class="info-value">
-                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($medical_details['updated_at']))); ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
+                            body>.print-container {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                            }
 
-                <?php
-                $has_rejection_details = $rejected_status_slug && ($application->status === $rejected_status_slug) && !empty($rejection_details['notes']);
-                if ($has_rejection_details):
-                    ?>
-                    <div class="divider"></div>
-                    <div class="section">
-                        <div class="section-title"><?php esc_html_e('Rejection Details', 'job-posting-manager'); ?></div>
-                        <div class="info-grid">
-                            <?php if (!empty($rejection_details['problem_area_label'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('The problem is in the:', 'job-posting-manager'); ?></div>
-                                    <div class="info-value"><?php echo esc_html($rejection_details['problem_area_label']); ?></div>
-                                </div>
-                            <?php endif; ?>
+                            body>.print-container>.print-header {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                                margin-bottom: 15px !important;
+                            }
 
-                            <?php if (!empty($rejection_details['notes'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('Notes', 'job-posting-manager'); ?></div>
-                                    <div class="info-value">
-                                        <?php echo nl2br(wp_kses_post($rejection_details['notes'])); ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+                            body>.print-container>.print-header>h1 {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                            }
 
-                            <?php if (!empty($rejection_details['updated_at'])): ?>
-                                <div class="info-row">
-                                    <div class="info-label"><?php esc_html_e('Last Updated', 'job-posting-manager'); ?></div>
-                                    <div class="info-value">
-                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($rejection_details['updated_at']))); ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
+                            .no-print {
+                                display: none !important;
+                            }
 
-                <div class="divider"></div>
+                            @page {
+                                size: A4;
+                                margin: 0.3cm 0.5cm 0.3cm 0.5cm;
+                            }
 
-                <!-- Job Information -->
-                <div class="section">
-                    <div class="section-title"><?php esc_html_e('Job Information', 'job-posting-manager'); ?></div>
-                    <div class="info-grid">
-                        <div class="info-row">
-                            <div class="info-label"><?php esc_html_e('Job Title', 'job-posting-manager'); ?></div>
-                            <div class="info-value"><strong style="color: #2c3e50; font-size: 11.5pt;">
-                                    <?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
-                                </strong></div>
-                        </div>
+                            .section {
+                                page-break-inside: auto;
+                                margin-bottom: 4px !important;
+                                padding-bottom: 0 !important;
+                            }
 
-                        <div class="info-row">
-                            <div class="info-label">
-                                <?php esc_html_e('Job ID', 'job-posting-manager'); ?>
-                            </div>
-                            <div class="info-value">#
-                                <?php echo esc_html($application->job_id); ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                            .print-header {
+                                page-break-after: avoid;
+                                margin-top: 0 !important;
+                                margin-bottom: 5px !important;
+                                padding-top: 0 !important;
+                                padding-bottom: 3px !important;
+                                border-bottom-width: 1px !important;
+                            }
 
-                <div class="divider"></div>
+                            .print-header h1 {
+                                margin-top: 0 !important;
+                                padding-top: 0 !important;
+                                margin-bottom: 2px !important;
+                                font-size: 16pt !important;
+                                line-height: 1.0 !important;
+                            }
 
-                <!-- Applicant Information -->
-                <div class="section">
-                    <div class="section-title">
-                        <?php esc_html_e('Applicant Information', 'job-posting-manager'); ?>
-                    </div>
-                    <div class="info-grid">
-                        <?php if (!empty($full_name)): ?>
-                            <div class="info-row">
-                                <div class="info-label"><?php esc_html_e('Full Name', 'job-posting-manager'); ?>
-                                </div>
-                                <div class="info-value"><strong style="color: #2c3e50; font-size: 11.5pt;">
-                                        <?php echo esc_html($full_name); ?>
-                                    </strong></div>
-                            </div>
-                        <?php endif; ?>
+                            .print-header .subtitle {
+                                font-size: 9pt !important;
+                                margin-bottom: 1px !important;
+                                line-height: 1.2 !important;
+                            }
 
-                        <?php if (!empty($first_name)): ?>
-                            <div class="info-row">
-                                <div class="info-label"><?php esc_html_e('First Name', 'job-posting-manager'); ?>
-                                </div>
-                                <div class="info-value">
-                                    <?php echo esc_html($first_name); ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
+                            .print-header .company-info {
+                                font-size: 8pt !important;
+                                margin-top: 2px !important;
+                                line-height: 1.2 !important;
+                            }
 
-                        <?php if (!empty($middle_name)): ?>
-                            <div class="info-row">
-                                <div class="info-label"><?php esc_html_e('Middle Name', 'job-posting-manager'); ?>
-                                </div>
-                                <div class="info-value">
-                                    <?php echo esc_html($middle_name); ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
+                            .print-container {
+                                padding: 0 5px 5px 5px !important;
+                                padding-top: 0 !important;
+                                margin-top: 0 !important;
+                                max-width: 100%;
+                            }
 
-                        <?php if (!empty($last_name)): ?>
-                            <div class="info-row">
-                                <div class="info-label"><?php esc_html_e('Last Name', 'job-posting-manager'); ?>
-                                </div>
-                                <div class="info-value">
-                                    <?php echo esc_html($last_name); ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
+                            .section-title {
+                                font-size: 9.5pt !important;
+                                margin-bottom: 3px !important;
+                                padding-bottom: 2px !important;
+                                border-bottom-width: 1px !important;
+                                line-height: 1.2 !important;
+                            }
 
-                        <?php if (!empty($email)): ?>
-                            <div class="info-row">
-                                <div class="info-label">
-                                    <?php esc_html_e('Email', 'job-posting-manager'); ?>
-                                </div>
-                                <div class="info-value">
-                                    <?php echo esc_html($email); ?>
-                                </div>
-                            </div>
-                        <?php endif; ?>
+                            .info-grid {
+                                margin: 0 !important;
+                                border-width: 1px !important;
+                            }
 
-                        <div class="info-row">
-                            <div class="info-label">
-                                <?php esc_html_e('User Account', 'job-posting-manager'); ?>
-                            </div>
-                            <div class="info-value">
-                                <?php if ($user): ?>
-                                    <?php echo esc_html($user->display_name); ?> <span style="color: #95a5a6;">(ID:
-                                        <?php echo esc_html($user->ID); ?>)</span>
-                                <?php else: ?>
-                                    <em
-                                        style="color: #95a5a6;"><?php esc_html_e('Guest Application', 'job-posting-manager'); ?></em>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                            .info-row {
+                                page-break-inside: avoid;
+                            }
 
-                <div class="divider"></div>
+                            .info-row:last-child {
+                                border-bottom: none !important;
+                            }
 
-                <!-- Education Section -->
-                <?php
-                $has_education = false;
-                $education_fields = [
-                    'edu_primary_school_name',
-                    'edu_primary_school_address',
-                    'edu_primary_start_year',
-                    'edu_primary_end_year',
-                    'edu_primary_completed',
-                    'edu_secondary_school_name',
-                    'edu_secondary_school_address',
-                    'edu_secondary_school_type',
-                    'edu_secondary_start_year',
-                    'edu_secondary_end_year',
-                    'edu_secondary_completed',
-                    'edu_tertiary_institution_name',
-                    'edu_tertiary_school_address',
-                    'edu_tertiary_program',
-                    'edu_tertiary_degree_level',
-                    'edu_tertiary_start_year',
-                    'edu_tertiary_end_year',
-                    'edu_tertiary_status'
-                ];
+                            .info-label {
+                                padding: 4px 8px !important;
+                                font-size: 8.5pt !important;
+                                line-height: 1.3 !important;
+                                width: 32% !important;
+                            }
 
-                foreach ($education_fields as $edu_field) {
-                    if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
-                        $has_education = true;
-                        break;
-                    }
-                }
+                            .info-value {
+                                padding: 4px 8px !important;
+                                font-size: 9pt !important;
+                                line-height: 1.4 !important;
+                            }
 
-                if ($has_education):
-                    ?>
-                    <div class="section">
-                        <div class="section-title"><?php esc_html_e('Education', 'job-posting-manager'); ?></div>
-                        <div class="info-grid">
-                            <!-- Primary Education -->
-                            <?php if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])): ?>
-                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px;">
-                                    <div class="info-label"
-                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
-                                        <?php esc_html_e('Primary Education', 'job-posting-manager'); ?>
-                                    </div>
-                                </div>
-                                <?php if (!empty($form_data['edu_primary_school_name'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('School Name', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_school_name']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_primary_school_address'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_school_address']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_primary_start_year'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_start_year']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_primary_end_year'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_end_year']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_primary_completed'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Completed', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_primary_completed']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endif; ?>
+                            .divider {
+                                margin: 3px 0 !important;
+                                border-top-width: 0.5px !important;
+                            }
 
-                            <!-- Secondary Education -->
-                            <?php if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])): ?>
-                                <div class="info-row"
-                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                                    <div class="info-label"
-                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
-                                        <?php esc_html_e('Secondary Education', 'job-posting-manager'); ?>
-                                    </div>
-                                </div>
-                                <?php if (!empty($form_data['edu_secondary_school_name'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('School Name', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_name']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_secondary_school_address'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_address']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_secondary_school_type'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('School Type', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_type']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_secondary_start_year'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_start_year']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_secondary_end_year'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_end_year']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_secondary_completed'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Completed', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_secondary_completed']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endif; ?>
+                            .form-field {
+                                page-break-inside: avoid;
+                                margin-bottom: 6px !important;
+                                padding: 6px 8px !important;
+                            }
 
-                            <!-- Tertiary Education -->
-                            <?php if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])): ?>
-                                <div class="info-row"
-                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                                    <div class="info-label"
-                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
-                                        <?php esc_html_e('Tertiary Education', 'job-posting-manager'); ?>
-                                    </div>
-                                </div>
-                                <?php if (!empty($form_data['edu_tertiary_institution_name'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Institution Name', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_institution_name']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_tertiary_school_address'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_school_address']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_tertiary_program'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Program / Course', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_program']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_tertiary_degree_level'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Degree Level', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_degree_level']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_tertiary_start_year'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_start_year']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_tertiary_end_year'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_end_year']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($form_data['edu_tertiary_status'])): ?>
-                                    <div class="info-row">
-                                        <div class="info-label"><?php esc_html_e('Status', 'job-posting-manager'); ?></div>
-                                        <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_status']); ?></div>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <div class="divider"></div>
-                <?php endif; ?>
+                            .form-data-section {
+                                margin-top: 4px !important;
+                            }
 
-                <!-- Employment Section -->
-                <?php
-                $has_employment = false;
-                if (
-                    (isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
-                    (isset($form_data['emp_position']) && !empty($form_data['emp_position'])) ||
-                    (isset($form_data['emp_years']) && !empty($form_data['emp_years'])) ||
-                    (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))
-                ) {
-                    $has_employment = true;
-                }
+                            .footer {
+                                margin-top: 10px !important;
+                                padding-top: 5px !important;
+                                border-top-width: 0.5px !important;
+                                font-size: 7.5pt !important;
+                                line-height: 1.3 !important;
+                            }
 
-                if ($has_employment):
-                    // Handle employment entries (array format)
-                    $employment_entries = [];
-                    if (isset($form_data['employment_entries']) && is_array($form_data['employment_entries'])) {
-                        $employment_entries = $form_data['employment_entries'];
-                    } else {
-                        // Fallback: reconstruct from arrays
-                        $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
-                        $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
-                        $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
+                            /* Reduce line heights for compact printing */
+                            .info-value ul {
+                                margin: 2px 0 !important;
+                                padding-left: 15px !important;
+                            }
 
-                        $max_count = max(count($company_names), count($positions), count($years));
-                        for ($i = 0; $i < $max_count; $i++) {
-                            if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
-                                $employment_entries[] = [
-                                    'company_name' => $company_names[$i] ?? '',
-                                    'position' => $positions[$i] ?? '',
-                                    'years' => $years[$i] ?? ''
-                                ];
+                            .info-value li {
+                                margin-bottom: 1px !important;
+                                line-height: 1.3 !important;
+                            }
+
+                            /* Optimize long text boxes */
+                            .info-value div[style*="max-height"] {
+                                max-height: 150px !important;
+                                padding: 5px !important;
+                                font-size: 8.5pt !important;
+                                line-height: 1.3 !important;
+                            }
+
+                            /* Reduce overall body font size for print */
+                            body {
+                                font-size: 9pt !important;
+                                line-height: 1.3 !important;
+                            }
+
+                            /* Optimize status badge for print */
+                            .status-badge {
+                                padding: 3px 10px !important;
+                                font-size: 8pt !important;
+                                margin: 0 !important;
+                                line-height: 1.2 !important;
+                            }
+
+                            /* Better page break control - allow grids to break but keep rows together */
+                            .info-grid {
+                                page-break-inside: auto;
+                            }
+
+                            .info-row {
+                                page-break-inside: avoid;
+                                page-break-after: auto;
+                                break-inside: avoid;
+                            }
+
+                            /* Prevent orphaned section titles */
+                            .section-title {
+                                page-break-after: avoid;
+                                orphans: 3;
+                                widows: 3;
+                            }
+
+                            /* Optimize table cell spacing */
+                            .info-label,
+                            .info-value {
+                                page-break-inside: avoid;
+                            }
+
+                            /* MAXIMUM DENSITY - Reduce all spacing to absolute minimum */
+                            .section+.section {
+                                margin-top: 4px !important;
+                            }
+
+                            .section+.divider {
+                                margin-top: 4px !important;
+                                margin-bottom: 4px !important;
+                            }
+
+                            /* Remove spacing after section titles */
+                            .section-title+.info-grid {
+                                margin-top: 0 !important;
+                            }
+
+                            /* Ultra-compact table borders */
+                            .info-grid {
+                                border-width: 0.5px !important;
+                            }
+
+                            .info-row {
+                                border-bottom-width: 0.5px !important;
+                            }
+
+                            .info-label {
+                                border-right-width: 0.5px !important;
+                            }
+
+                            /* Ultra-compact cell padding - MAXIMUM DENSITY */
+                            .info-label,
+                            .info-value {
+                                padding: 3px 6px !important;
+                            }
+
+                            /* Minimal section spacing */
+                            .section {
+                                margin-top: 0 !important;
+                                margin-bottom: 4px !important;
+                            }
+
+                            .section-title {
+                                margin-top: 0 !important;
+                                margin-bottom: 3px !important;
+                            }
+
+                            .divider {
+                                margin: 3px 0 !important;
+                            }
+
+                            .footer {
+                                margin-top: 6px !important;
+                                padding-top: 2px !important;
+                            }
+
+                            /* Remove all top margins from text elements */
+                            p,
+                            div,
+                            span,
+                            h1,
+                            h2,
+                            h3,
+                            h4,
+                            h5,
+                            h6 {
+                                margin-top: 0 !important;
+                            }
+
+                            /* Compact header - no spacing */
+                            .print-header h1,
+                            .print-header .subtitle,
+                            .print-header .company-info {
+                                margin-top: 0 !important;
                             }
                         }
-                    }
-                    ?>
-                    <div class="section">
-                        <div class="section-title"><?php esc_html_e('Employment History', 'job-posting-manager'); ?></div>
-                        <div class="info-grid">
-                            <?php if (!empty($employment_entries)): ?>
-                                <?php foreach ($employment_entries as $index => $entry): ?>
-                                    <?php if ($index > 0): ?>
-                                        <div class="info-row"
-                                            style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                                        </div>
-                                    <?php endif; ?>
-                                    <div class="info-row"
-                                        style="grid-column: 1 / -1; margin-top: <?php echo esc_attr($index > 0 ? '15px' : '0'); ?>;">
-                                        <div class="info-label"
-                                            style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
-                                            <?php /* translators: %d: Employment entry number. */ ?>
-                                            <?php printf(__('Employment #%d', 'job-posting-manager'), absint($index + 1)); ?>
-                                        </div>
-                                    </div>
-                                    <?php if (!empty($entry['company_name'])): ?>
-                                        <div class="info-row">
-                                            <div class="info-label"><?php esc_html_e('Company Name', 'job-posting-manager'); ?></div>
-                                            <div class="info-value"><?php echo esc_html($entry['company_name']); ?></div>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($entry['position'])): ?>
-                                        <div class="info-row">
-                                            <div class="info-label"><?php esc_html_e('Position', 'job-posting-manager'); ?></div>
-                                            <div class="info-value"><?php echo esc_html($entry['position']); ?></div>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if (!empty($entry['years'])): ?>
-                                        <div class="info-row">
-                                            <div class="info-label"><?php esc_html_e('Years', 'job-posting-manager'); ?></div>
-                                            <div class="info-value"><?php echo esc_html($entry['years']); ?></div>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php endforeach; ?>
+
+                        .print-container {
+                            max-width: 210mm;
+                            margin: 0 auto !important;
+                            padding: 0 20px 20px 20px !important;
+                            padding-top: 0 !important;
+                            margin-top: 0 !important;
+                            background: #fff;
+                        }
+
+                        .print-actions {
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            z-index: 1000;
+                            background: #fff;
+                            padding: 15px;
+                            border-radius: 8px;
+                            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                        }
+
+                        .print-actions button {
+                            padding: 10px 20px;
+                            font-size: 14px;
+                            background: #2c3e50;
+                            color: #fff;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin: 0 5px;
+                            font-weight: 500;
+                            transition: background 0.3s;
+                        }
+
+                        .print-actions button:hover {
+                            background: #34495e;
+                        }
+
+                        .print-actions button.print-btn {
+                            background: #27ae60;
+                        }
+
+                        .print-actions button.print-btn:hover {
+                            background: #229954;
+                        }
+
+                        .print-header {
+                            text-align: center;
+                            border-bottom: 2px solid #2c3e50;
+                            padding-bottom: 15px;
+                            padding-top: 0 !important;
+                            margin-top: 0 !important;
+                            margin-bottom: 25px;
+                            position: relative;
+                        }
+
+                        .print-header::after {
+                            content: '';
+                            position: absolute;
+                            bottom: -3px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 120px;
+                            height: 3px;
+                            background: #3498db;
+                        }
+
+                        .print-header h1 {
+                            font-size: 24pt;
+                            margin-top: 0 !important;
+                            margin-bottom: 6px;
+                            padding-top: 0 !important;
+                            color: #2c3e50;
+                            font-weight: 700;
+                            letter-spacing: -0.3px;
+                            line-height: 1.1;
+                        }
+
+                        .print-header .subtitle {
+                            font-size: 12pt;
+                            color: #7f8c8d;
+                            font-weight: 400;
+                            margin-bottom: 5px;
+                        }
+
+                        .print-header .company-info {
+                            margin-top: 8px;
+                            font-size: 10pt;
+                            color: #95a5a6;
+                            font-weight: 500;
+                        }
+
+                        .section {
+                            margin-bottom: 25px;
+                            page-break-inside: avoid;
+                        }
+
+                        .section-title {
+                            font-size: 13pt;
+                            font-weight: 700;
+                            color: #2c3e50;
+                            border-bottom: 2px solid #3498db;
+                            padding-bottom: 8px;
+                            margin-bottom: 15px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.6px;
+                            line-height: 1.3;
+                        }
+
+                        .info-grid {
+                            display: table;
+                            width: 100%;
+                            border-collapse: collapse;
+                            border: 1px solid #e0e0e0;
+                            border-radius: 4px;
+                            overflow: hidden;
+                        }
+
+                        .info-row {
+                            display: table-row;
+                            border-bottom: 1px solid #e8e8e8;
+                        }
+
+                        .info-row:last-child {
+                            border-bottom: none;
+                        }
+
+                        .info-label {
+                            display: table-cell;
+                            width: 35%;
+                            padding: 10px 14px;
+                            font-weight: 600;
+                            color: #34495e;
+                            background: #f5f7fa;
+                            vertical-align: middle;
+                            border-right: 1px solid #e8e8e8;
+                            font-size: 10pt;
+                            line-height: 1.4;
+                        }
+
+                        .info-value {
+                            display: table-cell;
+                            padding: 10px 14px;
+                            color: #2c3e50;
+                            vertical-align: middle;
+                            font-size: 10.5pt;
+                            line-height: 1.5;
+                        }
+
+                        .status-badge {
+                            display: inline-block;
+                            padding: 7px 20px;
+                            border-radius: 20px;
+                            font-weight: 600;
+                            font-size: 10pt;
+                            text-transform: uppercase;
+                            letter-spacing: 0.8px;
+                            line-height: 1.2;
+                        }
+
+                        .form-data-section {
+                            margin-top: 20px;
+                        }
+
+                        .form-field {
+                            margin-bottom: 18px;
+                            padding: 18px 20px;
+                            background: #f8f9fa;
+                            border-left: 4px solid #3498db;
+                            border-radius: 4px;
+                            transition: box-shadow 0.3s;
+                            page-break-inside: avoid;
+                        }
+
+                        .form-field:hover {
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                        }
+
+                        .form-field-label {
+                            font-weight: 600;
+                            color: #34495e;
+                            margin-bottom: 10px;
+                            display: block;
+                            font-size: 10.5pt;
+                            text-transform: uppercase;
+                            letter-spacing: 0.8px;
+                            line-height: 1.3;
+                        }
+
+                        .form-field-value {
+                            color: #2c3e50;
+                            font-size: 11pt;
+                            line-height: 1.7;
+                            word-wrap: break-word;
+                        }
+
+                        .footer {
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #e0e0e0;
+                            text-align: center;
+                            font-size: 9pt;
+                            color: #95a5a6;
+                            line-height: 1.5;
+                        }
+
+                        .divider {
+                            height: 0;
+                            border: none;
+                            border-top: 1px solid #e0e0e0;
+                            margin: 20px 0;
+                        }
+
+                        @media screen {
+                            body {
+                                background: #f5f6fa;
+                                padding: 20px;
+                                min-height: 100vh;
+                            }
+
+                            .print-container {
+                                background: #fff;
+                                box-shadow: 0 0 25px rgba(0, 0, 0, 0.08);
+                                border-radius: 8px;
+                                padding: 40px 50px;
+                                margin-bottom: 30px;
+                            }
+                        }
+
+                        /* Remove extra whitespace */
+                        .print-container>*:first-child {
+                            margin-top: 0;
+                        }
+
+                        .print-container>*:last-child {
+                            margin-bottom: 0;
+                        }
+
+                        /* Better spacing for nested elements */
+                        .section>*:first-child {
+                            margin-top: 0;
+                        }
+
+                        .section>*:last-child {
+                            margin-bottom: 0;
+                        }
+                    </style>
+                </head>
+
+                <body style="margin: 0 !important; padding: 0 !important; border: 0 !important;">
+                    <div class="print-actions no-print">
+                        <button class="print-btn" onclick="window.print()"><?php esc_html_e('Print', 'job-posting-manager'); ?></button>
+                        <button onclick="window.close()"><?php esc_html_e('Close', 'job-posting-manager'); ?></button>
+                    </div>
+
+                    <div class="print-container" style="margin-top: 0 !important; padding-top: 0 !important;">
+                        <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important;">
+                            <h1><?php esc_html_e('Job Application', 'job-posting-manager'); ?></h1>
+                            <?php /* translators: %d: Application ID. */ ?>
+                            <div class="subtitle">
+                                <?php printf(__('Application #%d', 'job-posting-manager'), absint($application_id)); ?>
+                            </div>
+                            <?php if (get_bloginfo('name')): ?>
+                                    <div class="company-info"><?php echo esc_html(get_bloginfo('name')); ?></div>
                             <?php endif; ?>
                         </div>
-                    </div>
-                    <div class="divider"></div>
-                <?php endif; ?>
 
-                <!-- Application Form Data -->
-                <?php if (!empty($form_data)): ?>
-                    <div class="section form-data-section">
-                        <div class="section-title">
-                            <?php esc_html_e('Application Form Data', 'job-posting-manager'); ?>
+                        <!-- Application Information -->
+                        <div class="section">
+                            <div class="section-title"><?php esc_html_e('Application Information', 'job-posting-manager'); ?></div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label"><?php esc_html_e('Application ID', 'job-posting-manager'); ?></div>
+                                    <div class="info-value"><strong
+                                            style="color: #2c3e50; font-size: 11.5pt;">#<?php echo esc_html($application_id); ?></strong>
+                                    </div>
+                                </div>
+
+                                <?php if (!empty($application_number)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php esc_html_e('Application Number', 'job-posting-manager'); ?></div>
+                                            <div class="info-value" style="font-weight: 500;"><?php echo esc_html($application_number); ?></div>
+                                        </div>
+                                <?php endif; ?>
+
+                                <div class="info-row">
+                                    <div class="info-label"><?php esc_html_e('Application Date', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
+                                    </div>
+                                </div>
+
+                                <div class="info-row">
+                                    <div class="info-label"><?php esc_html_e('Status', 'job-posting-manager'); ?></div>
+                                    <div class="info-value">
+                                        <span class="status-badge"
+                                            style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
+                                            <?php echo esc_html($status_name); ?>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <?php if (!empty($date_of_registration)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php esc_html_e('Date of Registration', 'job-posting-manager'); ?></div>
+                                            <div class="info-value"><?php echo esc_html($date_of_registration); ?></div>
+                                        </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
+
                         <?php
-                        // Exclude internal fields from display
-                        $excluded_fields = [
-                            'application_number',
-                            'date_of_registration',
-                            'applicant_number',
-                            // Exclude education and employment fields as they are shown in dedicated sections above
+                        $has_medical_details = $medical_status_slug && ($application->status === $medical_status_slug) && (trim(implode('', $medical_details)) !== '');
+                        if ($has_medical_details):
+                            ?>
+                                <div class="divider"></div>
+                                <div class="section">
+                                    <div class="section-title"><?php esc_html_e('Medical Requirements & Schedule', 'job-posting-manager'); ?>
+                                    </div>
+                                    <div class="info-grid">
+                                        <?php if (!empty($medical_details['requirements'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('Requirements', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value">
+                                                        <?php echo nl2br(wp_kses_post($medical_details['requirements'])); ?>
+                                                    </div>
+                                                </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($medical_details['address'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('Address', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value"><?php echo esc_html($medical_details['address']); ?></div>
+                                                </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($medical_details['date']) || !empty($medical_details['time'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('Schedule', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value">
+                                                        <?php if (!empty($medical_details['date'])): ?>
+                                                                <div><?php esc_html_e('Date:', 'job-posting-manager'); ?>
+                                                                    <strong><?php echo esc_html($this->format_medical_date($medical_details['date'])); ?></strong>
+                                                                </div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($medical_details['time'])): ?>
+                                                                <div><?php esc_html_e('Time:', 'job-posting-manager'); ?>
+                                                                    <strong><?php echo esc_html($medical_details['time']); ?></strong>
+                                                                </div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($medical_details['updated_at'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('Last Updated', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value">
+                                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($medical_details['updated_at']))); ?>
+                                                    </div>
+                                                </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                        <?php endif; ?>
+
+                        <?php
+                        $has_rejection_details = $rejected_status_slug && ($application->status === $rejected_status_slug) && !empty($rejection_details['notes']);
+                        if ($has_rejection_details):
+                            ?>
+                                <div class="divider"></div>
+                                <div class="section">
+                                    <div class="section-title"><?php esc_html_e('Rejection Details', 'job-posting-manager'); ?></div>
+                                    <div class="info-grid">
+                                        <?php if (!empty($rejection_details['problem_area_label'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('The problem is in the:', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value"><?php echo esc_html($rejection_details['problem_area_label']); ?></div>
+                                                </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($rejection_details['notes'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('Notes', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value">
+                                                        <?php echo nl2br(wp_kses_post($rejection_details['notes'])); ?>
+                                                    </div>
+                                                </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($rejection_details['updated_at'])): ?>
+                                                <div class="info-row">
+                                                    <div class="info-label"><?php esc_html_e('Last Updated', 'job-posting-manager'); ?></div>
+                                                    <div class="info-value">
+                                                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($rejection_details['updated_at']))); ?>
+                                                    </div>
+                                                </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                        <?php endif; ?>
+
+                        <div class="divider"></div>
+
+                        <!-- Job Information -->
+                        <div class="section">
+                            <div class="section-title"><?php esc_html_e('Job Information', 'job-posting-manager'); ?></div>
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-label"><?php esc_html_e('Job Title', 'job-posting-manager'); ?></div>
+                                    <div class="info-value"><strong style="color: #2c3e50; font-size: 11.5pt;">
+                                            <?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
+                                        </strong></div>
+                                </div>
+
+                                <div class="info-row">
+                                    <div class="info-label">
+                                        <?php esc_html_e('Job ID', 'job-posting-manager'); ?>
+                                    </div>
+                                    <div class="info-value">#
+                                        <?php echo esc_html($application->job_id); ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Applicant Information -->
+                        <div class="section">
+                            <div class="section-title">
+                                <?php esc_html_e('Applicant Information', 'job-posting-manager'); ?>
+                            </div>
+                            <div class="info-grid">
+                                <?php if (!empty($full_name)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php esc_html_e('Full Name', 'job-posting-manager'); ?>
+                                            </div>
+                                            <div class="info-value"><strong style="color: #2c3e50; font-size: 11.5pt;">
+                                                    <?php echo esc_html($full_name); ?>
+                                                </strong></div>
+                                        </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($first_name)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php esc_html_e('First Name', 'job-posting-manager'); ?>
+                                            </div>
+                                            <div class="info-value">
+                                                <?php echo esc_html($first_name); ?>
+                                            </div>
+                                        </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($middle_name)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php esc_html_e('Middle Name', 'job-posting-manager'); ?>
+                                            </div>
+                                            <div class="info-value">
+                                                <?php echo esc_html($middle_name); ?>
+                                            </div>
+                                        </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($last_name)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label"><?php esc_html_e('Last Name', 'job-posting-manager'); ?>
+                                            </div>
+                                            <div class="info-value">
+                                                <?php echo esc_html($last_name); ?>
+                                            </div>
+                                        </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($email)): ?>
+                                        <div class="info-row">
+                                            <div class="info-label">
+                                                <?php esc_html_e('Email', 'job-posting-manager'); ?>
+                                            </div>
+                                            <div class="info-value">
+                                                <?php echo esc_html($email); ?>
+                                            </div>
+                                        </div>
+                                <?php endif; ?>
+
+                                <div class="info-row">
+                                    <div class="info-label">
+                                        <?php esc_html_e('User Account', 'job-posting-manager'); ?>
+                                    </div>
+                                    <div class="info-value">
+                                        <?php if ($user): ?>
+                                                <?php echo esc_html($user->display_name); ?> <span style="color: #95a5a6;">(ID:
+                                                    <?php echo esc_html($user->ID); ?>)</span>
+                                        <?php else: ?>
+                                                <em
+                                                    style="color: #95a5a6;"><?php esc_html_e('Guest Application', 'job-posting-manager'); ?></em>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Education Section -->
+                        <?php
+                        $has_education = false;
+                        $education_fields = [
                             'edu_primary_school_name',
                             'edu_primary_school_address',
                             'edu_primary_start_year',
@@ -6248,110 +5996,377 @@ class JPM_Admin
                             'edu_tertiary_degree_level',
                             'edu_tertiary_start_year',
                             'edu_tertiary_end_year',
-                            'edu_tertiary_status',
-                            'emp_company_name',
-                            'emp_position',
-                            'emp_years',
-                            'employment_entries'
+                            'edu_tertiary_status'
                         ];
 
-                        // Skip if already displayed in applicant information
-                        $skip_fields = ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email'];
-
-                        // Collect valid form fields
-                        $valid_fields = [];
-                        foreach ($form_data as $field_name => $field_value):
-                            if (in_array($field_name, $excluded_fields)) {
-                                continue;
+                        foreach ($education_fields as $edu_field) {
+                            if (isset($form_data[$edu_field]) && !empty($form_data[$edu_field])) {
+                                $has_education = true;
+                                break;
                             }
+                        }
 
-                            $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
-                            if (in_array($field_name_lower, $skip_fields)) {
-                                continue;
-                            }
-
-                            if (empty($field_value)) {
-                                continue;
-                            }
-
-                            $field_label = ucwords(str_replace(['_', '-'], ' ', $field_name));
-                            $valid_fields[$field_label] = $field_value;
-                        endforeach;
-
-                        if (!empty($valid_fields)):
+                        if ($has_education):
                             ?>
-                            <div class="info-grid">
-                                <?php foreach ($valid_fields as $field_label => $field_value): ?>
-                                    <div class="info-row">
-                                        <div class="info-label">
-                                            <?php echo esc_html($field_label); ?>
-                                        </div>
-                                        <div class="info-value">
-                                            <?php
-                                            if (is_array($field_value)) {
-                                                // Handle array values (e.g., checkboxes, multiple selections)
-                                                echo '<ul style="margin: 0; padding-left: 20px; list-style-type: disc;">';
-                                                foreach ($field_value as $item) {
-                                                    echo '<li style="margin-bottom: 5px;">' . esc_html($item) . '</li>';
-                                                }
-                                                echo '</ul>';
-                                            } elseif (
-                                                filter_var($field_value, FILTER_VALIDATE_URL) &&
-                                                (strpos($field_value, '.pdf') !== false ||
-                                                    strpos($field_value, '.doc') !== false ||
-                                                    strpos($field_value, '.docx') !== false ||
-                                                    strpos($field_value, '.jpg') !== false ||
-                                                    strpos($field_value, '.png') !== false ||
-                                                    strpos($field_value, '.jpeg') !== false)
-                                            ) {
-                                                // Handle file URLs
-                                                $file_name = basename($field_value);
-                                                echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none; font-weight: 600;">';
-                                                echo '<span style="margin-right: 8px;">[file]</span>';
-                                                echo esc_html($file_name);
-                                                echo ' <span style="font-size: 9pt; color: #7f8c8d;">(' . esc_html__('Click to download', 'job-posting-manager') . ')</span>';
-                                                echo '</a>';
-                                            } elseif (filter_var($field_value, FILTER_VALIDATE_EMAIL)) {
-                                                // Handle email addresses
-                                                echo '<a href="mailto:' . esc_attr($field_value) . '" style="color: #3498db; text-decoration: none;">' . esc_html($field_value) . '</a>';
-                                            } elseif (filter_var($field_value, FILTER_VALIDATE_URL)) {
-                                                // Handle URLs
-                                                echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none;">' . esc_html($field_value) . '</a>';
-                                            } elseif (strlen($field_value) > 200) {
-                                                // Handle long text - preserve line breaks and format nicely
-                                                $formatted_value = nl2br(esc_html($field_value));
-                                                echo '<div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0;">' . wp_kses_post($formatted_value) . '</div>';
-                                            } else {
-                                                // Regular text - preserve line breaks
-                                                $formatted_value = nl2br(esc_html($field_value));
-                                                echo wp_kses_post($formatted_value);
-                                            }
-                                            ?>
-                                        </div>
+                                <div class="section">
+                                    <div class="section-title"><?php esc_html_e('Education', 'job-posting-manager'); ?></div>
+                                    <div class="info-grid">
+                                        <!-- Primary Education -->
+                                        <?php if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])): ?>
+                                                <div class="info-row" style="grid-column: 1 / -1; margin-top: 15px;">
+                                                    <div class="info-label"
+                                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                                        <?php esc_html_e('Primary Education', 'job-posting-manager'); ?>
+                                                    </div>
+                                                </div>
+                                                <?php if (!empty($form_data['edu_primary_school_name'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('School Name', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_primary_school_name']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_primary_school_address'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_primary_school_address']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_primary_start_year'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_primary_start_year']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_primary_end_year'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_primary_end_year']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_primary_completed'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Completed', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_primary_completed']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                        <?php endif; ?>
+
+                                        <!-- Secondary Education -->
+                                        <?php if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])): ?>
+                                                <div class="info-row"
+                                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                                    <div class="info-label"
+                                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                                        <?php esc_html_e('Secondary Education', 'job-posting-manager'); ?>
+                                                    </div>
+                                                </div>
+                                                <?php if (!empty($form_data['edu_secondary_school_name'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('School Name', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_name']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_secondary_school_address'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_address']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_secondary_school_type'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('School Type', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_secondary_school_type']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_secondary_start_year'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_secondary_start_year']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_secondary_end_year'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_secondary_end_year']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_secondary_completed'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Completed', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_secondary_completed']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                        <?php endif; ?>
+
+                                        <!-- Tertiary Education -->
+                                        <?php if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])): ?>
+                                                <div class="info-row"
+                                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                                    <div class="info-label"
+                                                        style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                                        <?php esc_html_e('Tertiary Education', 'job-posting-manager'); ?>
+                                                    </div>
+                                                </div>
+                                                <?php if (!empty($form_data['edu_tertiary_institution_name'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Institution Name', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_institution_name']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_tertiary_school_address'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_school_address']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_tertiary_program'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Program / Course', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_program']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_tertiary_degree_level'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Degree Level', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_degree_level']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_tertiary_start_year'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_start_year']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_tertiary_end_year'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_end_year']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($form_data['edu_tertiary_status'])): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label"><?php esc_html_e('Status', 'job-posting-manager'); ?></div>
+                                                            <div class="info-value"><?php echo esc_html($form_data['edu_tertiary_status']); ?></div>
+                                                        </div>
+                                                <?php endif; ?>
+                                        <?php endif; ?>
                                     </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php else: ?>
-                            <p style="color: #95a5a6; font-style: italic; padding: 20px; text-align: center;">
-                                <?php esc_html_e('No additional form data available.', 'job-posting-manager'); ?>
-                            </p>
+                                </div>
+                                <div class="divider"></div>
                         <?php endif; ?>
+
+                        <!-- Employment Section -->
+                        <?php
+                        $has_employment = false;
+                        if (
+                            (isset($form_data['emp_company_name']) && !empty($form_data['emp_company_name'])) ||
+                            (isset($form_data['emp_position']) && !empty($form_data['emp_position'])) ||
+                            (isset($form_data['emp_years']) && !empty($form_data['emp_years'])) ||
+                            (isset($form_data['employment_entries']) && !empty($form_data['employment_entries']))
+                        ) {
+                            $has_employment = true;
+                        }
+
+                        if ($has_employment):
+                            // Handle employment entries (array format)
+                            $employment_entries = [];
+                            if (isset($form_data['employment_entries']) && is_array($form_data['employment_entries'])) {
+                                $employment_entries = $form_data['employment_entries'];
+                            } else {
+                                // Fallback: reconstruct from arrays
+                                $company_names = isset($form_data['emp_company_name']) && is_array($form_data['emp_company_name']) ? $form_data['emp_company_name'] : [];
+                                $positions = isset($form_data['emp_position']) && is_array($form_data['emp_position']) ? $form_data['emp_position'] : [];
+                                $years = isset($form_data['emp_years']) && is_array($form_data['emp_years']) ? $form_data['emp_years'] : [];
+
+                                $max_count = max(count($company_names), count($positions), count($years));
+                                for ($i = 0; $i < $max_count; $i++) {
+                                    if (!empty($company_names[$i]) || !empty($positions[$i]) || !empty($years[$i])) {
+                                        $employment_entries[] = [
+                                            'company_name' => $company_names[$i] ?? '',
+                                            'position' => $positions[$i] ?? '',
+                                            'years' => $years[$i] ?? ''
+                                        ];
+                                    }
+                                }
+                            }
+                            ?>
+                                <div class="section">
+                                    <div class="section-title"><?php esc_html_e('Employment History', 'job-posting-manager'); ?></div>
+                                    <div class="info-grid">
+                                        <?php if (!empty($employment_entries)): ?>
+                                                <?php foreach ($employment_entries as $index => $entry): ?>
+                                                        <?php if ($index > 0): ?>
+                                                                <div class="info-row"
+                                                                    style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                                                                </div>
+                                                        <?php endif; ?>
+                                                        <div class="info-row"
+                                                            style="grid-column: 1 / -1; margin-top: <?php echo esc_attr($index > 0 ? '15px' : '0'); ?>;">
+                                                            <div class="info-label"
+                                                                style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                                                <?php /* translators: %d: Employment entry number. */ ?>
+                                                                <?php printf(__('Employment #%d', 'job-posting-manager'), absint($index + 1)); ?>
+                                                            </div>
+                                                        </div>
+                                                        <?php if (!empty($entry['company_name'])): ?>
+                                                                <div class="info-row">
+                                                                    <div class="info-label"><?php esc_html_e('Company Name', 'job-posting-manager'); ?></div>
+                                                                    <div class="info-value"><?php echo esc_html($entry['company_name']); ?></div>
+                                                                </div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($entry['position'])): ?>
+                                                                <div class="info-row">
+                                                                    <div class="info-label"><?php esc_html_e('Position', 'job-posting-manager'); ?></div>
+                                                                    <div class="info-value"><?php echo esc_html($entry['position']); ?></div>
+                                                                </div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($entry['years'])): ?>
+                                                                <div class="info-row">
+                                                                    <div class="info-label"><?php esc_html_e('Years', 'job-posting-manager'); ?></div>
+                                                                    <div class="info-value"><?php echo esc_html($entry['years']); ?></div>
+                                                                </div>
+                                                        <?php endif; ?>
+                                                <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="divider"></div>
+                        <?php endif; ?>
+
+                        <!-- Application Form Data -->
+                        <?php if (!empty($form_data)): ?>
+                                <div class="section form-data-section">
+                                    <div class="section-title">
+                                        <?php esc_html_e('Application Form Data', 'job-posting-manager'); ?>
+                                    </div>
+                                    <?php
+                                    // Exclude internal fields from display
+                                    $excluded_fields = [
+                                        'application_number',
+                                        'date_of_registration',
+                                        'applicant_number',
+                                        // Exclude education and employment fields as they are shown in dedicated sections above
+                                        'edu_primary_school_name',
+                                        'edu_primary_school_address',
+                                        'edu_primary_start_year',
+                                        'edu_primary_end_year',
+                                        'edu_primary_completed',
+                                        'edu_secondary_school_name',
+                                        'edu_secondary_school_address',
+                                        'edu_secondary_school_type',
+                                        'edu_secondary_start_year',
+                                        'edu_secondary_end_year',
+                                        'edu_secondary_completed',
+                                        'edu_tertiary_institution_name',
+                                        'edu_tertiary_school_address',
+                                        'edu_tertiary_program',
+                                        'edu_tertiary_degree_level',
+                                        'edu_tertiary_start_year',
+                                        'edu_tertiary_end_year',
+                                        'edu_tertiary_status',
+                                        'emp_company_name',
+                                        'emp_position',
+                                        'emp_years',
+                                        'employment_entries'
+                                    ];
+
+                                    // Skip if already displayed in applicant information
+                                    $skip_fields = ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email'];
+
+                                    // Collect valid form fields
+                                    $valid_fields = [];
+                                    foreach ($form_data as $field_name => $field_value):
+                                        if (in_array($field_name, $excluded_fields)) {
+                                            continue;
+                                        }
+
+                                        $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
+                                        if (in_array($field_name_lower, $skip_fields)) {
+                                            continue;
+                                        }
+
+                                        if (empty($field_value)) {
+                                            continue;
+                                        }
+
+                                        $field_label = ucwords(str_replace(['_', '-'], ' ', $field_name));
+                                        $valid_fields[$field_label] = $field_value;
+                                    endforeach;
+
+                                    if (!empty($valid_fields)):
+                                        ?>
+                                            <div class="info-grid">
+                                                <?php foreach ($valid_fields as $field_label => $field_value): ?>
+                                                        <div class="info-row">
+                                                            <div class="info-label">
+                                                                <?php echo esc_html($field_label); ?>
+                                                            </div>
+                                                            <div class="info-value">
+                                                                <?php
+                                                                if (is_array($field_value)) {
+                                                                    // Handle array values (e.g., checkboxes, multiple selections)
+                                                                    echo '<ul style="margin: 0; padding-left: 20px; list-style-type: disc;">';
+                                                                    foreach ($field_value as $item) {
+                                                                        echo '<li style="margin-bottom: 5px;">' . esc_html($item) . '</li>';
+                                                                    }
+                                                                    echo '</ul>';
+                                                                } elseif (
+                                                                    filter_var($field_value, FILTER_VALIDATE_URL) &&
+                                                                    (strpos($field_value, '.pdf') !== false ||
+                                                                        strpos($field_value, '.doc') !== false ||
+                                                                        strpos($field_value, '.docx') !== false ||
+                                                                        strpos($field_value, '.jpg') !== false ||
+                                                                        strpos($field_value, '.png') !== false ||
+                                                                        strpos($field_value, '.jpeg') !== false)
+                                                                ) {
+                                                                    // Handle file URLs
+                                                                    $file_name = basename($field_value);
+                                                                    echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none; font-weight: 600;">';
+                                                                    echo '<span style="margin-right: 8px;">[file]</span>';
+                                                                    echo esc_html($file_name);
+                                                                    echo ' <span style="font-size: 9pt; color: #7f8c8d;">(' . esc_html__('Click to download', 'job-posting-manager') . ')</span>';
+                                                                    echo '</a>';
+                                                                } elseif (filter_var($field_value, FILTER_VALIDATE_EMAIL)) {
+                                                                    // Handle email addresses
+                                                                    echo '<a href="mailto:' . esc_attr($field_value) . '" style="color: #3498db; text-decoration: none;">' . esc_html($field_value) . '</a>';
+                                                                } elseif (filter_var($field_value, FILTER_VALIDATE_URL)) {
+                                                                    // Handle URLs
+                                                                    echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none;">' . esc_html($field_value) . '</a>';
+                                                                } elseif (strlen($field_value) > 200) {
+                                                                    // Handle long text - preserve line breaks and format nicely
+                                                                    $formatted_value = nl2br(esc_html($field_value));
+                                                                    echo '<div style="max-height: 300px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0;">' . wp_kses_post($formatted_value) . '</div>';
+                                                                } else {
+                                                                    // Regular text - preserve line breaks
+                                                                    $formatted_value = nl2br(esc_html($field_value));
+                                                                    echo wp_kses_post($formatted_value);
+                                                                }
+                                                                ?>
+                                                            </div>
+                                                        </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                    <?php else: ?>
+                                            <p style="color: #95a5a6; font-style: italic; padding: 20px; text-align: center;">
+                                                <?php esc_html_e('No additional form data available.', 'job-posting-manager'); ?>
+                                            </p>
+                                    <?php endif; ?>
+                                </div>
+                        <?php endif; ?>
+
+                        <div class="footer">
+                            <?php /* translators: 1: Printed date/time, 2: Site name. */ ?>
+                            <p><?php printf(__('Printed on %1$s from %2$s', 'job-posting-manager'), esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'))), esc_html(get_bloginfo('name'))); ?>
+                            </p>
+                        </div>
                     </div>
-                <?php endif; ?>
 
-                <div class="footer">
-                    <?php /* translators: 1: Printed date/time, 2: Site name. */ ?>
-                    <p><?php printf(__('Printed on %1$s from %2$s', 'job-posting-manager'), esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'))), esc_html(get_bloginfo('name'))); ?>
-                    </p>
-                </div>
-            </div>
+                    <script>         // Auto-print w         hen         page loads (optional)         // window.onload = function() { window.print(); };
+                    </script>
+                </body>
 
-            <script>         // Auto-print w         hen         page loads (optional)         // window.onload = function() { window.print(); };
-            </script>
-        </body>
-
-        </html>
-        <?php
+                </html>
+                <?php
     }
 }
 
