@@ -4315,6 +4315,7 @@ class JPM_Admin
         if (($format === 'csv' && $file_ext !== 'csv') || ($format === 'json' && $file_ext !== 'json')) {
             add_action('admin_notices', function () use ($format, $file_ext) {
                 echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                    /* translators: 1: Uploaded file extension, 2: selected import format. */
                     sprintf(__('File extension (.%s) does not match selected format (%s). Please select the correct format or upload a file with the matching extension.', 'job-posting-manager'), $file_ext, strtoupper($format)) .
                     '</p></div>';
             });
@@ -4332,6 +4333,7 @@ class JPM_Admin
         } catch (Exception $e) {
             add_action('admin_notices', function () use ($e) {
                 echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                    /* translators: %s: Exception message. */
                     sprintf(__('An unexpected error occurred during import: %s', 'job-posting-manager'), esc_html($e->getMessage())) .
                     '</p></div>';
             });
@@ -4356,8 +4358,10 @@ class JPM_Admin
 
             if ($success_count > 0) {
                 add_action('admin_notices', function () use ($success_count, $total_processed) {
+                    /* translators: 1: Number of successfully imported applications, 2: total processed applications. */
                     $message = sprintf(__('Successfully imported %d out of %d application(s).', 'job-posting-manager'), $success_count, $total_processed);
                     if ($success_count === $total_processed) {
+                        /* translators: %d: Number of imported applications. */
                         $message = sprintf(__('Successfully imported all %d application(s).', 'job-posting-manager'), $success_count);
                     }
                     echo '<div class="notice notice-success is-dismissible"><p><strong>' . __('Import Success:', 'job-posting-manager') . '</strong> ' . $message . '</p></div>';
@@ -4366,6 +4370,7 @@ class JPM_Admin
 
             if ($error_count > 0) {
                 $error_message = '<strong>' . __('Import Errors:', 'job-posting-manager') . '</strong> ' .
+                    /* translators: 1: Number of failed imports, 2: total processed applications. */
                     sprintf(__('Failed to import %d out of %d application(s).', 'job-posting-manager'), $error_count, $total_processed);
 
                 if (!empty($errors)) {
@@ -4375,6 +4380,7 @@ class JPM_Admin
                         $error_message .= '<li>' . esc_html($error) . '</li>';
                     }
                     if (count($errors) > 20) {
+                        /* translators: %d: Number of additional errors not shown. */
                         $error_message .= '<li><em>' . sprintf(__('... and %d more errors. Please check your file and try again.', 'job-posting-manager'), count($errors) - 20) . '</em></li>';
                     }
                     $error_message .= '</ul>';
@@ -4451,6 +4457,7 @@ class JPM_Admin
             $row_num++;
 
             if (count($row) < count($headers)) {
+                /* translators: 1: CSV row number, 2: expected column count, 3: actual column count. */
                 $error_messages[] = sprintf(__('Row %d: Insufficient columns. Expected %d columns but found %d. Please check the CSV format.', 'job-posting-manager'), $row_num, count($headers), count($row));
                 $error_count++;
                 continue;
@@ -4518,6 +4525,7 @@ class JPM_Admin
                 JSON_ERROR_UTF8 => __('Malformed UTF-8 characters, possibly incorrectly encoded.', 'job-posting-manager'),
             ];
             $error_detail = $json_errors[json_last_error()] ?? json_last_error_msg();
+            /* translators: %s: JSON parsing error detail. */
             $error_messages[] = sprintf(__('Invalid JSON format: %s. Please ensure the file is valid JSON and matches the export format.', 'job-posting-manager'), $error_detail);
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
@@ -4577,6 +4585,7 @@ class JPM_Admin
             $job_id_value = isset($data['job id']) ? $data['job id'] : (isset($data['job_id']) ? $data['job_id'] : '');
             return [
                 'success' => false,
+                /* translators: 1: CSV row number, 2: invalid Job ID value. */
                 'error' => sprintf(__('Row %d: Missing or invalid Job ID. Found value: "%s". Job ID must be a positive number and the job must exist.', 'job-posting-manager'), $row_num, esc_html($job_id_value))
             ];
         }
@@ -4585,6 +4594,7 @@ class JPM_Admin
         if (!$job) {
             return [
                 'success' => false,
+                /* translators: 1: CSV row number, 2: Job ID value. */
                 'error' => sprintf(__('Row %d: Job ID %d does not exist. Please ensure the job exists before importing applications.', 'job-posting-manager'), $row_num, $job_id)
             ];
         }
@@ -4725,8 +4735,10 @@ class JPM_Admin
 
         if ($result === false) {
             $db_error = $wpdb->last_error;
+            /* translators: %d: CSV row number. */
             $error_msg = sprintf(__('Row %d: Failed to insert application into database.', 'job-posting-manager'), $row_num);
             if (!empty($db_error)) {
+                /* translators: %s: Database error message. */
                 $error_msg .= ' ' . sprintf(__('Database error: %s', 'job-posting-manager'), $db_error);
             }
             return [
@@ -4757,6 +4769,7 @@ class JPM_Admin
             $job_id_value = isset($app_data['job']['id']) ? $app_data['job']['id'] : (isset($app_data['job_id']) ? $app_data['job_id'] : '');
             return [
                 'success' => false,
+                /* translators: 1: Application index, 2: invalid Job ID value. */
                 'error' => sprintf(__('Application %d: Missing or invalid Job ID. Found value: "%s". Job ID must be a positive number and the job must exist.', 'job-posting-manager'), $index, esc_html($job_id_value))
             ];
         }
@@ -4765,6 +4778,7 @@ class JPM_Admin
         if (!$job) {
             return [
                 'success' => false,
+                /* translators: 1: Application index, 2: Job ID value. */
                 'error' => sprintf(__('Application %d: Job ID %d does not exist. Please ensure the job exists before importing applications.', 'job-posting-manager'), $index, $job_id)
             ];
         }
@@ -4894,8 +4908,10 @@ class JPM_Admin
 
         if ($result === false) {
             $db_error = $wpdb->last_error;
+            /* translators: %d: Application index in the import payload. */
             $error_msg = sprintf(__('Application %d: Failed to insert application into database.', 'job-posting-manager'), $index);
             if (!empty($db_error)) {
+                /* translators: %s: Database error message. */
                 $error_msg .= ' ' . sprintf(__('Database error: %s', 'job-posting-manager'), $db_error);
             }
             return [
@@ -5087,6 +5103,7 @@ class JPM_Admin
         <head>
             <meta charset="<?php bloginfo('charset'); ?>">
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            <?php /* translators: %d: Application ID. */ ?>
             <title><?php printf(__('Application #%d - Print', 'job-posting-manager'), $application_id); ?></title>
             <style>
                 /* Hide all WordPress admin elements */
@@ -5674,6 +5691,7 @@ class JPM_Admin
             <div class="print-container" style="margin-top: 0 !important; padding-top: 0 !important;">
                 <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important;">
                     <h1><?php _e('Job Application', 'job-posting-manager'); ?></h1>
+                    <?php /* translators: %d: Application ID. */ ?>
                     <div class="subtitle"><?php printf(__('Application #%d', 'job-posting-manager'), $application_id); ?></div>
                     <?php if (get_bloginfo('name')): ?>
                         <div class="company-info"><?php echo esc_html(get_bloginfo('name')); ?></div>
@@ -6144,6 +6162,7 @@ class JPM_Admin
                                         style="grid-column: 1 / -1; margin-top: <?php echo $index > 0 ? '15px' : '0'; ?>;">
                                         <div class="info-label"
                                             style="font-weight: 700; color: #0073aa; font-size: 11pt; margin-bottom: 10px;">
+                                            <?php /* translators: %d: Employment entry number. */ ?>
                                             <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
                                         </div>
                                     </div>
@@ -6294,6 +6313,7 @@ class JPM_Admin
                 <?php endif; ?>
 
                 <div class="footer">
+                    <?php /* translators: 1: Printed date/time, 2: Site name. */ ?>
                     <p><?php printf(__('Printed on %s from %s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')), get_bloginfo('name')); ?>
                     </p>
                 </div>
