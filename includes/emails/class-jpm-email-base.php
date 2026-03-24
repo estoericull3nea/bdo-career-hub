@@ -109,7 +109,7 @@ abstract class JPM_Email_Base
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send email to ' . $to);
+            do_action('jpm_log_error', 'JPM: Failed to send email to ' . $to);
         }
 
         return $result;
