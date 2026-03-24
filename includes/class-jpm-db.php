@@ -2051,7 +2051,7 @@ class JPM_Admin
             </div>
             <p>
                 <button type="button" class="button" id="upload_company_image_btn">
-                    <?php echo $company_image_id ? __('Change Image', 'job-posting-manager') : __('Upload Image', 'job-posting-manager'); ?>
+                    <?php echo $company_image_id ? esc_html__('Change Image', 'job-posting-manager') : esc_html__('Upload Image', 'job-posting-manager'); ?>
                 </button>
                 <?php if ($company_image_id): ?>
                     <button type="button" class="button" id="remove_company_image_btn" style="margin-left: 5px;">
@@ -2076,7 +2076,7 @@ class JPM_Admin
         $applications = JPM_DB::get_applications(['job_id' => $post->ID]);
 
         if (empty($applications)) {
-            echo '<p>' . __('No applications have been submitted for this job yet.', 'job-posting-manager') . '</p>';
+            echo '<p>' . esc_html__('No applications have been submitted for this job yet.', 'job-posting-manager') . '</p>';
             return;
         }
 
@@ -2213,7 +2213,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                             });
+                                                                                                                                     });
         </script>
         <?php
     }
@@ -2566,7 +2566,7 @@ class JPM_Admin
             </div>
             <?php
         } else {
-            echo '<p style="text-align: center; padding: 40px; color: #666;">' . __('No data available for the selected period.', 'job-posting-manager') . '</p>';
+            echo '<p style="text-align: center; padding: 40px; color: #666;">' . esc_html__('No data available for the selected period.', 'job-posting-manager') . '</p>';
         }
         $html = ob_get_clean();
 
@@ -3429,7 +3429,7 @@ class JPM_Admin
             <div class="jpm-status-management">
                 <div class="jpm-status-form-section"
                     style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 4px;">
-                    <h2><?php echo $editing_status ? __('Edit Status', 'job-posting-manager') : __('Add New Status', 'job-posting-manager'); ?>
+                    <h2><?php echo $editing_status ? esc_html__('Edit Status', 'job-posting-manager') : esc_html__('Add New Status', 'job-posting-manager'); ?>
                     </h2>
 
                     <form method="post" action="">
@@ -3520,7 +3520,7 @@ class JPM_Admin
 
                         <p class="submit">
                             <input type="submit" name="submit" class="button button-primary"
-                                value="<?php echo $editing_status ? __('Update Status', 'job-posting-manager') : __('Add Status', 'job-posting-manager'); ?>">
+                                value="<?php echo $editing_status ? esc_attr__('Update Status', 'job-posting-manager') : esc_attr__('Add Status', 'job-posting-manager'); ?>">
                             <?php if ($editing_status): ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management')); ?>" class="button">
                                     <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
@@ -4269,7 +4269,7 @@ class JPM_Admin
         // Check if file was uploaded
         if (!isset($_FILES['jpm_import_file'])) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('No file was uploaded. Please select a file to import.', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html__('No file was uploaded. Please select a file to import.', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
@@ -4291,7 +4291,7 @@ class JPM_Admin
             $error_message = $error_messages[$file['error']] ?? __('Unknown upload error occurred.', 'job-posting-manager');
 
             add_action('admin_notices', function () use ($error_message) {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html($error_message) . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html($error_message) . '</p></div>';
             });
             return;
         }
@@ -4300,7 +4300,7 @@ class JPM_Admin
         $max_size = 10 * 1024 * 1024; // 10MB in bytes
         if ($file['size'] > $max_size) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('The uploaded file is too large. Maximum file size is 10MB.', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html__('The uploaded file is too large. Maximum file size is 10MB.', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
@@ -4308,7 +4308,7 @@ class JPM_Admin
         // Check if file is empty
         if ($file['size'] === 0) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('The uploaded file is empty.', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html__('The uploaded file is empty.', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
@@ -4317,14 +4317,14 @@ class JPM_Admin
 
         if (empty($format)) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('Please select an import format (CSV or JSON).', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html__('Please select an import format (CSV or JSON).', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
 
         if (!in_array($format, ['csv', 'json'])) {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' . __('Invalid import format selected. Please choose either CSV or JSON.', 'job-posting-manager') . '</p></div>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' . esc_html__('Invalid import format selected. Please choose either CSV or JSON.', 'job-posting-manager') . '</p></div>';
             });
             return;
         }
@@ -4333,7 +4333,7 @@ class JPM_Admin
         $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (($format === 'csv' && $file_ext !== 'csv') || ($format === 'json' && $file_ext !== 'json')) {
             add_action('admin_notices', function () use ($format, $file_ext) {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' .
                     /* translators: 1: Uploaded file extension, 2: selected import format. */
                     sprintf(__('File extension (.%s) does not match selected format (%s). Please select the correct format or upload a file with the matching extension.', 'job-posting-manager'), $file_ext, strtoupper($format)) .
                     '</p></div>';
@@ -4351,7 +4351,7 @@ class JPM_Admin
             }
         } catch (Exception $e) {
             add_action('admin_notices', function () use ($e) {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' .
                     /* translators: %s: Exception message. */
                     sprintf(__('An unexpected error occurred during import: %s', 'job-posting-manager'), esc_html($e->getMessage())) .
                     '</p></div>';
@@ -4368,8 +4368,8 @@ class JPM_Admin
 
             if ($total_processed === 0) {
                 add_action('admin_notices', function () {
-                    echo '<div class="notice notice-warning"><p><strong>' . __('Import Warning:', 'job-posting-manager') . '</strong> ' .
-                        __('No applications were found in the file to import.', 'job-posting-manager') .
+                    echo '<div class="notice notice-warning"><p><strong>' . esc_html__('Import Warning:', 'job-posting-manager') . '</strong> ' .
+                        esc_html__('No applications were found in the file to import.', 'job-posting-manager') .
                         '</p></div>';
                 });
                 return;
@@ -4383,17 +4383,17 @@ class JPM_Admin
                         /* translators: %d: Number of imported applications. */
                         $message = sprintf(__('Successfully imported all %d application(s).', 'job-posting-manager'), $success_count);
                     }
-                    echo '<div class="notice notice-success is-dismissible"><p><strong>' . __('Import Success:', 'job-posting-manager') . '</strong> ' . $message . '</p></div>';
+                    echo '<div class="notice notice-success is-dismissible"><p><strong>' . esc_html__('Import Success:', 'job-posting-manager') . '</strong> ' . $message . '</p></div>';
                 });
             }
 
             if ($error_count > 0) {
-                $error_message = '<strong>' . __('Import Errors:', 'job-posting-manager') . '</strong> ' .
+                $error_message = '<strong>' . esc_html__('Import Errors:', 'job-posting-manager') . '</strong> ' .
                     /* translators: 1: Number of failed imports, 2: total processed applications. */
                     sprintf(__('Failed to import %d out of %d application(s).', 'job-posting-manager'), $error_count, $total_processed);
 
                 if (!empty($errors)) {
-                    $error_message .= '<br><br><strong>' . __('Error Details:', 'job-posting-manager') . '</strong>';
+                    $error_message .= '<br><br><strong>' . esc_html__('Error Details:', 'job-posting-manager') . '</strong>';
                     $error_message .= '<ul style="margin-left: 20px; margin-top: 10px;">';
                     foreach (array_slice($errors, 0, 20) as $error) { // Show first 20 errors
                         $error_message .= '<li>' . esc_html($error) . '</li>';
@@ -4411,8 +4411,8 @@ class JPM_Admin
             }
         } else {
             add_action('admin_notices', function () {
-                echo '<div class="notice notice-error"><p><strong>' . __('Import Error:', 'job-posting-manager') . '</strong> ' .
-                    __('Failed to process the import file. Please check the file format and try again.', 'job-posting-manager') .
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' .
+                    esc_html__('Failed to process the import file. Please check the file format and try again.', 'job-posting-manager') .
                     '</p></div>';
             });
         }
@@ -6302,7 +6302,7 @@ class JPM_Admin
                                                 echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none; font-weight: 600;">';
                                                 echo '<span style="margin-right: 8px;">[file]</span>';
                                                 echo esc_html($file_name);
-                                                echo ' <span style="font-size: 9pt; color: #7f8c8d;">(' . __('Click to download', 'job-posting-manager') . ')</span>';
+                                                echo ' <span style="font-size: 9pt; color: #7f8c8d;">(' . esc_html__('Click to download', 'job-posting-manager') . ')</span>';
                                                 echo '</a>';
                                             } elseif (filter_var($field_value, FILTER_VALIDATE_EMAIL)) {
                                                 // Handle email addresses
