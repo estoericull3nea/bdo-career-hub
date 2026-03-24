@@ -7,6 +7,24 @@
 class JPM_Database
 {
     /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private static function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
+    /**
      * Clear shared cache entries for application reads.
      *
      * @return void
@@ -54,7 +72,7 @@ class JPM_Database
     public static function insert_application($user_id, $job_id, $resume_path, $notes = '')
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = self::get_validated_applications_table();
         $user_id = absint($user_id);
         $job_id = absint($job_id);
 
@@ -118,7 +136,7 @@ class JPM_Database
     public static function get_applications($filters = [])
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = self::get_validated_applications_table();
         $filters = is_array($filters) ? $filters : [];
         $normalized_filters = [
             'status' => isset($filters['status']) ? sanitize_text_field((string) $filters['status']) : '',
@@ -155,16 +173,11 @@ class JPM_Database
             $where_values[] = $normalized_filters['user_id'];
         }
 
-        $query = "SELECT * FROM {$table}";
-        if (!empty($where)) {
-            $query .= ' WHERE ' . implode(' AND ', $where);
-        }
-        $query .= ' ORDER BY application_date DESC';
-
         if (!empty($where_values)) {
+            $query = "SELECT * FROM {$table} WHERE " . implode(' AND ', $where) . ' ORDER BY application_date DESC';
             $applications = $wpdb->get_results($wpdb->prepare($query, ...$where_values));
         } else {
-            $applications = $wpdb->get_results($query);
+            $applications = $wpdb->get_results("SELECT * FROM {$table} ORDER BY application_date DESC");
         }
 
         // If search term is provided, filter by searching in form data
@@ -303,7 +316,7 @@ class JPM_Database
     public static function get_application($id)
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = self::get_validated_applications_table();
         $id = absint($id);
         if ($id <= 0) {
             return null;
