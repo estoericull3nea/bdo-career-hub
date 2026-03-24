@@ -1510,7 +1510,8 @@ class JPM_Frontend
                         <div class="jpm-form-field">
                             <button type="submit" id="jpm-send-otp-btn"
                                 class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                                <span class="jpm-btn-text"><?php esc_html_e('Send Verification Code', 'job-posting-manager'); ?></span>
+                                <span
+                                    class="jpm-btn-text"><?php esc_html_e('Send Verification Code', 'job-posting-manager'); ?></span>
                             </button>
                         </div>
 
@@ -2754,7 +2755,8 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-login-email" class="jpm-input-label">
-                            <?php esc_html_e('Username or Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php esc_html_e('Username or Email Address', 'job-posting-manager'); ?> <span
+                                class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper">
                             <input type="text" id="jpm-login-email" name="email" required class="jpm-input"
@@ -3133,12 +3135,12 @@ class JPM_Frontend
                         $input.attr('type', 'text');
                         $eyeIcon.hide();
                         $eyeOffIcon.show();
-                        $button.attr('aria-label', '<?php echo $hide_password; ?>');
+                        $button.attr('aria-label', '<?php echo esc_js($hide_password); ?>');
                     } else {
                         $input.attr('type', 'password');
                         $eyeIcon.show();
                         $eyeOffIcon.hide();
-                        $button.attr('aria-label', '<?php echo $show_password; ?>');
+                        $button.attr('aria-label', '<?php echo esc_js($show_password); ?>');
                     }
                 });
 
@@ -3163,11 +3165,11 @@ class JPM_Frontend
                     var $btnText = $button.find('.jpm-btn-text');
 
                     $button.prop('disabled', true);
-                    $btnText.text('<?php echo $signing_in; ?>');
+                    $btnText.text('<?php echo esc_js($signing_in); ?>');
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
+                        url: '<?php echo esc_url($ajax_url); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_login',
@@ -3179,7 +3181,7 @@ class JPM_Frontend
                         },
                         success: function (response) {
                             if (response.success) {
-                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo $login_success; ?>') + '</p></div>').show();
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js($login_success); ?>') + '</p></div>').show();
                                 setTimeout(function () {
                                     // Clear any query parameters from URL before redirecting
                                     var redirectUrl = response.data.redirect_url || window.location.pathname;
@@ -3188,15 +3190,15 @@ class JPM_Frontend
                                     window.location.href = redirectUrl;
                                 }, 1000);
                             } else {
-                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo $invalid_creds; ?>') + '</p></div>').show();
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js($invalid_creds); ?>') + '</p></div>').show();
                                 $button.prop('disabled', false);
-                                $btnText.text('<?php echo $sign_in; ?>');
+                                $btnText.text('<?php echo esc_js($sign_in); ?>');
                             }
                         },
                         error: function () {
-                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $sign_in; ?>');
+                            $btnText.text('<?php echo esc_js($sign_in); ?>');
                         }
                     });
 
@@ -3523,7 +3525,7 @@ class JPM_Frontend
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
+                        url: '<?php echo esc_url($ajax_url); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_forgot_password',
@@ -3543,7 +3545,7 @@ class JPM_Frontend
                             }
                         },
                         error: function () {
-                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
                             $btnText.text('<?php echo $send_link; ?>');
                         }
@@ -4232,7 +4234,7 @@ class JPM_Frontend
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
+                        url: '<?php echo esc_url($ajax_url); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_reset_password',
@@ -4262,7 +4264,7 @@ class JPM_Frontend
                             }
                         },
                         error: function () {
-                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
                             $btnText.text('<?php echo $reset_password; ?>');
                         }
@@ -4379,7 +4381,8 @@ class JPM_Frontend
                                 </div>
                                 <div class="jpm-stat-content">
                                     <div class="jpm-stat-value"><?php echo count($applications); ?></div>
-                                    <div class="jpm-stat-label"><?php esc_html_e('Total Applications', 'job-posting-manager'); ?></div>
+                                    <div class="jpm-stat-label">
+                                        <?php esc_html_e('Total Applications', 'job-posting-manager'); ?></div>
                                 </div>
                             </div>
 
@@ -4393,7 +4396,8 @@ class JPM_Frontend
                                 </div>
                                 <div class="jpm-stat-content">
                                     <div class="jpm-stat-value"><?php echo count($all_jobs); ?></div>
-                                    <div class="jpm-stat-label"><?php esc_html_e('Available Jobs', 'job-posting-manager'); ?></div>
+                                    <div class="jpm-stat-label"><?php esc_html_e('Available Jobs', 'job-posting-manager'); ?>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4420,7 +4424,8 @@ class JPM_Frontend
                                     </div>
                                     <div class="jpm-stat-content">
                                         <div class="jpm-stat-value"><?php echo count($status_counts); ?></div>
-                                        <div class="jpm-stat-label"><?php esc_html_e('Status Types', 'job-posting-manager'); ?></div>
+                                        <div class="jpm-stat-label"><?php esc_html_e('Status Types', 'job-posting-manager'); ?>
+                                        </div>
                                     </div>
                                 </div>
                             <?php endif; ?>
@@ -5477,7 +5482,8 @@ class JPM_Frontend
                     <!-- Information Tab -->
                     <div class="jpm-profile-tab-content" id="jpm-tab-information">
                         <div class="jpm-profile-tab-header">
-                            <h2 class="jpm-profile-tab-title"><?php esc_html_e('Account Information', 'job-posting-manager'); ?></h2>
+                            <h2 class="jpm-profile-tab-title"><?php esc_html_e('Account Information', 'job-posting-manager'); ?>
+                            </h2>
                         </div>
 
                         <div class="jpm-information-content">
