@@ -91,7 +91,7 @@ class JPM_Security
 
         foreach ($ip_keys as $key) {
             if (!empty($_SERVER[$key])) {
-                $ip = sanitize_text_field($_SERVER[$key]);
+                $ip = sanitize_text_field(wp_unslash($_SERVER[$key]));
                 // Handle comma-separated IPs (X-Forwarded-For)
                 if (strpos($ip, ',') !== false) {
                     $ips = explode(',', $ip);
@@ -104,7 +104,7 @@ class JPM_Security
             }
         }
 
-        return isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : '0.0.0.0';
+        return isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '0.0.0.0';
     }
 
     /**
@@ -230,7 +230,7 @@ class JPM_Security
 
         // Ensure URL uses allowed protocols
         $allowed_protocols = ['http', 'https', 'mailto'];
-        $parsed = parse_url($url);
+        $parsed = wp_parse_url($url);
         if (!isset($parsed['scheme']) || !in_array(strtolower($parsed['scheme']), $allowed_protocols)) {
             return false;
         }
@@ -356,7 +356,7 @@ class JPM_Security
         
         if (!$valid) {
             // Log failed nonce attempts
-            error_log(sprintf(
+            do_action('jpm_log_error', sprintf(
                 'JPM Security: Failed nonce verification - Action: %s, Context: %s, IP: %s',
                 $action,
                 $context,
@@ -458,7 +458,7 @@ class JPM_Security
             'context' => $context
         ];
 
-        error_log('JPM Security Event: ' . json_encode($log_data));
+        do_action('jpm_log_error', 'JPM Security Event: ' . wp_json_encode($log_data));
     }
 
     /**
