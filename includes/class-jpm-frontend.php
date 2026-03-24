@@ -78,6 +78,7 @@ class JPM_Frontend
         if (!$rate_limit['allowed']) {
             $reset_time = date('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next attempt is allowed. */
                 'message' => sprintf(__('Too many applications. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -643,6 +644,7 @@ class JPM_Frontend
                     $start = ($paged - 1) * $per_page + 1;
                     $end = min($paged * $per_page, $total);
                     if ($total > 0) {
+                        /* translators: 1: First result number, 2: last result number, 3: total number of jobs. */
                         printf(
                             __('Showing %d-%d of %d jobs', 'job-posting-manager'),
                             $start,
@@ -1126,14 +1128,17 @@ class JPM_Frontend
                             // Use past tense for completed actions, present for ongoing
                             $status_lower = strtolower($status_name);
                             if (in_array($status_lower, ['accepted', 'rejected', 'reviewed'])) {
+                                /* translators: %s: Lowercase application status label. */
                                 $status_title = sprintf(__('Your application has been %s', 'job-posting-manager'), $status_lower);
                             } else {
+                                /* translators: %s: Lowercase application status label. */
                                 $status_title = sprintf(__('Your application is %s', 'job-posting-manager'), $status_lower);
                             }
 
                             // Get description, allow HTML for links
                             $status_description = isset($status['description']) && !empty($status['description'])
                                 ? $status['description']
+                                /* translators: %s: Lowercase application status label. */
                                 : sprintf(__('This means that your application status is %s.', 'job-posting-manager'), strtolower($status_name));
 
                             $accordion_id = 'jpm-status-accordion-' . $index;
@@ -1162,6 +1167,7 @@ class JPM_Frontend
                 <div class="jpm-tracker-footer-links">
                     <p class="jpm-tracker-footer-text">
                         <?php
+                        /* translators: %s: Link to the job listings page. */
                         printf(
                             __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
                             '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
@@ -1180,6 +1186,7 @@ class JPM_Frontend
                                     break;
                                 }
                             }
+                            /* translators: %s: Link to the login page. */
                             printf(
                                 __('Have an existing account? %s to login.', 'job-posting-manager'),
                                 '<a href="' . esc_url($login_url) . '">' . __('Click here', 'job-posting-manager') . '</a>'
@@ -1457,6 +1464,7 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
+            /* translators: 1: Current user's display name, 2: logout URL. */
             return '<div class="jpm-register-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to create a new account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
@@ -2424,6 +2432,7 @@ class JPM_Frontend
         if (!$rate_limit['allowed']) {
             $reset_time = date('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next OTP request is allowed. */
                 'message' => sprintf(__('Too many OTP requests. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -2492,6 +2501,7 @@ class JPM_Frontend
         if (!$rate_limit['allowed']) {
             $reset_time = date('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next OTP verification attempt is allowed. */
                 'message' => sprintf(__('Too many OTP verification attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -2562,6 +2572,7 @@ class JPM_Frontend
         if (!$rate_limit['allowed']) {
             $reset_time = date('H:i', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time when registration can be attempted again. */
                 'message' => sprintf(__('Too many registration attempts. Please try again after %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -2711,6 +2722,7 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
+            /* translators: 1: Current user's display name, 2: logout URL. */
             return '<div class="jpm-login-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to login as a different user.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
@@ -3204,6 +3216,7 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
+            /* translators: 1: Current user's display name, 2: logout URL. */
             return '<div class="jpm-forgot-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
@@ -3550,6 +3563,7 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
+            /* translators: 1: Current user's display name, 2: logout URL. */
             return '<div class="jpm-reset-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
@@ -4267,6 +4281,7 @@ class JPM_Frontend
     {
         // Check if user is logged in
         if (!is_user_logged_in()) {
+            /* translators: %s: Login URL. */
             return '<div class="jpm-user-profile-message"><p>' . sprintf(__('Please <a href="%s">login</a> to view your profile.', 'job-posting-manager'), esc_url(home_url('/sign-in/'))) . '</p></div>';
         }
 
@@ -4511,6 +4526,7 @@ class JPM_Frontend
                                                     </h4>
                                                     <?php if ($application_number): ?>
                                                         <span
+                                                            <?php /* translators: %s: Application number. */ ?>
                                                             class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
                                                     <?php endif; ?>
                                                 </div>
@@ -4664,6 +4680,7 @@ class JPM_Frontend
                                                 </h4>
                                                 <?php if ($application_number): ?>
                                                     <span
+                                                        <?php /* translators: %s: Application number. */ ?>
                                                         class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
                                                 <?php endif; ?>
                                             </div>
@@ -5164,6 +5181,7 @@ class JPM_Frontend
                                                                 <?php foreach ($employment_entries as $index => $entry): ?>
                                                                     <div class="jpm-form-data-subsection">
                                                                         <h5 class="jpm-form-data-subsection-title">
+                                                                            <?php /* translators: %d: Employment entry number. */ ?>
                                                                             <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
                                                                         </h5>
                                                                         <div class="jpm-form-data-grid">
@@ -6867,6 +6885,7 @@ class JPM_Frontend
         if (!$rate_limit['allowed']) {
             $reset_time = date('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next login attempt is allowed. */
                 'message' => sprintf(__('Too many login attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
