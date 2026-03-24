@@ -180,11 +180,11 @@ class JPM_Templates {
         // Apply template if selected
         if (isset($_POST['jpm_selected_template']) && !empty($_POST['jpm_selected_template'])) {
             // Verify nonce if it exists
-            if (isset($_POST['jpm_template_selector_nonce']) && !wp_verify_nonce($_POST['jpm_template_selector_nonce'], 'jpm_template_selector')) {
+            if (isset($_POST['jpm_template_selector_nonce']) && !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['jpm_template_selector_nonce'])), 'jpm_template_selector')) {
                 return;
             }
             
-            $template_id = intval($_POST['jpm_selected_template']);
+            $template_id = absint(wp_unslash($_POST['jpm_selected_template']));
             $template = $this->get_template($template_id);
             
             if ($template && !empty($template['fields'])) {
@@ -545,7 +545,7 @@ class JPM_Templates {
      */
     public function ajax_save_template() {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed', 'job-posting-manager')]);
         }
         
@@ -553,9 +553,13 @@ class JPM_Templates {
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $template_id = intval($_POST['template_id'] ?? 0);
-        $template_name = sanitize_text_field($_POST['template_name'] ?? '');
-        $form_fields = json_decode(stripslashes($_POST['form_fields'] ?? '[]'), true);
+        $template_id = isset($_POST['template_id']) ? absint(wp_unslash($_POST['template_id'])) : 0;
+        $template_name = isset($_POST['template_name']) ? sanitize_text_field(wp_unslash($_POST['template_name'])) : '';
+        $form_fields_json = isset($_POST['form_fields']) ? wp_unslash($_POST['form_fields']) : '[]';
+        $form_fields = json_decode($form_fields_json, true);
+        if (!is_array($form_fields)) {
+            $form_fields = [];
+        }
 
         if (empty($template_name)) {
             wp_send_json_error(['message' => __('Template name is required', 'job-posting-manager')]);
@@ -597,7 +601,7 @@ class JPM_Templates {
      */
     public function ajax_delete_template() {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed', 'job-posting-manager')]);
         }
         
@@ -605,7 +609,7 @@ class JPM_Templates {
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $template_id = intval($_POST['template_id'] ?? 0);
+        $template_id = isset($_POST['template_id']) ? absint(wp_unslash($_POST['template_id'])) : 0;
         
         $templates = $this->get_all_templates();
         $templates = array_filter($templates, function($template) use ($template_id) {
@@ -621,7 +625,7 @@ class JPM_Templates {
      */
     public function ajax_get_template() {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed', 'job-posting-manager')]);
         }
         
@@ -629,7 +633,7 @@ class JPM_Templates {
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $template_id = intval($_POST['template_id'] ?? 0);
+        $template_id = isset($_POST['template_id']) ? absint(wp_unslash($_POST['template_id'])) : 0;
         $template = $this->get_template($template_id);
         
         if ($template) {
