@@ -98,7 +98,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
         $settings = get_option('jpm_settings', []);
@@ -285,7 +285,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send confirmation email to ' . $customer_email);
+            do_action('jpm_log_error', 'JPM: Failed to send confirmation email to ' . $customer_email);
         }
 
         return $result;
@@ -300,7 +300,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
         global $wpdb;
@@ -310,7 +310,7 @@ class JPM_Emails
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
 
         if (!$application) {
-            error_log('JPM: Application not found for ID: ' . $app_id);
+            do_action('jpm_log_error', 'JPM: Application not found for ID: ' . $app_id);
             return false;
         }
 
@@ -408,7 +408,7 @@ class JPM_Emails
 
         // If still no email, can't send notification
         if (empty($customer_email)) {
-            error_log('JPM: No email found for application ID: ' . $app_id);
+            do_action('jpm_log_error', 'JPM: No email found for application ID: ' . $app_id);
             return false;
         }
 
@@ -485,8 +485,10 @@ class JPM_Emails
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);
-            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
-                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+            if (
+                $slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' ||
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false
+            ) {
                 $interview_status_slug = $status['slug'];
                 break;
             }
@@ -796,7 +798,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send status update email to ' . $customer_email);
+            do_action('jpm_log_error', 'JPM: Failed to send status update email to ' . $customer_email);
         }
 
         return $result;
@@ -817,7 +819,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
@@ -1296,12 +1298,13 @@ class JPM_Emails
 
         // Set PHP execution time limit for email sending (if possible)
         if (function_exists('set_time_limit')) {
+            // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Optional runtime guard for long SMTP requests in shared hosts.
             @set_time_limit(30); // 30 seconds for email sending
         }
 
         // Log start time for debugging
         $start_time = microtime(true);
-        error_log('JPM: Starting admin notification email send to ' . $admin_email . ' at ' . date('Y-m-d H:i:s'));
+        do_action('jpm_log_error', 'JPM: Starting admin notification email send to ' . $admin_email . ' at ' . gmdate('Y-m-d H:i:s'));
 
         // Send email and return result
         $result = wp_mail($admin_email, $subject, $body, $headers);
@@ -1311,9 +1314,9 @@ class JPM_Emails
         $duration = round($end_time - $start_time, 2);
 
         if (!$result) {
-            error_log('JPM: Failed to send admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
+            do_action('jpm_log_error', 'JPM: Failed to send admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
         } else {
-            error_log('JPM: Successfully sent admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
+            do_action('jpm_log_error', 'JPM: Successfully sent admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
         }
 
         return $result;
@@ -1330,7 +1333,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
@@ -1374,7 +1377,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send OTP email to ' . $email);
+            do_action('jpm_log_error', 'JPM: Failed to send OTP email to ' . $email);
         }
 
         return $result;
@@ -1393,7 +1396,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
@@ -1442,7 +1445,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send account creation email to ' . $email);
+            do_action('jpm_log_error', 'JPM: Failed to send account creation email to ' . $email);
         }
 
         return $result;
@@ -1461,7 +1464,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
@@ -1506,7 +1509,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send new customer notification email to ' . $admin_email);
+            do_action('jpm_log_error', 'JPM: Failed to send new customer notification email to ' . $admin_email);
         }
 
         return $result;
