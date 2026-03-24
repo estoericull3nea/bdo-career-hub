@@ -211,7 +211,8 @@ class JPM_Admin
                         <div style="font-size: 12px; color: #666;">
                             <span><?php echo esc_html($total_published); ?>
                                 <?php esc_html_e('Published', 'job-posting-manager'); ?></span> |
-                            <span><?php echo esc_html($total_draft); ?>         <?php esc_html_e('Draft', 'job-posting-manager'); ?></span>
+                            <span><?php echo esc_html($total_draft); ?>
+                                <?php esc_html_e('Draft', 'job-posting-manager'); ?></span>
                             <?php if ($total_pending > 0): ?>
                                 | <span><?php echo esc_html($total_pending); ?>
                                     <?php esc_html_e('Pending', 'job-posting-manager'); ?></span>
@@ -530,9 +531,11 @@ class JPM_Admin
                             <td><?php echo !empty($location) ? esc_html($location) : '--'; ?></td>
                             <td>
                                 <?php if ($post_status === 'publish'): ?>
-                                    <span class="jpm-status-badge jpm-status-active"><?php esc_html_e('Published', 'job-posting-manager'); ?></span>
+                                    <span
+                                        class="jpm-status-badge jpm-status-active"><?php esc_html_e('Published', 'job-posting-manager'); ?></span>
                                 <?php elseif ($post_status === 'draft'): ?>
-                                    <span class="jpm-status-badge jpm-status-draft"><?php esc_html_e('Draft', 'job-posting-manager'); ?></span>
+                                    <span
+                                        class="jpm-status-badge jpm-status-draft"><?php esc_html_e('Draft', 'job-posting-manager'); ?></span>
                                 <?php else: ?>
                                     <span class="jpm-status-badge"
                                         style="background-color: #ffc107; color: #000;"><?php echo esc_html(ucfirst($post_status)); ?></span>
@@ -901,7 +904,8 @@ class JPM_Admin
             <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="jpm-rejection-modal-title">
                 <button type="button" class="jpm-admin-modal__close"
                     aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
-                <h2 id="jpm-rejection-modal-title"><?php esc_html_e('Application Rejection Details', 'job-posting-manager'); ?></h2>
+                <h2 id="jpm-rejection-modal-title"><?php esc_html_e('Application Rejection Details', 'job-posting-manager'); ?>
+                </h2>
                 <p class="description" style="margin-bottom: 15px;">
                     <?php esc_html_e('Please provide the reason for rejection to notify the applicant.', 'job-posting-manager'); ?>
                 </p>
@@ -913,7 +917,8 @@ class JPM_Admin
                         </label>
                         <select id="jpm-rejection-problem-area" name="problem_area" required>
                             <option value=""><?php esc_html_e('-- Select --', 'job-posting-manager'); ?></option>
-                            <option value="personal_information"><?php esc_html_e('Personal Information', 'job-posting-manager'); ?>
+                            <option value="personal_information">
+                                <?php esc_html_e('Personal Information', 'job-posting-manager'); ?>
                             </option>
                             <option value="education"><?php esc_html_e('Education', 'job-posting-manager'); ?></option>
                             <option value="employment"><?php esc_html_e('Employment', 'job-posting-manager'); ?></option>
@@ -948,7 +953,8 @@ class JPM_Admin
             <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="jpm-interview-modal-title">
                 <button type="button" class="jpm-admin-modal__close"
                     aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
-                <h2 id="jpm-interview-modal-title"><?php esc_html_e('Set For Interview Requirements', 'job-posting-manager'); ?></h2>
+                <h2 id="jpm-interview-modal-title"><?php esc_html_e('Set For Interview Requirements', 'job-posting-manager'); ?>
+                </h2>
                 <p class="description" style="margin-bottom: 15px;">
                     <?php esc_html_e('Provide the interview requirements and schedule details for this applicant.', 'job-posting-manager'); ?>
                 </p>
@@ -1168,10 +1174,10 @@ class JPM_Admin
                 const medicalStatusSlug = '<?php echo esc_js($medical_status_slug); ?>';
                 const rejectedStatusSlug = '<?php echo esc_js($rejected_status_slug); ?>';
                 const interviewStatusSlug = '<?php echo esc_js($interview_status_slug); ?>';
-                const updateNonce = '<?php echo wp_create_nonce('jpm_update_status'); ?>';
-                const medicalNonce = '<?php echo wp_create_nonce('jpm_medical_details'); ?>';
-                const rejectionNonce = '<?php echo wp_create_nonce('jpm_rejection_details'); ?>';
-                const interviewNonce = '<?php echo wp_create_nonce('jpm_interview_details'); ?>';
+                const updateNonce = '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>';
+                const medicalNonce = '<?php echo esc_js(wp_create_nonce('jpm_medical_details')); ?>';
+                const rejectionNonce = '<?php echo esc_js(wp_create_nonce('jpm_rejection_details')); ?>';
+                const interviewNonce = '<?php echo esc_js(wp_create_nonce('jpm_interview_details')); ?>';
                 const defaultMedicalAddress = '<?php echo esc_js($this->get_default_medical_address()); ?>';
                 const defaultInterviewAddress = '<?php echo esc_js('2250 Singalong St., Malate Manila'); ?>';
 
@@ -1774,7 +1780,8 @@ class JPM_Admin
                     <input type="text" id="company_name" name="company_name" class="regular-text"
                         value="<?php echo esc_attr($company_name); ?>"
                         placeholder="<?php esc_attr_e('e.g., Acme Corporation', 'job-posting-manager'); ?>" />
-                    <p class="description"><?php esc_html_e('Optional: Company or organization name', 'job-posting-manager'); ?></p>
+                    <p class="description"><?php esc_html_e('Optional: Company or organization name', 'job-posting-manager'); ?>
+                    </p>
                 </td>
             </tr>
             <tr>
@@ -1806,7 +1813,9 @@ class JPM_Admin
                     <input type="text" id="duration" name="duration" class="regular-text"
                         value="<?php echo esc_attr($duration); ?>"
                         placeholder="<?php esc_attr_e('e.g., Full-time, Part-time, Contract', 'job-posting-manager'); ?>" />
-                    <p class="description"><?php esc_html_e('Optional: Job duration or employment type', 'job-posting-manager'); ?></p>
+                    <p class="description">
+                        <?php esc_html_e('Optional: Job duration or employment type', 'job-posting-manager'); ?>
+                    </p>
                 </td>
             </tr>
             <tr>
@@ -2202,9 +2211,9 @@ class JPM_Admin
             }
         </style>
 
-        <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
+        <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                             });
+                                                                                                                             });
         </script>
         <?php
     }
@@ -3440,7 +3449,8 @@ class JPM_Admin
                                     <input type="text" id="status_name" name="status_name" class="regular-text"
                                         value="<?php echo $editing_status ? esc_attr($editing_status['name']) : ''; ?>" required
                                         placeholder="<?php esc_attr_e('e.g., Pending, Reviewed, Accepted', 'job-posting-manager'); ?>">
-                                    <p class="description"><?php esc_html_e('The display name of the status', 'job-posting-manager'); ?>
+                                    <p class="description">
+                                        <?php esc_html_e('The display name of the status', 'job-posting-manager'); ?>
                                     </p>
                                 </td>
                             </tr>
@@ -3459,17 +3469,21 @@ class JPM_Admin
                             </tr>
                             <tr>
                                 <th scope="row">
-                                    <label for="status_color"><?php esc_html_e('Status Color', 'job-posting-manager'); ?></label>
+                                    <label
+                                        for="status_color"><?php esc_html_e('Status Color', 'job-posting-manager'); ?></label>
                                 </th>
                                 <td>
                                     <input type="color" id="status_color" name="status_color"
                                         value="<?php echo $editing_status ? esc_attr($editing_status['color']) : '#ffc107'; ?>">
-                                    <p class="description"><?php esc_html_e('Color for the status badge', 'job-posting-manager'); ?></p>
+                                    <p class="description">
+                                        <?php esc_html_e('Color for the status badge', 'job-posting-manager'); ?>
+                                    </p>
                                 </td>
                             </tr>
                             <tr>
                                 <th scope="row">
-                                    <label for="status_text_color"><?php esc_html_e('Text Color', 'job-posting-manager'); ?></label>
+                                    <label
+                                        for="status_text_color"><?php esc_html_e('Text Color', 'job-posting-manager'); ?></label>
                                 </th>
                                 <td>
                                     <input type="color" id="status_text_color" name="status_text_color"
@@ -3481,7 +3495,8 @@ class JPM_Admin
                             </tr>
                             <tr>
                                 <th scope="row">
-                                    <label for="status_description"><?php esc_html_e('Description', 'job-posting-manager'); ?></label>
+                                    <label
+                                        for="status_description"><?php esc_html_e('Description', 'job-posting-manager'); ?></label>
                                 </th>
                                 <td>
                                     <textarea id="status_description" name="status_description" rows="3" class="large-text"
@@ -5751,7 +5766,8 @@ class JPM_Admin
                     ?>
                     <div class="divider"></div>
                     <div class="section">
-                        <div class="section-title"><?php esc_html_e('Medical Requirements & Schedule', 'job-posting-manager'); ?></div>
+                        <div class="section-title"><?php esc_html_e('Medical Requirements & Schedule', 'job-posting-manager'); ?>
+                        </div>
                         <div class="info-grid">
                             <?php if (!empty($medical_details['requirements'])): ?>
                                 <div class="info-row">
@@ -5927,7 +5943,8 @@ class JPM_Admin
                                     <?php echo esc_html($user->display_name); ?> <span style="color: #95a5a6;">(ID:
                                         <?php echo esc_html($user->ID); ?>)</span>
                                 <?php else: ?>
-                                    <em style="color: #95a5a6;"><?php esc_html_e('Guest Application', 'job-posting-manager'); ?></em>
+                                    <em
+                                        style="color: #95a5a6;"><?php esc_html_e('Guest Application', 'job-posting-manager'); ?></em>
                                 <?php endif; ?>
                             </div>
                         </div>
