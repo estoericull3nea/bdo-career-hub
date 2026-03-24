@@ -703,6 +703,7 @@ class JPM_Emails
             if ($is_accepted) {
                 $body .= '<div style="background: linear-gradient(to right, #d4edda 0%, #c3e6cb 100%); padding: 20px; border-radius: 5px; margin: 20px 0;">';
                 $body .= '<p style="margin: 0; font-size: 16px; color: #155724; font-weight: 600; line-height: 1.6;">';
+                /* translators: %s: Job title wrapped in strong tag. */
                 $body .= __('Congratulations!', 'job-posting-manager') . ' ' . sprintf(__('We are pleased to inform you that your application for the position of %s has been accepted.', 'job-posting-manager'), '<strong>' . esc_html($job_title) . '</strong>');
                 $body .= '</p>';
                 $body .= '<p style="margin: 15px 0 0 0; font-size: 15px; color: #155724; line-height: 1.6;">';
@@ -1132,6 +1133,7 @@ class JPM_Emails
             if (!empty($employment_entries)) {
                 foreach ($employment_entries as $index => $entry) {
                     $entry_num = $index + 1;
+                    /* translators: %d: Employment entry number. */
                     $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . sprintf(__('Employment #%d', 'job-posting-manager'), $entry_num) . '</h3>';
                     $body .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
                     if (!empty($entry['company_name'])) {
@@ -1233,6 +1235,7 @@ class JPM_Emails
 
         if ($total_fields > $fields_shown) {
             $remaining = $total_fields - $fields_shown;
+            /* translators: %d: Number of additional form fields not shown in the email. */
             $body .= '<p style="margin: 12px 0; color: #666; font-style: italic;">' . sprintf(__('+ %d more field(s) available in admin panel', 'job-posting-manager'), $remaining) . '</p>';
         }
 
@@ -1332,6 +1335,7 @@ class JPM_Emails
         }
 
         // Build email subject
+        /* translators: %s: Site name. */
         $subject = sprintf(__('Your Verification Code for %s', 'job-posting-manager'), get_bloginfo('name'));
 
         // Build email body with modern styling
@@ -1354,6 +1358,7 @@ class JPM_Emails
         $body .= '</div>';
 
         $body .= '<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">';
+        /* translators: %s: Site name. */
         $body .= '<p style="font-size: 12px; color: #9ca3af; margin: 0;">' . sprintf(__('This is an automated email from %s.', 'job-posting-manager'), get_bloginfo('name')) . '</p>';
         $body .= '</div>';
         $body .= '</body></html>';
@@ -1395,11 +1400,13 @@ class JPM_Emails
         $full_name = trim($first_name . ' ' . $last_name);
 
         // Build email subject
+        /* translators: %s: Site name. */
         $subject = sprintf(__('Welcome to %s - Your Account Has Been Created', 'job-posting-manager'), get_bloginfo('name'));
 
         // Build email body
         $body = '<html><body>';
-        $body .= '<h2>' . __('Welcome, ' . esc_html($full_name) . '!', 'job-posting-manager') . '</h2>';
+        /* translators: %s: Customer full name. */
+        $body .= '<h2>' . sprintf(__('Welcome, %s!', 'job-posting-manager'), esc_html($full_name)) . '</h2>';
         $body .= '<p>' . __('Your account has been successfully created on our website.', 'job-posting-manager') . '</p>';
         $body .= '<hr>';
         $body .= '<h3>' . __('Your Account Details', 'job-posting-manager') . '</h3>';
@@ -1468,6 +1475,7 @@ class JPM_Emails
         $user_link = admin_url('user-edit.php?user_id=' . $user_id);
 
         // Build email subject
+        /* translators: %s: Customer full name. */
         $subject = sprintf(__('New Customer Account Created: %s', 'job-posting-manager'), $full_name);
 
         // Build email body
