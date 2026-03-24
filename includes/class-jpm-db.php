@@ -39,6 +39,7 @@ class JPM_Admin
         if ($post->post_type === 'job_posting') {
             // Clear stats cache
             wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
+            wp_cache_delete('jpm_dashboard_app_stats', 'jpm_stats');
             // Clear filter caches
             wp_cache_flush_group('jpm_filters');
         }
@@ -53,6 +54,7 @@ class JPM_Admin
         if ($post && $post->post_type === 'job_posting') {
             // Clear stats cache
             wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
+            wp_cache_delete('jpm_dashboard_app_stats', 'jpm_stats');
             // Clear filter caches
             wp_cache_flush_group('jpm_filters');
         }
@@ -100,45 +102,64 @@ class JPM_Admin
         $total_pending = $post_counts->pending ?? 0;
         $total_jobs = $total_published + $total_draft + $total_pending;
 
-        // Total applications
-        $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        // Cache repeated dashboard application stats to reduce DB load.
+        $dashboard_stats = wp_cache_get('jpm_dashboard_app_stats', 'jpm_stats');
+        if (false === $dashboard_stats) {
+            // Total applications
+            $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
 
-        // Applications by status
-        $applications_by_status = $wpdb->get_results(
-            "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status",
-            ARRAY_A
-        );
-        $status_counts = [];
-        foreach ($applications_by_status as $row) {
-            $status_counts[$row['status']] = intval($row['count']);
+            // Applications by status
+            $applications_by_status = $wpdb->get_results(
+                "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status",
+                ARRAY_A
+            );
+            $status_counts = [];
+            foreach ($applications_by_status as $row) {
+                $status_counts[$row['status']] = intval($row['count']);
+            }
+
+            // Recent applications (last 7 days)
+            $recent_applications = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$table} WHERE application_date >= %s",
+                    gmdate('Y-m-d H:i:s', strtotime('-7 days'))
+                )
+            );
+
+            // Applications this month
+            $month_applications = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$table} WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
+                    gmdate('n'),
+                    gmdate('Y')
+                )
+            );
+
+            // Jobs with most applications (top 5)
+            $top_jobs = $wpdb->get_results(
+                "SELECT job_id, COUNT(*) as app_count 
+                 FROM {$table} 
+                 GROUP BY job_id 
+                 ORDER BY app_count DESC 
+                 LIMIT 5",
+                ARRAY_A
+            );
+
+            $dashboard_stats = [
+                'total_applications' => intval($total_applications),
+                'status_counts' => $status_counts,
+                'recent_applications' => intval($recent_applications),
+                'month_applications' => intval($month_applications),
+                'top_jobs' => $top_jobs,
+            ];
+            wp_cache_set('jpm_dashboard_app_stats', $dashboard_stats, 'jpm_stats', 5 * MINUTE_IN_SECONDS);
         }
 
-        // Recent applications (last 7 days)
-        $recent_applications = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table} WHERE application_date >= %s",
-                gmdate('Y-m-d H:i:s', strtotime('-7 days'))
-            )
-        );
-
-        // Applications this month
-        $month_applications = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table} WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
-                gmdate('n'),
-                gmdate('Y')
-            )
-        );
-
-        // Jobs with most applications (top 5)
-        $top_jobs = $wpdb->get_results(
-            "SELECT job_id, COUNT(*) as app_count 
-             FROM {$table} 
-             GROUP BY job_id 
-             ORDER BY app_count DESC 
-             LIMIT 5",
-            ARRAY_A
-        );
+        $total_applications = $dashboard_stats['total_applications'];
+        $status_counts = $dashboard_stats['status_counts'];
+        $recent_applications = $dashboard_stats['recent_applications'];
+        $month_applications = $dashboard_stats['month_applications'];
+        $top_jobs = $dashboard_stats['top_jobs'];
 
         // Get chart period filter
         $chart_period = isset($_GET['chart_period']) ? sanitize_text_field(wp_unslash($_GET['chart_period'])) : '7days';
@@ -2216,7 +2237,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                         });
+                                                                                                                                                                                                                                                 });
         </script>
         <?php
     }
