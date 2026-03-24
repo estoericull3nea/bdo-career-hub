@@ -57,67 +57,67 @@ class JPM_Email_Templates
             $templates = $existing_templates;
 
             // Get active tab to know which template to save
-            $active_tab = isset($_POST['active_tab']) ? sanitize_text_field($_POST['active_tab']) : 'confirmation';
+            $active_tab = isset($_POST['active_tab']) ? sanitize_text_field(wp_unslash($_POST['active_tab'])) : 'confirmation';
 
             // Save confirmation email template (only if it's the active tab)
             if ($active_tab === 'confirmation') {
                 $templates['confirmation'] = [
-                    'subject' => sanitize_text_field($_POST['confirmation_subject'] ?? ''),
-                    'header_color' => sanitize_hex_color($_POST['confirmation_header_color'] ?? '#f8f9fa'),
-                    'header_text_color' => sanitize_hex_color($_POST['confirmation_header_text_color'] ?? '#2c3e50'),
-                    'body_bg_color' => sanitize_hex_color($_POST['confirmation_body_bg_color'] ?? '#ffffff'),
-                    'body_text_color' => sanitize_hex_color($_POST['confirmation_body_text_color'] ?? '#333'),
-                    'greeting' => wp_kses_post($_POST['confirmation_greeting'] ?? ''),
-                    'intro_message' => wp_kses_post($_POST['confirmation_intro_message'] ?? ''),
-                    'details_section_title' => sanitize_text_field($_POST['confirmation_details_section_title'] ?? ''),
-                    'details_bg_color' => sanitize_hex_color($_POST['confirmation_details_bg_color'] ?? '#f8f9fa'),
-                    'closing_message' => wp_kses_post($_POST['confirmation_closing_message'] ?? ''),
-                    'footer_message' => wp_kses_post($_POST['confirmation_footer_message'] ?? ''),
-                    'footer_bg_color' => sanitize_hex_color($_POST['confirmation_footer_bg_color'] ?? '#f8f9fa'),
+                    'subject' => isset($_POST['confirmation_subject']) ? sanitize_text_field(wp_unslash($_POST['confirmation_subject'])) : '',
+                    'header_color' => isset($_POST['confirmation_header_color']) ? sanitize_hex_color(wp_unslash($_POST['confirmation_header_color'])) : '#f8f9fa',
+                    'header_text_color' => isset($_POST['confirmation_header_text_color']) ? sanitize_hex_color(wp_unslash($_POST['confirmation_header_text_color'])) : '#2c3e50',
+                    'body_bg_color' => isset($_POST['confirmation_body_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['confirmation_body_bg_color'])) : '#ffffff',
+                    'body_text_color' => isset($_POST['confirmation_body_text_color']) ? sanitize_hex_color(wp_unslash($_POST['confirmation_body_text_color'])) : '#333',
+                    'greeting' => isset($_POST['confirmation_greeting']) ? wp_kses_post(wp_unslash($_POST['confirmation_greeting'])) : '',
+                    'intro_message' => isset($_POST['confirmation_intro_message']) ? wp_kses_post(wp_unslash($_POST['confirmation_intro_message'])) : '',
+                    'details_section_title' => isset($_POST['confirmation_details_section_title']) ? sanitize_text_field(wp_unslash($_POST['confirmation_details_section_title'])) : '',
+                    'details_bg_color' => isset($_POST['confirmation_details_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['confirmation_details_bg_color'])) : '#f8f9fa',
+                    'closing_message' => isset($_POST['confirmation_closing_message']) ? wp_kses_post(wp_unslash($_POST['confirmation_closing_message'])) : '',
+                    'footer_message' => isset($_POST['confirmation_footer_message']) ? wp_kses_post(wp_unslash($_POST['confirmation_footer_message'])) : '',
+                    'footer_bg_color' => isset($_POST['confirmation_footer_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['confirmation_footer_bg_color'])) : '#f8f9fa',
                 ];
             }
 
             // Save status update email template (only if it's the active tab)
             if ($active_tab === 'status_update') {
                 $templates['status_update'] = [
-                    'subject' => sanitize_text_field($_POST['status_update_subject'] ?? ''),
-                    'header_color' => sanitize_hex_color($_POST['status_update_header_color'] ?? '#ffc107'),
-                    'header_text_color' => sanitize_hex_color($_POST['status_update_header_text_color'] ?? '#000000'),
-                    'body_bg_color' => sanitize_hex_color($_POST['status_update_body_bg_color'] ?? '#ffffff'),
-                    'body_text_color' => sanitize_hex_color($_POST['status_update_body_text_color'] ?? '#333'),
-                    'greeting' => wp_kses_post($_POST['status_update_greeting'] ?? ''),
-                    'intro_message' => wp_kses_post($_POST['status_update_intro_message'] ?? ''),
-                    'status_section_title' => sanitize_text_field($_POST['status_update_status_section_title'] ?? ''),
-                    'status_bg_color' => sanitize_hex_color($_POST['status_update_status_bg_color'] ?? '#f8f9fa'),
-                    'details_section_title' => sanitize_text_field($_POST['status_update_details_section_title'] ?? ''),
-                    'details_bg_color' => sanitize_hex_color($_POST['status_update_details_bg_color'] ?? '#f8f9fa'),
-                    'status_specific_message' => wp_kses_post($_POST['status_update_status_specific_message'] ?? ''),
-                    'closing_message' => wp_kses_post($_POST['status_update_closing_message'] ?? ''),
-                    'footer_message' => wp_kses_post($_POST['status_update_footer_message'] ?? ''),
-                    'footer_bg_color' => sanitize_hex_color($_POST['status_update_footer_bg_color'] ?? '#f8f9fa'),
+                    'subject' => isset($_POST['status_update_subject']) ? sanitize_text_field(wp_unslash($_POST['status_update_subject'])) : '',
+                    'header_color' => isset($_POST['status_update_header_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_header_color'])) : '#ffc107',
+                    'header_text_color' => isset($_POST['status_update_header_text_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_header_text_color'])) : '#000000',
+                    'body_bg_color' => isset($_POST['status_update_body_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_body_bg_color'])) : '#ffffff',
+                    'body_text_color' => isset($_POST['status_update_body_text_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_body_text_color'])) : '#333',
+                    'greeting' => isset($_POST['status_update_greeting']) ? wp_kses_post(wp_unslash($_POST['status_update_greeting'])) : '',
+                    'intro_message' => isset($_POST['status_update_intro_message']) ? wp_kses_post(wp_unslash($_POST['status_update_intro_message'])) : '',
+                    'status_section_title' => isset($_POST['status_update_status_section_title']) ? sanitize_text_field(wp_unslash($_POST['status_update_status_section_title'])) : '',
+                    'status_bg_color' => isset($_POST['status_update_status_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_status_bg_color'])) : '#f8f9fa',
+                    'details_section_title' => isset($_POST['status_update_details_section_title']) ? sanitize_text_field(wp_unslash($_POST['status_update_details_section_title'])) : '',
+                    'details_bg_color' => isset($_POST['status_update_details_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_details_bg_color'])) : '#f8f9fa',
+                    'status_specific_message' => isset($_POST['status_update_status_specific_message']) ? wp_kses_post(wp_unslash($_POST['status_update_status_specific_message'])) : '',
+                    'closing_message' => isset($_POST['status_update_closing_message']) ? wp_kses_post(wp_unslash($_POST['status_update_closing_message'])) : '',
+                    'footer_message' => isset($_POST['status_update_footer_message']) ? wp_kses_post(wp_unslash($_POST['status_update_footer_message'])) : '',
+                    'footer_bg_color' => isset($_POST['status_update_footer_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['status_update_footer_bg_color'])) : '#f8f9fa',
                 ];
             }
 
             // Save admin notification email template (only if it's the active tab)
             if ($active_tab === 'admin_notification') {
                 $templates['admin_notification'] = [
-                    'subject' => sanitize_text_field($_POST['admin_notification_subject'] ?? ''),
-                    'header_color' => sanitize_hex_color($_POST['admin_notification_header_color'] ?? '#dc3545'),
-                    'header_text_color' => sanitize_hex_color($_POST['admin_notification_header_text_color'] ?? '#ffffff'),
-                    'body_bg_color' => sanitize_hex_color($_POST['admin_notification_body_bg_color'] ?? '#ffffff'),
-                    'body_text_color' => sanitize_hex_color($_POST['admin_notification_body_text_color'] ?? '#333'),
-                    'greeting' => wp_kses_post($_POST['admin_notification_greeting'] ?? ''),
-                    'intro_message' => wp_kses_post($_POST['admin_notification_intro_message'] ?? ''),
-                    'job_section_title' => sanitize_text_field($_POST['admin_notification_job_section_title'] ?? ''),
-                    'job_section_bg_color' => sanitize_hex_color($_POST['admin_notification_job_section_bg_color'] ?? '#f8f9fa'),
-                    'applicant_section_title' => sanitize_text_field($_POST['admin_notification_applicant_section_title'] ?? ''),
-                    'applicant_section_bg_color' => sanitize_hex_color($_POST['admin_notification_applicant_section_bg_color'] ?? '#f8f9fa'),
-                    'details_section_title' => sanitize_text_field($_POST['admin_notification_details_section_title'] ?? ''),
-                    'details_section_bg_color' => sanitize_hex_color($_POST['admin_notification_details_section_bg_color'] ?? '#f8f9fa'),
-                    'closing_message' => wp_kses_post($_POST['admin_notification_closing_message'] ?? ''),
-                    'action_required_message' => wp_kses_post($_POST['admin_notification_action_required_message'] ?? ''),
-                    'footer_message' => wp_kses_post($_POST['admin_notification_footer_message'] ?? ''),
-                    'footer_bg_color' => sanitize_hex_color($_POST['admin_notification_footer_bg_color'] ?? '#f8f9fa'),
+                    'subject' => isset($_POST['admin_notification_subject']) ? sanitize_text_field(wp_unslash($_POST['admin_notification_subject'])) : '',
+                    'header_color' => isset($_POST['admin_notification_header_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_header_color'])) : '#dc3545',
+                    'header_text_color' => isset($_POST['admin_notification_header_text_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_header_text_color'])) : '#ffffff',
+                    'body_bg_color' => isset($_POST['admin_notification_body_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_body_bg_color'])) : '#ffffff',
+                    'body_text_color' => isset($_POST['admin_notification_body_text_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_body_text_color'])) : '#333',
+                    'greeting' => isset($_POST['admin_notification_greeting']) ? wp_kses_post(wp_unslash($_POST['admin_notification_greeting'])) : '',
+                    'intro_message' => isset($_POST['admin_notification_intro_message']) ? wp_kses_post(wp_unslash($_POST['admin_notification_intro_message'])) : '',
+                    'job_section_title' => isset($_POST['admin_notification_job_section_title']) ? sanitize_text_field(wp_unslash($_POST['admin_notification_job_section_title'])) : '',
+                    'job_section_bg_color' => isset($_POST['admin_notification_job_section_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_job_section_bg_color'])) : '#f8f9fa',
+                    'applicant_section_title' => isset($_POST['admin_notification_applicant_section_title']) ? sanitize_text_field(wp_unslash($_POST['admin_notification_applicant_section_title'])) : '',
+                    'applicant_section_bg_color' => isset($_POST['admin_notification_applicant_section_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_applicant_section_bg_color'])) : '#f8f9fa',
+                    'details_section_title' => isset($_POST['admin_notification_details_section_title']) ? sanitize_text_field(wp_unslash($_POST['admin_notification_details_section_title'])) : '',
+                    'details_section_bg_color' => isset($_POST['admin_notification_details_section_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_details_section_bg_color'])) : '#f8f9fa',
+                    'closing_message' => isset($_POST['admin_notification_closing_message']) ? wp_kses_post(wp_unslash($_POST['admin_notification_closing_message'])) : '',
+                    'action_required_message' => isset($_POST['admin_notification_action_required_message']) ? wp_kses_post(wp_unslash($_POST['admin_notification_action_required_message'])) : '',
+                    'footer_message' => isset($_POST['admin_notification_footer_message']) ? wp_kses_post(wp_unslash($_POST['admin_notification_footer_message'])) : '',
+                    'footer_bg_color' => isset($_POST['admin_notification_footer_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['admin_notification_footer_bg_color'])) : '#f8f9fa',
                 ];
             }
 
@@ -240,10 +240,10 @@ class JPM_Email_Templates
         $admin_notification = self::merge_template_with_defaults($defaults['admin_notification'], $templates['admin_notification'] ?? []);
 
         // Get active tab
-        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'confirmation';
+        $active_tab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : 'confirmation';
 
         // Show success message
-        if (isset($_GET['saved']) && $_GET['saved'] == '1') {
+        if (isset($_GET['saved']) && absint(wp_unslash($_GET['saved'])) === 1) {
             echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Email templates saved successfully!', 'job-posting-manager') . '</p></div>';
         }
 
