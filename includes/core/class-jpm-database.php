@@ -7,6 +7,17 @@
 class JPM_Database
 {
     /**
+     * Clear shared cache entries for application reads.
+     *
+     * @return void
+     */
+    private static function clear_application_caches()
+    {
+        wp_cache_delete('jpm_applications_last_changed', 'jpm_database');
+        wp_cache_set('jpm_applications_last_changed', microtime(true), 'jpm_database');
+    }
+
+    /**
      * Create database tables
      */
     public static function create_tables()
@@ -44,6 +55,8 @@ class JPM_Database
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
+        $user_id = absint($user_id);
+        $job_id = absint($job_id);
 
         // Check for duplicate (only for logged-in users)
         if ($user_id > 0) {
@@ -71,6 +84,7 @@ class JPM_Database
             return new WP_Error('db_error', __('Failed to insert application.', 'job-posting-manager'));
         }
 
+        self::clear_application_caches();
         return $wpdb->insert_id;
     }
 
@@ -84,11 +98,15 @@ class JPM_Database
     public static function update_status($id, $status)
     {
         global $wpdb;
-        return $wpdb->update(
+        $updated = $wpdb->update(
             $wpdb->prefix . 'job_applications',
             ['status' => sanitize_text_field($status)],
-            ['id' => $id]
+            ['id' => absint($id)]
         );
+        if (false !== $updated) {
+            self::clear_application_caches();
+        }
+        return $updated;
     }
 
     /**
@@ -101,22 +119,40 @@ class JPM_Database
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
+        $filters = is_array($filters) ? $filters : [];
+        $normalized_filters = [
+            'status' => isset($filters['status']) ? sanitize_text_field((string) $filters['status']) : '',
+            'job_id' => isset($filters['job_id']) ? absint($filters['job_id']) : 0,
+            'user_id' => isset($filters['user_id']) ? absint($filters['user_id']) : 0,
+            'search' => isset($filters['search']) ? sanitize_text_field((string) $filters['search']) : '',
+        ];
+        $last_changed = wp_cache_get('jpm_applications_last_changed', 'jpm_database');
+        if (false === $last_changed) {
+            $last_changed = microtime(true);
+            wp_cache_set('jpm_applications_last_changed', $last_changed, 'jpm_database');
+        }
+        $cache_key = 'jpm_applications_' . md5(wp_json_encode($normalized_filters) . '|' . (string) $last_changed);
+        $cached_results = wp_cache_get($cache_key, 'jpm_database');
+        if (false !== $cached_results) {
+            return $cached_results;
+        }
+
         $where = [];
         $where_values = [];
 
-        if (!empty($filters['status'])) {
+        if (!empty($normalized_filters['status'])) {
             $where[] = "status = %s";
-            $where_values[] = $filters['status'];
+            $where_values[] = $normalized_filters['status'];
         }
 
-        if (!empty($filters['job_id'])) {
+        if (!empty($normalized_filters['job_id'])) {
             $where[] = "job_id = %d";
-            $where_values[] = $filters['job_id'];
+            $where_values[] = $normalized_filters['job_id'];
         }
 
-        if (!empty($filters['user_id'])) {
+        if (!empty($normalized_filters['user_id'])) {
             $where[] = "user_id = %d";
-            $where_values[] = $filters['user_id'];
+            $where_values[] = $normalized_filters['user_id'];
         }
 
         $query = "SELECT * FROM {$table}";
@@ -132,10 +168,11 @@ class JPM_Database
         }
 
         // If search term is provided, filter by searching in form data
-        if (!empty($filters['search'])) {
-            $applications = self::filter_applications_by_search($applications, $filters['search']);
+        if (!empty($normalized_filters['search'])) {
+            $applications = self::filter_applications_by_search($applications, $normalized_filters['search']);
         }
 
+        wp_cache_set($cache_key, $applications, 'jpm_database', 5 * MINUTE_IN_SECONDS);
         return $applications;
     }
 
@@ -267,8 +304,25 @@ class JPM_Database
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
+        $id = absint($id);
+        if ($id <= 0) {
+            return null;
+        }
+        $last_changed = wp_cache_get('jpm_applications_last_changed', 'jpm_database');
+        if (false === $last_changed) {
+            $last_changed = microtime(true);
+            wp_cache_set('jpm_applications_last_changed', $last_changed, 'jpm_database');
+        }
+        $cache_key = 'jpm_application_' . $id . '_' . md5((string) $last_changed);
+        $cached_application = wp_cache_get($cache_key, 'jpm_database');
+        if (false !== $cached_application) {
+            return $cached_application;
+        }
 
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id));
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id));
+        wp_cache_set($cache_key, $application, 'jpm_database', 5 * MINUTE_IN_SECONDS);
+
+        return $application;
     }
 
     /**
@@ -281,11 +335,15 @@ class JPM_Database
     public static function update_application_notes($id, $notes)
     {
         global $wpdb;
-        return $wpdb->update(
+        $updated = $wpdb->update(
             $wpdb->prefix . 'job_applications',
             ['notes' => sanitize_textarea_field($notes)],
-            ['id' => $id]
+            ['id' => absint($id)]
         );
+        if (false !== $updated) {
+            self::clear_application_caches();
+        }
+        return $updated;
     }
 
     /**
@@ -297,10 +355,14 @@ class JPM_Database
     public static function delete_application($id)
     {
         global $wpdb;
-        return $wpdb->delete(
+        $deleted = $wpdb->delete(
             $wpdb->prefix . 'job_applications',
-            ['id' => $id],
+            ['id' => absint($id)],
             ['%d']
         );
+        if (false !== $deleted) {
+            self::clear_application_caches();
+        }
+        return $deleted;
     }
 }
