@@ -1,6 +1,24 @@
 ﻿<?php
 class JPM_Admin
 {
+    /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
     public function __construct()
     {
         add_action('admin_menu', [$this, 'add_menu']);
@@ -89,7 +107,7 @@ class JPM_Admin
 
         // Get analytics data
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
 
         // Total jobs by status - Optimized: Cache wp_count_posts result
         $post_counts = wp_cache_get('jpm_job_post_counts', 'jpm_stats');
@@ -2237,7 +2255,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                 });
+                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
@@ -2378,7 +2396,7 @@ class JPM_Admin
     private function get_chart_data($period = '7days', $start_date = '', $end_date = '')
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $data = [];
 
         // Determine date range
@@ -4772,7 +4790,7 @@ class JPM_Admin
         }
 
         // Insert application
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $result = $wpdb->insert($table, [
             'user_id' => $user_id,
             'job_id' => $job_id,
@@ -4945,7 +4963,7 @@ class JPM_Admin
         }
 
         // Insert application
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $result = $wpdb->insert($table, [
             'user_id' => $user_id,
             'job_id' => $job_id,
@@ -5010,7 +5028,7 @@ class JPM_Admin
         }
 
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $application_id));
 
         if (!$application) {
