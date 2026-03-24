@@ -280,7 +280,8 @@ class JPM_Email_Templates
                         <table class="form-table">
                             <tr>
                                 <th scope="row"><label
-                                        for="confirmation_subject"><?php esc_html_e('Email Subject', 'job-posting-manager'); ?></label></th>
+                                        for="confirmation_subject"><?php esc_html_e('Email Subject', 'job-posting-manager'); ?></label>
+                                </th>
                                 <td><input type="text" id="confirmation_subject" name="confirmation_subject"
                                         value="<?php echo esc_attr($confirmation['subject']); ?>" class="regular-text" /></td>
                             </tr>
@@ -312,7 +313,8 @@ class JPM_Email_Templates
                             </tr>
                             <tr>
                                 <th scope="row"><label
-                                        for="confirmation_greeting"><?php esc_html_e('Greeting', 'job-posting-manager'); ?></label></th>
+                                        for="confirmation_greeting"><?php esc_html_e('Greeting', 'job-posting-manager'); ?></label>
+                                </th>
                                 <td><textarea id="confirmation_greeting" name="confirmation_greeting" rows="2"
                                         class="large-text"><?php echo esc_textarea($confirmation['greeting']); ?></textarea></td>
                             </tr>
@@ -357,7 +359,8 @@ class JPM_Email_Templates
                                 </td>
                             </tr>
                             <tr>
-                                <th scope="row"><label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
+                                <th scope="row">
+                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
                                 <td><input type="color" name="confirmation_footer_bg_color"
                                         value="<?php echo esc_attr($confirmation['footer_bg_color']); ?>" /></td>
                             </tr>
@@ -404,7 +407,8 @@ class JPM_Email_Templates
                             </tr>
                             <tr>
                                 <th scope="row"><label
-                                        for="status_update_greeting"><?php esc_html_e('Greeting', 'job-posting-manager'); ?></label></th>
+                                        for="status_update_greeting"><?php esc_html_e('Greeting', 'job-posting-manager'); ?></label>
+                                </th>
                                 <td><textarea id="status_update_greeting" name="status_update_greeting" rows="2"
                                         class="large-text"><?php echo esc_textarea($status_update['greeting']); ?></textarea></td>
                             </tr>
@@ -474,7 +478,8 @@ class JPM_Email_Templates
                                 </td>
                             </tr>
                             <tr>
-                                <th scope="row"><label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
+                                <th scope="row">
+                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
                                 <td><input type="color" name="status_update_footer_bg_color"
                                         value="<?php echo esc_attr($status_update['footer_bg_color']); ?>" /></td>
                             </tr>
@@ -545,7 +550,8 @@ class JPM_Email_Templates
                                         class="regular-text" /></td>
                             </tr>
                             <tr>
-                                <th scope="row"><label><?php esc_html_e('Job Section Background Color', 'job-posting-manager'); ?></label>
+                                <th scope="row">
+                                    <label><?php esc_html_e('Job Section Background Color', 'job-posting-manager'); ?></label>
                                 </th>
                                 <td><input type="color" name="admin_notification_job_section_bg_color"
                                         value="<?php echo esc_attr($admin_notification['job_section_bg_color']); ?>" /></td>
@@ -610,7 +616,8 @@ class JPM_Email_Templates
                                 </td>
                             </tr>
                             <tr>
-                                <th scope="row"><label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
+                                <th scope="row">
+                                    <label><?php esc_html_e('Footer Background Color', 'job-posting-manager'); ?></label></th>
                                 <td><input type="color" name="admin_notification_footer_bg_color"
                                         value="<?php echo esc_attr($admin_notification['footer_bg_color']); ?>" /></td>
                             </tr>
