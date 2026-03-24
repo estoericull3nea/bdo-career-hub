@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Template Management Class
  * Handles form templates for job applications
@@ -42,37 +42,37 @@ class JPM_Templates {
         }
         ?>
         <div class="wrap">
-            <h1><?php _e('Form Templates', 'job-posting-manager'); ?></h1>
+            <h1><?php esc_html_e('Form Templates', 'job-posting-manager'); ?></h1>
             
             <div class="jpm-templates-wrapper">
                 <div class="jpm-templates-list">
-                    <h2><?php _e('Available Templates', 'job-posting-manager'); ?></h2>
-                    <a href="<?php echo admin_url('admin.php?page=jpm-templates&edit=0'); ?>" class="button button-primary">
-                        <?php _e('+ Create New Template', 'job-posting-manager'); ?>
+                    <h2><?php esc_html_e('Available Templates', 'job-posting-manager'); ?></h2>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-templates&edit=0')); ?>" class="button button-primary">
+                        <?php esc_html_e('+ Create New Template', 'job-posting-manager'); ?>
                     </a>
                     
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
                             <tr>
-                                <th><?php _e('Template Name', 'job-posting-manager'); ?></th>
-                                <th><?php _e('Fields', 'job-posting-manager'); ?></th>
-                                <th><?php _e('Default', 'job-posting-manager'); ?></th>
-                                <th><?php _e('Actions', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Template Name', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Fields', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Default', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($templates as $template): ?>
                                 <tr>
                                     <td><strong><?php echo esc_html($template['name']); ?></strong></td>
-                                    <td><?php echo count($template['fields']); ?> <?php _e('fields', 'job-posting-manager'); ?></td>
-                                    <td><?php echo !empty($template['is_default']) ? __('Yes', 'job-posting-manager') : __('No', 'job-posting-manager'); ?></td>
+                                    <td><?php echo esc_html(absint(count($template['fields']))); ?> <?php esc_html_e('fields', 'job-posting-manager'); ?></td>
+                                    <td><?php echo !empty($template['is_default']) ? esc_html__('Yes', 'job-posting-manager') : esc_html__('No', 'job-posting-manager'); ?></td>
                                     <td>
-                                        <a href="<?php echo admin_url('admin.php?page=jpm-templates&edit=' . $template['id']); ?>" class="button button-small">
-                                            <?php _e('Edit', 'job-posting-manager'); ?>
+                                        <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-templates&edit=' . absint($template['id']))); ?>" class="button button-small">
+                                            <?php esc_html_e('Edit', 'job-posting-manager'); ?>
                                         </a>
                                         <?php if (empty($template['is_default'])): ?>
-                                            <button type="button" class="button button-small jpm-delete-template" data-id="<?php echo $template['id']; ?>">
-                                                <?php _e('Delete', 'job-posting-manager'); ?>
+                                            <button type="button" class="button button-small jpm-delete-template" data-id="<?php echo esc_attr(absint($template['id'])); ?>">
+                                                <?php esc_html_e('Delete', 'job-posting-manager'); ?>
                                             </button>
                                         <?php endif; ?>
                                     </td>
@@ -110,22 +110,22 @@ class JPM_Templates {
         ?>
         <p>
             <label for="jpm_template_select">
-                <?php _e('Select a template to auto-populate form fields:', 'job-posting-manager'); ?>
+                <?php esc_html_e('Select a template to auto-populate form fields:', 'job-posting-manager'); ?>
             </label>
             <select name="jpm_selected_template" id="jpm_template_select" style="width: 100%;">
-                <option value=""><?php _e('-- Select Template --', 'job-posting-manager'); ?></option>
+                <option value=""><?php esc_html_e('-- Select Template --', 'job-posting-manager'); ?></option>
                 <?php foreach ($templates as $template): ?>
                     <option value="<?php echo esc_attr($template['id']); ?>" <?php selected($selected_template, $template['id']); ?>>
                         <?php echo esc_html($template['name']); ?>
                         <?php if (!empty($template['is_default'])): ?>
-                            (<?php _e('Default', 'job-posting-manager'); ?>)
+                            (<?php esc_html_e('Default', 'job-posting-manager'); ?>)
                         <?php endif; ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </p>
         <p class="description">
-            <?php _e('When you save this job, the selected template will be applied to create the application form.', 'job-posting-manager'); ?>
+            <?php esc_html_e('When you save this job, the selected template will be applied to create the application form.', 'job-posting-manager'); ?>
         </p>
         <?php
     }
@@ -650,4 +650,5 @@ class JPM_Templates {
         }
     }
 }
+
 
