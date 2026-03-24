@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 class JPM_Admin
 {
     public function __construct()
@@ -232,9 +232,9 @@ class JPM_Admin
                             <?php echo esc_html($total_applications); ?>
                         </div>
                         <div style="font-size: 12px; color: #666;">
-                            <a href="<?php echo admin_url('admin.php?page=jpm-applications'); ?>"
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>"
                                 style="color: #0073aa; text-decoration: none;">
-                                <?php _e('View All Applications', 'job-posting-manager'); ?> →
+                                <?php _e('View All Applications', 'job-posting-manager'); ?> ->
                             </a>
                         </div>
                     </div>
@@ -409,7 +409,8 @@ class JPM_Admin
                                         <strong style="font-size: 18px; color: #0073aa;">#<?php echo esc_html($rank); ?></strong>
                                     </td>
                                     <td>
-                                        <a href="<?php echo admin_url('post.php?post=' . $top_job['job_id'] . '&action=edit'); ?>">
+                                        <a
+                                            href="<?php echo esc_url(admin_url('post.php?post=' . $top_job['job_id'] . '&action=edit')); ?>">
                                             <?php echo esc_html(get_the_title($top_job['job_id'])); ?>
                                         </a>
                                     </td>
@@ -419,7 +420,7 @@ class JPM_Admin
                                         </strong>
                                     </td>
                                     <td>
-                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&job_id=' . $top_job['job_id']); ?>"
+                                        <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&job_id=' . $top_job['job_id'])); ?>"
                                             class="button button-small">
                                             <?php _e('View', 'job-posting-manager'); ?>
                                         </a>
@@ -470,7 +471,7 @@ class JPM_Admin
                         <input type="submit" class="button button-primary"
                             value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
                         <?php if (!empty($search) || !empty($status_filter)): ?>
-                            <a href="<?php echo admin_url('admin.php?page=jpm-dashboard'); ?>" class="button">
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-dashboard')); ?>" class="button">
                                 <?php _e('Clear', 'job-posting-manager'); ?>
                             </a>
                         <?php endif; ?>
@@ -480,10 +481,10 @@ class JPM_Admin
         </div>
 
         <div style="margin: 20px 0;">
-            <a href="<?php echo admin_url('post-new.php?post_type=job_posting'); ?>" class="button button-primary">
+            <a href="<?php echo esc_url(admin_url('post-new.php?post_type=job_posting')); ?>" class="button button-primary">
                 <?php _e('Add New Job', 'job-posting-manager'); ?>
             </a>
-            <a href="<?php echo admin_url('edit.php?post_type=job_posting'); ?>" class="button">
+            <a href="<?php echo esc_url(admin_url('edit.php?post_type=job_posting')); ?>" class="button">
                 <?php _e('View All in WordPress', 'job-posting-manager'); ?>
             </a>
         </div>
@@ -515,8 +516,7 @@ class JPM_Admin
                         $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
                         $view_url = get_permalink($job->ID);
                         $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
-                        $post_status = get_post_status($job->ID);
-                        ?>
+                        $post_status = get_post_status($job->ID); ?>
                         <tr>
                             <td><?php echo esc_html($job->ID); ?></td>
                             <td>
@@ -526,8 +526,8 @@ class JPM_Admin
                                     </a>
                                 </strong>
                             </td>
-                            <td><?php echo !empty($company_name) ? esc_html($company_name) : '—'; ?></td>
-                            <td><?php echo !empty($location) ? esc_html($location) : '—'; ?></td>
+                            <td><?php echo !empty($company_name) ? esc_html($company_name) : '--'; ?></td>
+                            <td><?php echo !empty($location) ? esc_html($location) : '--'; ?></td>
                             <td>
                                 <?php if ($post_status === 'publish'): ?>
                                     <span class="jpm-status-badge jpm-status-active"><?php _e('Published', 'job-posting-manager'); ?></span>
@@ -648,7 +648,7 @@ class JPM_Admin
                             <input type="submit" class="button button-primary"
                                 value="<?php _e('Search/Filter', 'job-posting-manager'); ?>">
                             <?php if (!empty($filters['search']) || !empty($filters['job_id']) || !empty($filters['status'])): ?>
-                                <a href="<?php echo admin_url('admin.php?page=jpm-applications'); ?>" class="button">
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>" class="button">
                                     <?php _e('Clear', 'job-posting-manager'); ?>
                                 </a>
                             <?php endif; ?>
@@ -663,11 +663,11 @@ class JPM_Admin
                                     <div>
                                         <strong><?php _e('Export Applications:', 'job-posting-manager'); ?></strong>
                                         <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)); ?>"
+                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters))); ?>"
                                                 class="button">
                                                 <?php _e('Export to CSV', 'job-posting-manager'); ?>
                                             </a>
-                                            <a href="<?php echo admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)); ?>"
+                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters))); ?>"
                                                 class="button">
                                                 <?php _e('Export to JSON', 'job-posting-manager'); ?>
                                             </a>
@@ -709,12 +709,12 @@ class JPM_Admin
             <?php if (!$has_applications): ?>
                 <div class="jpm-empty-state">
                     <div class="jpm-empty-card">
-                        <div class="jpm-empty-icon">📄</div>
+                        <div class="jpm-empty-icon">[ ]</div>
                         <h2><?php _e('No applications found', 'job-posting-manager'); ?></h2>
                         <p><?php _e('Once candidates submit applications, they will appear here. You can also import applications if you have previous data.', 'job-posting-manager'); ?>
                         </p>
                         <div class="jpm-empty-actions">
-                            <a class="button" href="<?php echo admin_url('admin.php?page=jpm-dashboard'); ?>">
+                            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=jpm-dashboard')); ?>">
                                 <?php _e('Go to Dashboard', 'job-posting-manager'); ?>
                             </a>
                         </div>
@@ -743,7 +743,8 @@ class JPM_Admin
                             <tr>
                                 <td><?php echo esc_html($application->id); ?></td>
                                 <td>
-                                    <a href="<?php echo admin_url('post.php?post=' . $application->job_id . '&action=edit'); ?>">
+                                    <a
+                                        href="<?php echo esc_url(admin_url('post.php?post=' . $application->job_id . '&action=edit')); ?>">
                                         <?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
                                     </a>
                                 </td>
@@ -769,7 +770,7 @@ class JPM_Admin
                                 </td>
                                 <td>
                                     <?php if ($user): ?>
-                                        <a href="<?php echo admin_url('user-edit.php?user_id=' . $user->ID); ?>">
+                                        <a href="<?php echo esc_url(admin_url('user-edit.php?user_id=' . $user->ID)); ?>">
                                             <?php echo esc_html($user->display_name); ?>
                                         </a>
                                         <br><small><?php echo esc_html($user->user_email); ?></small>
@@ -791,7 +792,7 @@ class JPM_Admin
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <a href="<?php echo admin_url('admin.php?page=jpm-applications&action=print&application_id=' . $application->id); ?>"
+                                        <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . $application->id)); ?>"
                                             target="_blank" class="button button-small" style="text-decoration: none;">
                                             <?php _e('View Details', 'job-posting-manager'); ?>
                                         </a>
@@ -855,7 +856,7 @@ class JPM_Admin
                             <?php _e('Requirements', 'job-posting-manager'); ?>
                         </label>
                         <textarea id="jpm-medical-requirements" name="requirements" rows="4" required
-                            placeholder="<?php esc_attr_e('e.g., Bring two valid IDs, chest X-ray results, vaccination card…', 'job-posting-manager'); ?>"></textarea>
+                            placeholder="<?php esc_attr_e('e.g., Bring two valid IDs, chest X-ray results, vaccination card...', 'job-posting-manager'); ?>"></textarea>
                         <small
                             class="description"><?php _e('List what the customer must bring.', 'job-posting-manager'); ?></small>
                     </div>
@@ -958,7 +959,7 @@ class JPM_Admin
                             <?php _e('Requirements', 'job-posting-manager'); ?>
                         </label>
                         <textarea id="jpm-interview-requirements" name="requirements" rows="4" required
-                            placeholder="<?php esc_attr_e('e.g., Bring two valid IDs, resume, portfolio…', 'job-posting-manager'); ?>"></textarea>
+                            placeholder="<?php esc_attr_e('e.g., Bring two valid IDs, resume, portfolio...', 'job-posting-manager'); ?>"></textarea>
                         <small
                             class="description"><?php _e('List what the customer must bring.', 'job-posting-manager'); ?></small>
                     </div>
@@ -1160,8 +1161,7 @@ class JPM_Admin
                 $interview_status_slug = $status['slug'];
             }
         }
-        $status_labels = self::get_status_options();
-        ?>
+        $status_labels = self::get_status_options(); ?>
         <script>
             jQuery(function ($) {
                 const statusLabels = <?php echo wp_json_encode($status_labels); ?>;
@@ -1195,7 +1195,7 @@ class JPM_Admin
 
                 function showSuccess($select) {
                     $select.next('.jpm-status-update-success').remove();
-                    $select.after('<span class="jpm-status-update-success">✓ Updated</span>');
+                    $select.after('<span class="jpm-status-update-success">âœ“ Updated</span>');
                     setTimeout(function () {
                         $select.siblings('.jpm-status-update-success').fadeOut(function () {
                             $(this).remove();
@@ -1423,7 +1423,7 @@ class JPM_Admin
                     }
 
                     const $submitBtn = $form.find('button[type="submit"]');
-                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving…', 'job-posting-manager')); ?>');
+                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
 
                     $.ajax({
                         url: ajaxurl,
@@ -1484,7 +1484,7 @@ class JPM_Admin
                     }
 
                     const $submitBtn = $form.find('button[type="submit"]');
-                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving…', 'job-posting-manager')); ?>');
+                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
 
                     $.ajax({
                         url: ajaxurl,
@@ -1555,7 +1555,7 @@ class JPM_Admin
                     }
 
                     const $submitBtn = $form.find('button[type="submit"]');
-                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving…', 'job-posting-manager')); ?>');
+                    $submitBtn.prop('disabled', true).text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
 
                     $.ajax({
                         url: ajaxurl,
@@ -2115,7 +2115,7 @@ class JPM_Admin
                             </td>
                             <td>
                                 <?php if ($user): ?>
-                                    <a href="<?php echo admin_url('user-edit.php?user_id=' . $user->ID); ?>">
+                                    <a href="<?php echo esc_url(admin_url('user-edit.php?user_id=' . $user->ID)); ?>">
                                         <?php echo esc_html($user->display_name); ?>
                                     </a>
                                     <br><small><?php echo esc_html($user->user_email); ?></small>
@@ -2204,7 +2204,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                             });
+                                                                                                             });
         </script>
         <?php
     }
@@ -2650,8 +2650,7 @@ class JPM_Admin
 
         // Always display job details section (at minimum, it will show posted date)
 
-        ob_start();
-        ?>
+        ob_start(); ?>
         <div class="jpm-job-details">
             <h3><?php _e('Job Details', 'job-posting-manager'); ?></h3>
             <ul class="jpm-job-details-list">
@@ -3508,7 +3507,7 @@ class JPM_Admin
                             <input type="submit" name="submit" class="button button-primary"
                                 value="<?php echo $editing_status ? __('Update Status', 'job-posting-manager') : __('Add Status', 'job-posting-manager'); ?>">
                             <?php if ($editing_status): ?>
-                                <a href="<?php echo admin_url('admin.php?page=jpm-status-management'); ?>" class="button">
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management')); ?>" class="button">
                                     <?php _e('Cancel', 'job-posting-manager'); ?>
                                 </a>
                             <?php endif; ?>
@@ -3549,7 +3548,7 @@ class JPM_Admin
                                         </td>
                                         <td><?php echo esc_html($status['description']); ?></td>
                                         <td>
-                                            <a href="<?php echo admin_url('admin.php?page=jpm-status-management&edit=' . $status['id']); ?>"
+                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-status-management&edit=' . $status['id'])); ?>"
                                                 class="button button-small"><?php _e('Edit', 'job-posting-manager'); ?></a>
                                             <form method="post" action="" style="display: inline-block; margin-left: 5px;"
                                                 onsubmit="return confirm('<?php esc_attr_e('Are you sure you want to delete this status?', 'job-posting-manager'); ?>');">
@@ -5100,8 +5099,7 @@ class JPM_Admin
 
         // Print page - standalone HTML without WordPress admin
         // Send headers to prevent caching
-        nocache_headers();
-        ?>
+        nocache_headers(); ?>
         <!DOCTYPE html>
         <html <?php language_attributes(); ?>>
 
@@ -6285,7 +6283,7 @@ class JPM_Admin
                                                 // Handle file URLs
                                                 $file_name = basename($field_value);
                                                 echo '<a href="' . esc_url($field_value) . '" target="_blank" style="color: #3498db; text-decoration: none; font-weight: 600;">';
-                                                echo '<span style="margin-right: 8px;">📎</span>';
+                                                echo '<span style="margin-right: 8px;">[file]</span>';
                                                 echo esc_html($file_name);
                                                 echo ' <span style="font-size: 9pt; color: #7f8c8d;">(' . __('Click to download', 'job-posting-manager') . ')</span>';
                                                 echo '</a>';
@@ -6332,3 +6330,5 @@ class JPM_Admin
         <?php
     }
 }
+
+
