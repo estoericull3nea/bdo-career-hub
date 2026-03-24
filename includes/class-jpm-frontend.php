@@ -3521,7 +3521,7 @@ class JPM_Frontend
                     var $btnText = $button.find('.jpm-btn-text');
 
                     $button.prop('disabled', true);
-                    $btnText.text('<?php echo $sending; ?>');
+                    $btnText.text('<?php echo esc_js($sending); ?>');
                     $message.hide();
 
                     $.ajax({
@@ -3535,7 +3535,7 @@ class JPM_Frontend
                         success: function (response) {
                             // Reset button to normal state for any response
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $send_link; ?>');
+                            $btnText.text('<?php echo esc_js($send_link); ?>');
                             if (response.success) {
                                 var successMessage = response.data.message || '<?php echo esc_js(__('If an account exists with this email address, a password reset link has been sent. Please check your email and click the link to reset your password.', 'job-posting-manager')); ?>';
                                 $message.html('<div class="notice notice-success"><p>' + successMessage + '</p></div>').show();
@@ -3547,7 +3547,7 @@ class JPM_Frontend
                         error: function () {
                             $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $send_link; ?>');
+                            $btnText.text('<?php echo esc_js($send_link); ?>');
                         }
                     });
                 });
@@ -4230,7 +4230,7 @@ class JPM_Frontend
                     }
 
                     $button.prop('disabled', true);
-                    $btnText.text('<?php echo $resetting; ?>');
+                    $btnText.text('<?php echo esc_js($resetting); ?>');
                     $message.hide();
 
                     $.ajax({
@@ -4246,7 +4246,7 @@ class JPM_Frontend
                         success: function (response) {
                             // Reset button to normal state for any response
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $reset_password; ?>');
+                            $btnText.text('<?php echo esc_js($reset_password); ?>');
 
                             if (response.success) {
                                 $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Password has been reset successfully! Redirecting to login...', 'job-posting-manager')); ?>') + '</p></div>').show();
@@ -4266,7 +4266,7 @@ class JPM_Frontend
                         error: function () {
                             $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $reset_password; ?>');
+                            $btnText.text('<?php echo esc_js($reset_password); ?>');
                         }
                     });
                 });
@@ -4382,7 +4382,8 @@ class JPM_Frontend
                                 <div class="jpm-stat-content">
                                     <div class="jpm-stat-value"><?php echo count($applications); ?></div>
                                     <div class="jpm-stat-label">
-                                        <?php esc_html_e('Total Applications', 'job-posting-manager'); ?></div>
+                                        <?php esc_html_e('Total Applications', 'job-posting-manager'); ?>
+                                    </div>
                                 </div>
                             </div>
 
