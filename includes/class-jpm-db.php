@@ -82,8 +82,8 @@ class JPM_Admin
     public function dashboard_page()
     {
         // Get filter values
-        $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+        $search = isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '';
+        $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
 
         // Get analytics data
         global $wpdb;
@@ -101,11 +101,11 @@ class JPM_Admin
         $total_jobs = $total_published + $total_draft + $total_pending;
 
         // Total applications
-        $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+        $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
 
         // Applications by status
         $applications_by_status = $wpdb->get_results(
-            "SELECT status, COUNT(*) as count FROM $table GROUP BY status",
+            "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status",
             ARRAY_A
         );
         $status_counts = [];
@@ -116,24 +116,24 @@ class JPM_Admin
         // Recent applications (last 7 days)
         $recent_applications = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM $table WHERE application_date >= %s",
-                date('Y-m-d H:i:s', strtotime('-7 days'))
+                "SELECT COUNT(*) FROM {$table} WHERE application_date >= %s",
+                gmdate('Y-m-d H:i:s', strtotime('-7 days'))
             )
         );
 
         // Applications this month
         $month_applications = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM $table WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
-                date('n'),
-                date('Y')
+                "SELECT COUNT(*) FROM {$table} WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
+                gmdate('n'),
+                gmdate('Y')
             )
         );
 
         // Jobs with most applications (top 5)
         $top_jobs = $wpdb->get_results(
             "SELECT job_id, COUNT(*) as app_count 
-             FROM $table 
+             FROM {$table} 
              GROUP BY job_id 
              ORDER BY app_count DESC 
              LIMIT 5",
@@ -141,9 +141,9 @@ class JPM_Admin
         );
 
         // Get chart period filter
-        $chart_period = isset($_GET['chart_period']) ? sanitize_text_field($_GET['chart_period']) : '7days';
-        $chart_start_date = isset($_GET['chart_start_date']) ? sanitize_text_field($_GET['chart_start_date']) : '';
-        $chart_end_date = isset($_GET['chart_end_date']) ? sanitize_text_field($_GET['chart_end_date']) : '';
+        $chart_period = isset($_GET['chart_period']) ? sanitize_text_field(wp_unslash($_GET['chart_period'])) : '7days';
+        $chart_start_date = isset($_GET['chart_start_date']) ? sanitize_text_field(wp_unslash($_GET['chart_start_date'])) : '';
+        $chart_end_date = isset($_GET['chart_end_date']) ? sanitize_text_field(wp_unslash($_GET['chart_end_date'])) : '';
 
         // Get chart data based on selected period
         $applications_by_day = $this->get_chart_data($chart_period, $chart_start_date, $chart_end_date);
@@ -170,14 +170,16 @@ class JPM_Admin
 
             // Batch fetch application counts for all jobs
             $job_ids_placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
-            $application_counts_query = $wpdb->prepare(
-                "SELECT job_id, COUNT(*) as count 
-                FROM $table 
-                WHERE job_id IN ($job_ids_placeholders)
-                GROUP BY job_id",
-                ...$job_ids
+            $application_counts_results = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT job_id, COUNT(*) as count 
+                    FROM {$table} 
+                    WHERE job_id IN ($job_ids_placeholders)
+                    GROUP BY job_id",
+                    ...$job_ids
+                ),
+                ARRAY_A
             );
-            $application_counts_results = $wpdb->get_results($application_counts_query, ARRAY_A);
             $application_counts = [];
             foreach ($application_counts_results as $row) {
                 $application_counts[$row['job_id']] = intval($row['count']);
@@ -567,9 +569,9 @@ class JPM_Admin
     public function applications_page()
     {
         $filters = [
-            'status' => $_GET['status'] ?? '',
-            'job_id' => $_GET['job_id'] ?? '',
-            'search' => $_GET['search'] ?? '',
+            'status' => isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '',
+            'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
+            'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
         ];
 
         $applications = JPM_DB::get_applications($filters);
@@ -666,11 +668,11 @@ class JPM_Admin
                                     <div>
                                         <strong><?php esc_html_e('Export Applications:', 'job-posting-manager'); ?></strong>
                                         <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters))); ?>"
+                                            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&export=csv&' . http_build_query($filters)), 'jpm_export_applications', 'jpm_export_nonce')); ?>"
                                                 class="button">
                                                 <?php esc_html_e('Export to CSV', 'job-posting-manager'); ?>
                                             </a>
-                                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters))); ?>"
+                                            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&export=json&' . http_build_query($filters)), 'jpm_export_applications', 'jpm_export_nonce')); ?>"
                                                 class="button">
                                                 <?php esc_html_e('Export to JSON', 'job-posting-manager'); ?>
                                             </a>
@@ -2213,7 +2215,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                             });
+                                                                                                                                                                                                     });
         </script>
         <?php
     }
@@ -2418,7 +2420,7 @@ class JPM_Admin
             $results = $wpdb->get_results(
                 $wpdb->prepare(
                     "SELECT DATE(application_date) as date, COUNT(*) as count 
-                    FROM $table 
+                    FROM {$table} 
                     WHERE application_date >= %s AND application_date <= %s
                     GROUP BY DATE(application_date)
                     ORDER BY date ASC",
@@ -2451,7 +2453,7 @@ class JPM_Admin
             $results = $wpdb->get_results(
                 $wpdb->prepare(
                     "SELECT YEARWEEK(application_date, 1) as week, COUNT(*) as count 
-                    FROM $table 
+                    FROM {$table} 
                     WHERE application_date >= %s AND application_date <= %s
                     GROUP BY YEARWEEK(application_date, 1)
                     ORDER BY week ASC",
@@ -2486,7 +2488,7 @@ class JPM_Admin
             $results = $wpdb->get_results(
                 $wpdb->prepare(
                     "SELECT DATE_FORMAT(application_date, '%%Y-%%m') as month, COUNT(*) as count 
-                    FROM $table 
+                    FROM {$table} 
                     WHERE application_date >= %s AND application_date <= %s
                     GROUP BY DATE_FORMAT(application_date, '%%Y-%%m')
                     ORDER BY month ASC",
@@ -3935,7 +3937,7 @@ class JPM_Admin
     public function handle_export()
     {
         // Check if export is requested
-        if (!isset($_GET['page']) || $_GET['page'] !== 'jpm-applications' || !isset($_GET['export'])) {
+        if (!isset($_GET['page']) || sanitize_text_field(wp_unslash($_GET['page'])) !== 'jpm-applications' || !isset($_GET['export'])) {
             return;
         }
 
@@ -3944,7 +3946,14 @@ class JPM_Admin
             wp_die(__('You do not have permission to export applications.', 'job-posting-manager'));
         }
 
-        $export_format = sanitize_text_field($_GET['export'] ?? '');
+        if (
+            !isset($_GET['jpm_export_nonce']) ||
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_export_nonce'])), 'jpm_export_applications')
+        ) {
+            wp_die(__('Security check failed.', 'job-posting-manager'));
+        }
+
+        $export_format = sanitize_text_field(wp_unslash($_GET['export'] ?? ''));
 
         if (!in_array($export_format, ['csv', 'json'])) {
             wp_die(__('Invalid export format.', 'job-posting-manager'));
@@ -3952,9 +3961,9 @@ class JPM_Admin
 
         // Get filters
         $filters = [
-            'status' => $_GET['status'] ?? '',
-            'job_id' => $_GET['job_id'] ?? '',
-            'search' => $_GET['search'] ?? '',
+            'status' => isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '',
+            'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
+            'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
         ];
 
         // Get applications
@@ -4111,7 +4120,6 @@ class JPM_Admin
             fputcsv($output, $row);
         }
 
-        fclose($output);
         exit;
     }
 
@@ -4446,7 +4454,6 @@ class JPM_Admin
         // Read headers
         $headers = fgetcsv($handle);
         if ($headers === false || empty($headers)) {
-            fclose($handle);
             $error_messages[] = __('Failed to read CSV headers. The file may be empty or not in the correct CSV format.', 'job-posting-manager');
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
@@ -4463,7 +4470,6 @@ class JPM_Admin
         }
 
         if (!$has_job_id) {
-            fclose($handle);
             $error_messages[] = __('CSV file is missing required column: "Job ID" or "Job Id". Please ensure your CSV file matches the export format.', 'job-posting-manager');
             return ['success' => 0, 'errors' => 1, 'error_messages' => $error_messages];
         }
@@ -4504,8 +4510,6 @@ class JPM_Admin
                 $error_messages[] = $result['error'];
             }
         }
-
-        fclose($handle);
 
         return [
             'success' => $success_count,
@@ -5712,7 +5716,8 @@ class JPM_Admin
                 <div class="print-header" style="margin-top: 0 !important; padding-top: 0 !important;">
                     <h1><?php esc_html_e('Job Application', 'job-posting-manager'); ?></h1>
                     <?php /* translators: %d: Application ID. */ ?>
-                    <div class="subtitle"><?php printf(__('Application #%d', 'job-posting-manager'), absint($application_id)); ?></div>
+                    <div class="subtitle">
+                        <?php printf(__('Application #%d', 'job-posting-manager'), absint($application_id)); ?></div>
                     <?php if (get_bloginfo('name')): ?>
                         <div class="company-info"><?php echo esc_html(get_bloginfo('name')); ?></div>
                     <?php endif; ?>
