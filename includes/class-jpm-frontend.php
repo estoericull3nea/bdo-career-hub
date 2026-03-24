@@ -4464,12 +4464,12 @@ class JPM_Frontend
                                                     style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
                                                     <?php echo esc_html($status_name); ?>
                                                 </span>
-                                                <span class="jpm-status-breakdown-count"><?php echo $count; ?>
-                                                    <?php echo _n('application', 'applications', $count, 'job-posting-manager'); ?></span>
+                                                <span class="jpm-status-breakdown-count"><?php echo esc_html(absint($count)); ?>
+                                                    <?php echo esc_html(_n('application', 'applications', absint($count), 'job-posting-manager')); ?></span>
                                             </div>
                                             <div class="jpm-status-breakdown-bar">
                                                 <div class="jpm-status-breakdown-fill"
-                                                    style="width: <?php echo count($applications) > 0 ? round(($count / count($applications)) * 100) : 0; ?>%; background-color: <?php echo esc_attr($status_color); ?>;">
+                                                    style="width: <?php echo esc_attr(count($applications) > 0 ? absint(round(($count / count($applications)) * 100)) : 0); ?>%; background-color: <?php echo esc_attr($status_color); ?>;">
                                                 </div>
                                             </div>
                                         </div>
@@ -5187,7 +5187,7 @@ class JPM_Frontend
                                                                     <div class="jpm-form-data-subsection">
                                                                         <h5 class="jpm-form-data-subsection-title">
                                                                             <?php /* translators: %d: Employment entry number. */ ?>
-                                                                            <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
+                                                                            <?php printf(__('Employment #%d', 'job-posting-manager'), absint($index + 1)); ?>
                                                                         </h5>
                                                                         <div class="jpm-form-data-grid">
                                                                             <?php if (!empty($entry['company_name'])): ?>
