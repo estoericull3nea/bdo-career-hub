@@ -1465,7 +1465,7 @@ class JPM_Frontend
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
             /* translators: 1: Current user's display name, 2: logout URL. */
-            return '<div class="jpm-register-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to create a new account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            return '<div class="jpm-register-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to create a new account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         $atts = shortcode_atts([
@@ -2723,7 +2723,7 @@ class JPM_Frontend
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
             /* translators: 1: Current user's display name, 2: logout URL. */
-            return '<div class="jpm-login-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to login as a different user.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            return '<div class="jpm-login-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to login as a different user.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         $atts = shortcode_atts([
@@ -3217,7 +3217,7 @@ class JPM_Frontend
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
             /* translators: 1: Current user's display name, 2: logout URL. */
-            return '<div class="jpm-forgot-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            return '<div class="jpm-forgot-password-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         $atts = shortcode_atts([
@@ -3564,7 +3564,7 @@ class JPM_Frontend
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
             /* translators: 1: Current user's display name, 2: logout URL. */
-            return '<div class="jpm-reset-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            return '<div class="jpm-reset-password-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         // Get reset key and login from URL

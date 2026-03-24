@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Job Posting Manager
  * Description: A plugin for managing job postings, applications, and notifications.
- * Version: 5.1.1
+ * Version: 5.2.1
  * Author: Ericson Palisoc
  * License: GPL v2 or later
  * Text Domain: job-posting-manager
