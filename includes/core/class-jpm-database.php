@@ -47,7 +47,13 @@ class JPM_Database
 
         // Check for duplicate (only for logged-in users)
         if ($user_id > 0) {
-            $existing = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d AND job_id = %d", $user_id, $job_id));
+            $existing = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT id FROM {$table} WHERE user_id = %d AND job_id = %d",
+                    $user_id,
+                    $job_id
+                )
+            );
             if ($existing) {
                 return new WP_Error('duplicate', __('You have already applied for this job.', 'job-posting-manager'));
             }
@@ -95,7 +101,7 @@ class JPM_Database
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
-        $where = ['1=1'];
+        $where = [];
         $where_values = [];
 
         if (!empty($filters['status'])) {
@@ -113,18 +119,17 @@ class JPM_Database
             $where_values[] = $filters['user_id'];
         }
 
-        $where_clause = implode(' AND ', $where);
+        $query = "SELECT * FROM {$table}";
+        if (!empty($where)) {
+            $query .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $query .= ' ORDER BY application_date DESC';
 
         if (!empty($where_values)) {
-            $query = $wpdb->prepare(
-                "SELECT * FROM $table WHERE $where_clause ORDER BY application_date DESC",
-                $where_values
-            );
+            $applications = $wpdb->get_results($wpdb->prepare($query, ...$where_values));
         } else {
-            $query = "SELECT * FROM $table WHERE $where_clause ORDER BY application_date DESC";
+            $applications = $wpdb->get_results($query);
         }
-
-        $applications = $wpdb->get_results($query);
 
         // If search term is provided, filter by searching in form data
         if (!empty($filters['search'])) {
