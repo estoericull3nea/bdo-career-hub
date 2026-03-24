@@ -602,10 +602,15 @@ class JPM_Form_Builder
                             // Fallback: Get user's most recent application data
                             global $wpdb;
                             $table = $wpdb->prefix . 'job_applications';
-                            $latest_application = $wpdb->get_row($wpdb->prepare(
-                                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC LIMIT 1",
-                                $user_id
-                            ));
+                            $cache_key = 'jpm_latest_application_' . absint($user_id);
+                            $latest_application = wp_cache_get($cache_key, 'jpm_form_builder');
+                            if (false === $latest_application) {
+                                $latest_application = $wpdb->get_row($wpdb->prepare(
+                                    "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC LIMIT 1",
+                                    absint($user_id)
+                                ));
+                                wp_cache_set($cache_key, $latest_application, 'jpm_form_builder', 5 * MINUTE_IN_SECONDS);
+                            }
 
                             if ($latest_application && !empty($latest_application->notes)) {
                                 $form_data = json_decode($latest_application->notes, true);
@@ -770,7 +775,8 @@ class JPM_Form_Builder
 
                                 <!-- Education Summary -->
                                 <div class="jpm-summary-section-header">
-                                    <?php esc_html_e('Primary Education', 'job-posting-manager'); ?></div>
+                                    <?php esc_html_e('Primary Education', 'job-posting-manager'); ?>
+                                </div>
                                 <?php
                                 $edu_primary_fields = [
                                     'edu_primary_school_name' => __('School Name', 'job-posting-manager'),
@@ -791,7 +797,8 @@ class JPM_Form_Builder
                                 <?php endforeach; ?>
 
                                 <div class="jpm-summary-section-header">
-                                    <?php esc_html_e('Secondary Education', 'job-posting-manager'); ?></div>
+                                    <?php esc_html_e('Secondary Education', 'job-posting-manager'); ?>
+                                </div>
                                 <?php
                                 $edu_secondary_fields = [
                                     'edu_secondary_school_name' => __('School Name', 'job-posting-manager'),
@@ -813,7 +820,8 @@ class JPM_Form_Builder
                                 <?php endforeach; ?>
 
                                 <div class="jpm-summary-section-header">
-                                    <?php esc_html_e('Tertiary Education', 'job-posting-manager'); ?></div>
+                                    <?php esc_html_e('Tertiary Education', 'job-posting-manager'); ?>
+                                </div>
                                 <?php
                                 $edu_tertiary_fields = [
                                     'edu_tertiary_institution_name' => __('Institution Name', 'job-posting-manager'),
@@ -837,12 +845,14 @@ class JPM_Form_Builder
 
                                 <!-- Employment Summary -->
                                 <div class="jpm-summary-section-header">
-                                    <?php esc_html_e('Employment History', 'job-posting-manager'); ?></div>
+                                    <?php esc_html_e('Employment History', 'job-posting-manager'); ?>
+                                </div>
                                 <div class="jpm-summary-employment-container">
                                     <div class="jpm-summary-item" data-field-name="employment_entries">
                                         <div class="jpm-summary-label">
                                             <?php esc_html_e('Employment Entries', 'job-posting-manager'); ?> <span
-                                                class="required">*</span></div>
+                                                class="required">*</span>
+                                        </div>
                                         <div class="jpm-summary-value" id="jpm-employment-summary">
                                             <span
                                                 class="jpm-summary-placeholder"><?php esc_html_e('Not filled', 'job-posting-manager'); ?></span>
