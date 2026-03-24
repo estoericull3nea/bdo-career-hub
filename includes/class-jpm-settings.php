@@ -17,8 +17,52 @@ class JPM_Settings
 
     public function register_settings()
     {
-        register_setting('jpm_settings', 'jpm_settings');
+        register_setting(
+            'jpm_settings',
+            'jpm_settings',
+            [
+                'sanitize_callback' => [$this, 'sanitize_settings_option'],
+            ]
+        );
         // Settings registration removed - no longer using WordPress settings API for email templates
+    }
+
+    /**
+     * Sanitize the jpm_settings option values.
+     *
+     * @param mixed $settings Raw settings value.
+     * @return array
+     */
+    public function sanitize_settings_option($settings)
+    {
+        if (!is_array($settings)) {
+            return [];
+        }
+
+        return $this->sanitize_settings_array($settings);
+    }
+
+    /**
+     * Recursively sanitize settings arrays.
+     *
+     * @param array $values Settings array.
+     * @return array
+     */
+    private function sanitize_settings_array($values)
+    {
+        $sanitized = [];
+
+        foreach ($values as $key => $value) {
+            $clean_key = sanitize_key((string) $key);
+
+            if (is_array($value)) {
+                $sanitized[$clean_key] = $this->sanitize_settings_array($value);
+            } else {
+                $sanitized[$clean_key] = sanitize_text_field((string) $value);
+            }
+        }
+
+        return $sanitized;
     }
 
     public function settings_page()
