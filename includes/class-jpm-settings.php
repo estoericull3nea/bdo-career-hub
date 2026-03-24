@@ -867,23 +867,23 @@ class JPM_Settings
 
         // Save SMTP settings
         $smtp_settings = [
-            'host' => sanitize_text_field($_POST['smtp_host'] ?? 'smtp.gmail.com'),
-            'port' => intval($_POST['smtp_port'] ?? 587),
-            'encryption' => sanitize_text_field($_POST['smtp_encryption'] ?? 'tls'),
+            'host' => isset($_POST['smtp_host']) ? sanitize_text_field(wp_unslash($_POST['smtp_host'])) : 'smtp.gmail.com',
+            'port' => isset($_POST['smtp_port']) ? absint(wp_unslash($_POST['smtp_port'])) : 587,
+            'encryption' => isset($_POST['smtp_encryption']) ? sanitize_text_field(wp_unslash($_POST['smtp_encryption'])) : 'tls',
             'auth' => !empty($_POST['smtp_auth']),
-            'username' => sanitize_text_field($_POST['smtp_username'] ?? ''),
-            'password' => sanitize_text_field($_POST['smtp_password'] ?? ''),
-            'from_email' => sanitize_email($_POST['smtp_from_email'] ?? get_option('admin_email')),
-            'from_name' => sanitize_text_field($_POST['smtp_from_name'] ?? get_bloginfo('name')),
+            'username' => isset($_POST['smtp_username']) ? sanitize_text_field(wp_unslash($_POST['smtp_username'])) : '',
+            'password' => isset($_POST['smtp_password']) ? sanitize_text_field(wp_unslash($_POST['smtp_password'])) : '',
+            'from_email' => isset($_POST['smtp_from_email']) ? sanitize_email(wp_unslash($_POST['smtp_from_email'])) : get_option('admin_email'),
+            'from_name' => isset($_POST['smtp_from_name']) ? sanitize_text_field(wp_unslash($_POST['smtp_from_name'])) : get_bloginfo('name'),
         ];
 
         $smtp_result = update_option('jpm_smtp_settings', $smtp_settings);
 
         // Save email recipient settings
         $email_settings = [
-            'recipient_email' => sanitize_email($_POST['recipient_email'] ?? get_option('admin_email')),
-            'cc_emails' => sanitize_textarea_field($_POST['cc_emails'] ?? ''),
-            'bcc_emails' => sanitize_textarea_field($_POST['bcc_emails'] ?? ''),
+            'recipient_email' => isset($_POST['recipient_email']) ? sanitize_email(wp_unslash($_POST['recipient_email'])) : get_option('admin_email'),
+            'cc_emails' => isset($_POST['cc_emails']) ? sanitize_textarea_field(wp_unslash($_POST['cc_emails'])) : '',
+            'bcc_emails' => isset($_POST['bcc_emails']) ? sanitize_textarea_field(wp_unslash($_POST['bcc_emails'])) : '',
         ];
 
         $email_result = update_option('jpm_email_settings', $email_settings);
@@ -910,7 +910,7 @@ class JPM_Settings
             wp_send_json_error(['message' => __('Permission denied.', 'job-posting-manager')]);
         }
 
-        $test_email = sanitize_email($_POST['email'] ?? '');
+        $test_email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
 
         if (empty($test_email) || !is_email($test_email)) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
