@@ -1,4 +1,8 @@
 ﻿<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Form Builder Class
  * Handles form building interface and form rendering

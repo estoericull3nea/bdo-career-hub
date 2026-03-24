@@ -1,4 +1,8 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Email Templates Management Class
  * Allows admins to edit email notification formats, layouts, and content through UI

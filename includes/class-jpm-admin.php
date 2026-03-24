@@ -1,4 +1,8 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * JPM_DB - Backward Compatibility Wrapper
  * 

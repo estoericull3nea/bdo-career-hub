@@ -1,4 +1,8 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * SMTP Configuration Class
  * Configures WordPress PHPMailer to use SMTP

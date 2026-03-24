@@ -1,4 +1,8 @@
 ﻿<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 class JPM_Settings
 {
     public function __construct()

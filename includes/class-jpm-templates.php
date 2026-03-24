@@ -1,4 +1,8 @@
 ﻿<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Template Management Class
  * Handles form templates for job applications
