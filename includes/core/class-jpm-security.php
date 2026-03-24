@@ -278,6 +278,7 @@ class JPM_Security
             $max_size_mb = round($max_size / 1048576, 2);
             return [
                 'valid' => false,
+                /* translators: %s: Maximum allowed upload size in megabytes. */
                 'error' => sprintf(__('File size exceeds maximum allowed size of %s MB.', 'job-posting-manager'), $max_size_mb),
                 'file' => null
             ];
