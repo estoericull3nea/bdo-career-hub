@@ -1820,16 +1820,21 @@ class JPM_Admin
                     <select id="expiration_unit" name="expiration_unit" required>
                         <option value=""><?php _e('Select unit', 'job-posting-manager'); ?></option>
                         <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>>
-                            <?php _e('Minutes', 'job-posting-manager'); ?></option>
+                            <?php _e('Minutes', 'job-posting-manager'); ?>
+                        </option>
                         <option value="hours" <?php selected($expiration_unit, 'hours'); ?>>
-                            <?php _e('Hours', 'job-posting-manager'); ?></option>
+                            <?php _e('Hours', 'job-posting-manager'); ?>
+                        </option>
                         <option value="days" <?php selected($expiration_unit, 'days'); ?>>
-                            <?php _e('Days', 'job-posting-manager'); ?></option>
+                            <?php _e('Days', 'job-posting-manager'); ?>
+                        </option>
                         <option value="months" <?php selected($expiration_unit, 'months'); ?>>
-                            <?php _e('Months', 'job-posting-manager'); ?></option>
+                            <?php _e('Months', 'job-posting-manager'); ?>
+                        </option>
                     </select>
                     <p class="description">
-                        <?php _e('Required: How long until this job posting expires', 'job-posting-manager'); ?></p>
+                        <?php _e('Required: How long until this job posting expires', 'job-posting-manager'); ?>
+                    </p>
                 </td>
             </tr>
             <tr>
@@ -2199,7 +2204,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo wp_create_nonce('jpm_update_status'); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                     });
+                                                                                             });
         </script>
         <?php
     }
@@ -6314,7 +6319,7 @@ class JPM_Admin
 
                 <div class="footer">
                     <?php /* translators: 1: Printed date/time, 2: Site name. */ ?>
-                    <p><?php printf(__('Printed on %s from %s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')), get_bloginfo('name')); ?>
+                    <p><?php printf(__('Printed on %1$s from %2$s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')), get_bloginfo('name')); ?>
                     </p>
                 </div>
             </div>
