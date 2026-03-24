@@ -19,6 +19,41 @@ class JPM_Frontend
         return $table;
     }
 
+    /**
+     * Get cached IDs for non-expired published job posts.
+     *
+     * @return int[]
+     */
+    private function get_unexpired_job_ids()
+    {
+        global $wpdb;
+        $today = gmdate('Y-m-d');
+        $cache_key = 'jpm_unexpired_job_ids_' . md5($today);
+        $cached_ids = wp_cache_get($cache_key, 'jpm_frontend');
+        if (false !== $cached_ids) {
+            return is_array($cached_ids) ? $cached_ids : [];
+        }
+
+        $ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT DISTINCT p.ID
+                FROM {$wpdb->posts} p
+                LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+                WHERE p.post_type = %s
+                AND p.post_status = %s
+                AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR pm_exp.meta_value >= %s)",
+                'job_posting',
+                'publish',
+                $today
+            )
+        );
+
+        $ids = array_map('absint', (array) $ids);
+        wp_cache_set($cache_key, $ids, 'jpm_frontend', 5 * MINUTE_IN_SECONDS);
+
+        return $ids;
+    }
+
     public function __construct()
     {
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
@@ -203,16 +238,19 @@ class JPM_Frontend
             $view_all_url = home_url('/jobs/');
         }
 
-        // Query latest published jobs (exclude expired)
+        // Query latest published non-expired jobs.
+        $unexpired_job_ids = $this->get_unexpired_job_ids();
+        if (empty($unexpired_job_ids)) {
+            return '<p class="jpm-no-jobs">' . __('No jobs available at the moment.', 'job-posting-manager') . '</p>';
+        }
+
         $jobs = get_posts([
             'post_type' => 'job_posting',
             'posts_per_page' => $count,
             'post_status' => 'publish',
             'orderby' => 'date',
             'order' => 'DESC',
-            'meta_query' => [
-                $this->get_expiration_filter()
-            ]
+            'post__in' => $unexpired_job_ids,
         ]);
 
         if (empty($jobs)) {
@@ -476,11 +514,15 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
-        // Add meta query for location, company filters, and expiration
-        $meta_query = [];
+        // Restrict queries to unexpired jobs first (cached ID list).
+        $unexpired_job_ids = $this->get_unexpired_job_ids();
+        if (empty($unexpired_job_ids)) {
+            return '<div class="jpm-no-jobs-container"><p class="jpm-no-jobs-message">' . esc_html__('No jobs found matching your criteria.', 'job-posting-manager') . '</p></div>';
+        }
+        $args['post__in'] = $unexpired_job_ids;
 
-        // Add expiration filter (exclude expired jobs)
-        $meta_query[] = $this->get_expiration_filter();
+        // Add meta query for location/company filters only.
+        $meta_query = [];
 
         if (!empty($location_filter)) {
             $meta_query[] = [
@@ -497,7 +539,7 @@ class JPM_Frontend
             ];
         }
 
-        // Set relation to AND so all conditions must be met
+        // Set relation to AND so all conditions must be met.
         if (!empty($meta_query)) {
             if (count($meta_query) > 1) {
                 $args['meta_query'] = array_merge(
@@ -514,11 +556,7 @@ class JPM_Frontend
         // Get unique locations and companies for filter dropdowns (only non-expired jobs)
         // Optimized: Use direct SQL query instead of fetching all posts
         global $wpdb;
-        $expiration_filter = $this->get_expiration_filter();
-        $expiration_date = '';
-        if (!empty($expiration_filter) && isset($expiration_filter['value'])) {
-            $expiration_date = $expiration_filter['value'];
-        }
+        $expiration_date = gmdate('Y-m-d');
 
         // Cache key for locations and companies
         $cache_key_locations = 'jpm_locations_' . md5($expiration_date);
@@ -941,10 +979,13 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
-        $meta_query = [];
+        $unexpired_job_ids = $this->get_unexpired_job_ids();
+        if (empty($unexpired_job_ids)) {
+            wp_send_json_success(['html' => '<div class="jpm-no-jobs-container"><p class="jpm-no-jobs-message">' . esc_html__('No jobs found matching your criteria.', 'job-posting-manager') . '</p></div>']);
+        }
+        $args['post__in'] = $unexpired_job_ids;
 
-        // Add expiration filter (exclude expired jobs)
-        $meta_query[] = $this->get_expiration_filter();
+        $meta_query = [];
 
         if (!empty($location_filter)) {
             $meta_query[] = [
@@ -961,7 +1002,7 @@ class JPM_Frontend
             ];
         }
 
-        // Set relation to AND so all conditions must be met
+        // Set relation to AND so all conditions must be met.
         if (!empty($meta_query)) {
             if (count($meta_query) > 1) {
                 $args['meta_query'] = array_merge(
