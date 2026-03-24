@@ -145,7 +145,7 @@ class JPM_Emails
         // Get application status from database
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
 
         // Get status information
         $status_slug = 'pending'; // Default status
@@ -307,7 +307,7 @@ class JPM_Emails
 
         // Get application details
         $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
 
         if (!$application) {
             error_log('JPM: Application not found for ID: ' . $app_id);

@@ -263,7 +263,7 @@ class JPM_Database
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
 
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id));
     }
 
     /**
