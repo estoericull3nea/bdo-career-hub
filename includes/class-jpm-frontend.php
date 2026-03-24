@@ -1237,14 +1237,20 @@ class JPM_Frontend
     {
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
+        $normalized_number = sanitize_text_field($application_number_input);
+        $cache_key = 'jpm_track_app_' . md5(strtolower(trim($normalized_number)));
+        $cached_application = wp_cache_get($cache_key, 'jpm_frontend');
+        if (false !== $cached_application) {
+            return $cached_application;
+        }
 
         // Search for application by application number in notes field
-        $search_term = '%' . $wpdb->esc_like($application_number_input) . '%';
+        $search_term = '%' . $wpdb->esc_like($normalized_number) . '%';
 
         // First try exact match with common field names
         $applications = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$table} WHERE notes LIKE %s",
-            '%"application_number":"' . $wpdb->esc_like($application_number_input) . '"%'
+            '%"application_number":"' . $wpdb->esc_like($normalized_number) . '"%'
         ));
 
         // If not found, try other field name variations
@@ -1269,13 +1275,15 @@ class JPM_Frontend
                 if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
                     $stored_app_number = sanitize_text_field($form_data[$field_name]);
                     // Case-insensitive comparison
-                    if (strcasecmp(trim($stored_app_number), trim($application_number_input)) === 0) {
+                    if (strcasecmp(trim($stored_app_number), trim($normalized_number)) === 0) {
+                        wp_cache_set($cache_key, $app, 'jpm_frontend', 5 * MINUTE_IN_SECONDS);
                         return $app;
                     }
                 }
             }
         }
 
+        wp_cache_set($cache_key, null, 'jpm_frontend', 1 * MINUTE_IN_SECONDS);
         return null;
     }
 
@@ -4294,10 +4302,15 @@ class JPM_Frontend
         // Get user applications
         global $wpdb;
         $table = $wpdb->prefix . 'job_applications';
-        $applications = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC",
-            $user_id
-        ));
+        $applications_cache_key = 'jpm_user_apps_' . absint($user_id);
+        $applications = wp_cache_get($applications_cache_key, 'jpm_frontend');
+        if (false === $applications) {
+            $applications = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC",
+                absint($user_id)
+            ));
+            wp_cache_set($applications_cache_key, $applications, 'jpm_frontend', 5 * MINUTE_IN_SECONDS);
+        }
 
         // Get all jobs for dashboard stats
         $all_jobs = get_posts([
