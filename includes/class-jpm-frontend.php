@@ -1,6 +1,24 @@
 ﻿<?php
 class JPM_Frontend
 {
+    /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
     public function __construct()
     {
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
@@ -1236,7 +1254,7 @@ class JPM_Frontend
     private function get_application_by_number($application_number_input)
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $normalized_number = sanitize_text_field($application_number_input);
         $cache_key = 'jpm_track_app_' . md5(strtolower(trim($normalized_number)));
         $cached_application = wp_cache_get($cache_key, 'jpm_frontend');
@@ -4301,7 +4319,7 @@ class JPM_Frontend
 
         // Get user applications
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $applications_cache_key = 'jpm_user_apps_' . absint($user_id);
         $applications = wp_cache_get($applications_cache_key, 'jpm_frontend');
         if (false === $applications) {
