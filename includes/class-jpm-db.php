@@ -2213,7 +2213,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                     });
+                                                                                                                                                                     });
         </script>
         <?php
     }
@@ -4333,9 +4333,11 @@ class JPM_Admin
         $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (($format === 'csv' && $file_ext !== 'csv') || ($format === 'json' && $file_ext !== 'json')) {
             add_action('admin_notices', function () use ($format, $file_ext) {
+                $safe_file_ext = esc_html($file_ext);
+                $safe_format_label = esc_html(strtoupper((string) $format));
                 echo '<div class="notice notice-error"><p><strong>' . esc_html__('Import Error:', 'job-posting-manager') . '</strong> ' .
                     /* translators: 1: Uploaded file extension, 2: selected import format. */
-                    sprintf(__('File extension (.%s) does not match selected format (%s). Please select the correct format or upload a file with the matching extension.', 'job-posting-manager'), esc_html($file_ext), esc_html(strtoupper($format))) .
+                    sprintf(__('File extension (.%s) does not match selected format (%s). Please select the correct format or upload a file with the matching extension.', 'job-posting-manager'), $safe_file_ext, $safe_format_label) .
                     '</p></div>';
             });
             return;
