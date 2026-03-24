@@ -263,7 +263,7 @@ class JPM_Frontend
 
         // Optimize: Pre-fetch all post meta to avoid N+1 queries
         $job_ids = wp_list_pluck($jobs, 'ID');
-        update_post_meta_cache($job_ids);
+        update_postmeta_cache($job_ids);
 
         ob_start();
         ?>
@@ -728,7 +728,7 @@ class JPM_Frontend
                 }
                 $jobs_query->rewind_posts();
                 if (!empty($job_ids)) {
-                    update_post_meta_cache($job_ids);
+                    update_postmeta_cache($job_ids);
                 }
                 ?>
                 <div class="jpm-latest-jobs">
@@ -1030,7 +1030,7 @@ class JPM_Frontend
             }
             $jobs_query->rewind_posts();
             if (!empty($job_ids)) {
-                update_post_meta_cache($job_ids);
+                update_postmeta_cache($job_ids);
             }
 
             while ($jobs_query->have_posts()):

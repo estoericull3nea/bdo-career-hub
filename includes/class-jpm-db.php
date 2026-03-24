@@ -209,7 +209,7 @@ class JPM_Admin
         // Optimize: Pre-fetch all post meta and application counts to avoid N+1 queries
         if (!empty($jobs)) {
             $job_ids = wp_list_pluck($jobs, 'ID');
-            update_post_meta_cache($job_ids);
+            update_postmeta_cache($job_ids);
 
             // Batch fetch application counts for all jobs
             $job_ids_placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
