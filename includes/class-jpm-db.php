@@ -390,8 +390,7 @@ class JPM_Admin
                                 $bg_color = $status_info ? $status_info['color'] : '#ffc107';
                                 $text_color = $status_info ? $status_info['text_color'] : '#000';
                                 ?>
-                                <div
-                                    style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; border-left: 4px solid <?php echo esc_attr($bg_color); ?>;">
+                                <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px;">
                                     <div
                                         style="font-size: 24px; font-weight: bold; color: <?php echo esc_attr($bg_color); ?>; margin-bottom: 5px;">
                                         <?php echo esc_html($count); ?>
@@ -823,7 +822,7 @@ class JPM_Admin
 
             <div class="jpm-analytics-cards"
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
-              
+
 
                 <!-- Published Card -->
                 <div class="jpm-analytics-card"
@@ -886,7 +885,8 @@ class JPM_Admin
                         <span class="dashicons dashicons-clock" style="font-size: 24px; color: #0073aa;"></span>
                     </div>
                     <div style="display: flex; gap: 15px; flex-direction: row;">
-                        <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; #b32d2e;">
+                        <div
+                            style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; #b32d2e;">
                             <div style="font-size: 24px; font-weight: bold; color: #b32d2e; margin-bottom: 5px;">
                                 <?php echo esc_html($expired_jobs_all); ?>
                             </div>
@@ -894,7 +894,8 @@ class JPM_Admin
                                 <?php esc_html_e('Expired', 'job-posting-manager'); ?>
                             </div>
                         </div>
-                        <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; #1e7e34;">
+                        <div
+                            style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; #1e7e34;">
                             <div style="font-size: 24px; font-weight: bold; color: #1e7e34; margin-bottom: 5px;">
                                 <?php echo esc_html($not_expired_jobs_all); ?>
                             </div>
@@ -2756,7 +2757,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                                                                                                                                 });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                 });
         </script>
         <?php
     }
@@ -3068,9 +3069,20 @@ class JPM_Admin
      */
     public function get_chart_data_ajax()
     {
-        check_ajax_referer('jpm_chart_nonce', 'nonce');
+        // Prevent any PHP notices/warnings from corrupting the JSON response.
+        if (!ob_get_level()) {
+            ob_start();
+        }
+
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_chart_nonce')) {
+            ob_clean();
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+            return;
+        }
 
         if (!current_user_can('manage_options')) {
+            ob_clean();
             wp_send_json_error(['message' => __('Unauthorized access.', 'job-posting-manager')]);
             return;
         }
@@ -3113,6 +3125,7 @@ class JPM_Admin
         }
         $html = ob_get_clean();
 
+        ob_clean();
         wp_send_json_success(['html' => $html]);
     }
 
