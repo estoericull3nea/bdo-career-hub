@@ -372,12 +372,13 @@ class JPM_Frontend
      */
     public function get_job_details()
     {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
+        // Verify nonce when provided (read-only endpoint fallback-safe)
+        $nonce = isset($_REQUEST['nonce']) ? sanitize_text_field(wp_unslash($_REQUEST['nonce'])) : '';
+        if (!empty($nonce) && !wp_verify_nonce($nonce, 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $job_id = isset($_POST['job_id']) ? absint(wp_unslash($_POST['job_id'])) : 0;
+        $job_id = isset($_REQUEST['job_id']) ? absint(wp_unslash($_REQUEST['job_id'])) : 0;
 
         if ($job_id <= 0) {
             wp_send_json_error(['message' => __('Invalid job ID.', 'job-posting-manager')]);

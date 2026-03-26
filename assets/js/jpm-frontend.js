@@ -1399,6 +1399,20 @@ jQuery(document).ready(function ($) {
         nonce: jpm_ajax.nonce,
       },
       success: function (response) {
+        // Be resilient to non-standard AJAX responses (e.g. noisy output).
+        if (typeof response === "string") {
+          try {
+            response = JSON.parse(response);
+          } catch (e) {
+            // If backend returned raw HTML, render it directly.
+            if (response && response.indexOf("<") !== -1) {
+              $loading.hide();
+              $content.html(response).fadeIn();
+              return;
+            }
+          }
+        }
+
         $loading.hide();
 
         if (response.success && response.data.html) {
@@ -1411,7 +1425,33 @@ jQuery(document).ready(function ($) {
           $content.html(errorHtml).fadeIn();
         }
       },
-      error: function () {
+      error: function (xhr) {
+        // Attempt recovery if server responded with parsable JSON inside noisy output.
+        var raw = (xhr && xhr.responseText) ? xhr.responseText : "";
+        if (raw) {
+          var start = raw.indexOf("{");
+          var end = raw.lastIndexOf("}");
+          if (start !== -1 && end > start) {
+            try {
+              var parsed = JSON.parse(raw.substring(start, end + 1));
+              if (parsed && parsed.success && parsed.data && parsed.data.html) {
+                $loading.hide();
+                $content.html(parsed.data.html).fadeIn();
+                return;
+              }
+              if (parsed && parsed.data && parsed.data.message) {
+                $loading.hide();
+                $content
+                  .html('<p class="jpm-error">' + parsed.data.message + "</p>")
+                  .fadeIn();
+                return;
+              }
+            } catch (e) {
+              // Fall through to generic error below.
+            }
+          }
+        }
+
         $loading.hide();
         const errorHtml =
           '<p class="jpm-error">An error occurred while loading job details. Please try again.</p>';
