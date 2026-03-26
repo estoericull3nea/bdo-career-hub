@@ -48,6 +48,7 @@ class JPM_Admin
         add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
         add_action('admin_notices', [$this, 'display_expiration_duration_error']);
         add_action('admin_post_jpm_update_expiration', [$this, 'handle_update_expiration']);
+        add_action('admin_post_jpm_mark_expired', [$this, 'handle_mark_expired']);
 
         // Removed cache-related hooks
     }
@@ -139,6 +140,45 @@ class JPM_Admin
             [
                 'page' => 'jpm-job-listings',
                 'updated_expiration' => '1',
+            ],
+            admin_url('admin.php')
+        );
+        wp_safe_redirect($redirect_url);
+        exit;
+    }
+
+    /**
+     * Mark a job as expired by setting expiration_date to "now (or slightly in the past)".
+     * Runs via admin-post.php to avoid "headers already sent" issues.
+     */
+    public function handle_mark_expired()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_mark_expired_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_mark_expired_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_mark_expired')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $job_id = isset($_POST['job_id']) ? absint(wp_unslash($_POST['job_id'])) : 0;
+        if ($job_id <= 0) {
+            wp_safe_redirect(admin_url('admin.php?page=jpm-job-listings'));
+            exit;
+        }
+
+        $current_time = current_time('timestamp');
+        // Set to slightly in the past to ensure it is treated as expired consistently.
+        $expiration_timestamp = $current_time - 1;
+
+        update_post_meta($job_id, 'expiration_date', $expiration_timestamp);
+        update_post_meta($job_id, 'expiration_date_formatted', date('Y-m-d H:i:s', $expiration_timestamp));
+
+        $redirect_url = add_query_arg(
+            [
+                'page' => 'jpm-job-listings',
+                'marked_expired' => '1',
             ],
             admin_url('admin.php')
         );
@@ -703,6 +743,10 @@ class JPM_Admin
                         <?php esc_html_e('Job expiration updated successfully.', 'job-posting-manager'); ?>
                     </p>
                 </div>
+            <?php elseif (isset($_GET['marked_expired']) && sanitize_text_field(wp_unslash($_GET['marked_expired'])) === '1'): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Job marked as expired successfully.', 'job-posting-manager'); ?></p>
+                </div>
             <?php endif; ?>
 
             <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
@@ -814,7 +858,8 @@ class JPM_Admin
                                             style="color: #b32d2e; font-weight: 600;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
                                     <?php else: ?>
                                         <div style="display: flex; flex-direction: column; gap: 2px;">
-                                            <span style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                                            <span
+                                                style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
                                             <span style="color: #1e7e34; font-weight: 600; font-size: 12px;">
                                                 <?php
                                                 if ($time_remaining) {
@@ -840,7 +885,18 @@ class JPM_Admin
                                     <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
                                         <?php esc_html_e('View', 'job-posting-manager'); ?>
                                     </a>
-                                    <?php if ($is_expired): ?>
+                                    <?php if (!$is_expired): ?>
+                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                            style="margin-top: 6px;">
+                                            <?php wp_nonce_field('jpm_mark_expired', 'jpm_mark_expired_nonce'); ?>
+                                            <input type="hidden" name="action" value="jpm_mark_expired">
+                                            <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
+                                            <button type="submit" class="button button-small" style="border-color: #b32d2e;"
+                                                onclick="return confirm('<?php echo esc_js(__('Mark this job as expired?', 'job-posting-manager')); ?>');">
+                                                <?php esc_html_e('Mark as expired', 'job-posting-manager'); ?>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
                                         <details style="margin-top: 6px;">
                                             <summary style="cursor: pointer; color: #0073aa; font-weight: 600;">
                                                 <?php esc_html_e('Expiration', 'job-posting-manager'); ?>
@@ -2493,7 +2549,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                         });
+                                                                                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
