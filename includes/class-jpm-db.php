@@ -677,6 +677,30 @@ class JPM_Admin
         $per_page = 10;
         $paged = isset($_GET['paged']) ? max(1, absint(wp_unslash($_GET['paged']))) : 1;
 
+        // Basic stats (across all jobs; not just current pagination page)
+        $total_jobs_all = (int) $wpdb->get_var(
+            $wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = %s", 'job_posting')
+        );
+        $post_counts = wp_count_posts('job_posting');
+        $published_count = (int) ($post_counts->publish ?? 0);
+        $draft_count = (int) ($post_counts->draft ?? 0);
+        $pending_count = (int) ($post_counts->pending ?? 0);
+        $expired_jobs_all = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(DISTINCT p.ID)
+                 FROM {$wpdb->posts} p
+                 INNER JOIN {$wpdb->postmeta} pm
+                    ON p.ID = pm.post_id
+                    AND pm.meta_key = %s
+                 WHERE p.post_type = %s
+                   AND CAST(pm.meta_value AS UNSIGNED) <= %d",
+                'expiration_date',
+                'job_posting',
+                $current_time
+            )
+        );
+        $not_expired_jobs_all = max(0, $total_jobs_all - $expired_jobs_all);
+
         $query_args = [
             'post_type' => 'job_posting',
             'posts_per_page' => $per_page,
@@ -795,6 +819,60 @@ class JPM_Admin
                             class="button"><?php esc_html_e('Export JSON', 'job-posting-manager'); ?></a>
                     </div>
                 <?php endif; ?>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin: 16px 0;">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <div
+                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
+                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Total Jobs', 'job-posting-manager'); ?>
+                        </div>
+                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;">
+                            <?php echo esc_html($total_jobs_all); ?>
+                        </div>
+                    </div>
+                    <div
+                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
+                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Published', 'job-posting-manager'); ?>
+                        </div>
+                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;">
+                            <?php echo esc_html($published_count); ?>
+                        </div>
+                    </div>
+                    <div
+                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
+                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Draft', 'job-posting-manager'); ?></div>
+                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;"><?php echo esc_html($draft_count); ?>
+                        </div>
+                    </div>
+                    <div
+                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
+                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Pending', 'job-posting-manager'); ?></div>
+                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;"><?php echo esc_html($pending_count); ?>
+                        </div>
+                    </div>
+                    <div
+                        style="flex: 1; min-width: 220px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
+                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Expiration', 'job-posting-manager'); ?>
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <div
+                                style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 999px; padding: 6px 10px;">
+                                <span
+                                    style="color: #b32d2e; font-weight: 800;"><?php echo esc_html($expired_jobs_all); ?></span>
+                                <span
+                                    style="color: #6b7280; margin-left: 6px;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
+                            </div>
+                            <div
+                                style="background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 999px; padding: 6px 10px;">
+                                <span
+                                    style="color: #1e7e34; font-weight: 800;"><?php echo esc_html($not_expired_jobs_all); ?></span>
+                                <span
+                                    style="color: #6b7280; margin-left: 6px;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <?php if (isset($_GET['updated_expiration']) && sanitize_text_field(wp_unslash($_GET['updated_expiration'])) === '1'): ?>
                 <div class="notice notice-success is-dismissible">
@@ -917,7 +995,7 @@ class JPM_Admin
                             $application_count = isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0;
                             $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
                             $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= current_time('timestamp');
-                            $time_remaining = !$is_expired ? $this->get_time_remaining($job->ID) : false;
+                            $expires_in = !$is_expired ? $this->get_expires_in($job->ID) : false;
                             $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
                             $view_url = get_permalink($job->ID);
                             $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
@@ -939,11 +1017,10 @@ class JPM_Admin
                                         <div style="display: flex; flex-direction: column; gap: 2px;">
                                             <span
                                                 style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
-                                            <span style="color: #1e7e34; font-weight: 600; font-size: 12px;">
+                                            <span style="color: #d39e00; font-weight: 600; font-size: 12px;">
                                                 <?php
-                                                if ($time_remaining) {
-                                                    /* translators: %s is like "2 days left" */
-                                                    echo esc_html(sprintf(__('Expires in %s', 'job-posting-manager'), $time_remaining));
+                                                if ($expires_in) {
+                                                    echo esc_html(sprintf(__('Expires in %s', 'job-posting-manager'), $expires_in));
                                                 } else {
                                                     esc_html_e('Expires in --', 'job-posting-manager');
                                                 }
@@ -2648,7 +2725,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                                                                                         });
+                                                                                                                                                                                                                                                                                                                                                                                                                 });
         </script>
         <?php
     }
@@ -3070,6 +3147,72 @@ class JPM_Admin
             _n('%d day left', '%d days left', $days_remaining, 'job-posting-manager'),
             $days_remaining
         );
+    }
+
+    /**
+     * Calculate and format time remaining until job expiration for admin listing.
+     * Unlike get_time_remaining(), this returns wording without the trailing "left"
+     * so UI can read nicely as: "Expires in X days".
+     *
+     * @param int $job_id Job post ID
+     * @return string|false e.g. "151 days", "3 hours"
+     */
+    private function get_expires_in($job_id)
+    {
+        $expiration_date = get_post_meta($job_id, 'expiration_date', true);
+        if (empty($expiration_date)) {
+            return false;
+        }
+
+        $current_time = current_time('timestamp');
+        $expiration_timestamp = intval($expiration_date);
+
+        if ($expiration_timestamp <= $current_time) {
+            return false;
+        }
+
+        $seconds_remaining = $expiration_timestamp - $current_time;
+        $expiration_unit = get_post_meta($job_id, 'expiration_unit', true);
+
+        // If the original unit was minutes, always show minutes.
+        if ($expiration_unit === 'minutes') {
+            $minutes_remaining = floor($seconds_remaining / 60);
+            if ($minutes_remaining <= 0) {
+                return false;
+            }
+            return sprintf(
+                _n('%d minute', '%d minutes', $minutes_remaining, 'job-posting-manager'),
+                $minutes_remaining
+            );
+        }
+
+        // Otherwise, show days (convert hours/days/months all to days)
+        $days_remaining = floor($seconds_remaining / 86400);
+        if ($days_remaining > 0) {
+            return sprintf(
+                _n('%d day', '%d days', $days_remaining, 'job-posting-manager'),
+                $days_remaining
+            );
+        }
+
+        // Less than a day remaining, show hours or minutes for better accuracy.
+        $hours_remaining = floor($seconds_remaining / 3600);
+        if ($hours_remaining > 0) {
+            return sprintf(
+                _n('%d hour', '%d hours', $hours_remaining, 'job-posting-manager'),
+                $hours_remaining
+            );
+        }
+
+        $minutes_remaining = floor($seconds_remaining / 60);
+        if ($minutes_remaining > 0) {
+            return sprintf(
+                _n('%d minute', '%d minutes', $minutes_remaining, 'job-posting-manager'),
+                $minutes_remaining
+            );
+        }
+
+        return false;
     }
 
     /**
