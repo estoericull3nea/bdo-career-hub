@@ -32,11 +32,7 @@ class JPM_Frontend
     {
         global $wpdb;
         $today = gmdate('Y-m-d');
-        $cache_key = 'jpm_unexpired_job_ids_' . md5($today);
-        $cached_ids = wp_cache_get($cache_key, 'jpm_frontend');
-        if (false !== $cached_ids) {
-            return is_array($cached_ids) ? $cached_ids : [];
-        }
+        // No object cache
 
         $ids = $wpdb->get_col(
             $wpdb->prepare(
@@ -53,7 +49,6 @@ class JPM_Frontend
         );
 
         $ids = array_map('absint', (array) $ids);
-        wp_cache_set($cache_key, $ids, 'jpm_frontend', 5 * MINUTE_IN_SECONDS);
 
         return $ids;
     }
@@ -261,9 +256,7 @@ class JPM_Frontend
             return '<p class="jpm-no-jobs">' . __('No jobs available at the moment.', 'job-posting-manager') . '</p>';
         }
 
-        // Optimize: Pre-fetch all post meta to avoid N+1 queries
-        $job_ids = wp_list_pluck($jobs, 'ID');
-        update_postmeta_cache($job_ids);
+        // Pre-fetching cache disabled
 
         ob_start();
         ?>
@@ -562,14 +555,10 @@ class JPM_Frontend
         global $wpdb;
         $expiration_date = gmdate('Y-m-d');
 
-        // Cache key for locations and companies
-        $cache_key_locations = 'jpm_locations_' . md5($expiration_date);
-        $cache_key_companies = 'jpm_companies_' . md5($expiration_date);
-
-        $locations = wp_cache_get($cache_key_locations, 'jpm_filters');
-        $companies = wp_cache_get($cache_key_companies, 'jpm_filters');
-
-        if (false === $locations || false === $companies) {
+        // Build expiration date condition
+        $locations = null;
+        $companies = null;
+        {
             // Build expiration date condition
             $expiration_condition = '';
             if (!empty($expiration_date)) {
@@ -636,10 +625,6 @@ class JPM_Frontend
 
             $company_results = $wpdb->get_col($companies_query);
             $companies = array_filter(array_map('trim', $company_results));
-
-            // Cache for 1 hour
-            wp_cache_set($cache_key_locations, $locations, 'jpm_filters', HOUR_IN_SECONDS);
-            wp_cache_set($cache_key_companies, $companies, 'jpm_filters', HOUR_IN_SECONDS);
         }
 
         ob_start();
@@ -727,9 +712,7 @@ class JPM_Frontend
                     $job_ids[] = get_the_ID();
                 }
                 $jobs_query->rewind_posts();
-                if (!empty($job_ids)) {
-                    update_postmeta_cache($job_ids);
-                }
+                // Pre-fetching cache disabled
                 ?>
                 <div class="jpm-latest-jobs">
                     <?php while ($jobs_query->have_posts()):
@@ -1029,9 +1012,7 @@ class JPM_Frontend
                 $job_ids[] = get_the_ID();
             }
             $jobs_query->rewind_posts();
-            if (!empty($job_ids)) {
-                update_postmeta_cache($job_ids);
-            }
+            // Pre-fetching cache disabled
 
             while ($jobs_query->have_posts()):
                 $jobs_query->the_post();
@@ -1301,11 +1282,7 @@ class JPM_Frontend
         global $wpdb;
         $table = $this->get_validated_applications_table();
         $normalized_number = sanitize_text_field($application_number_input);
-        $cache_key = 'jpm_track_app_' . md5(strtolower(trim($normalized_number)));
-        $cached_application = wp_cache_get($cache_key, 'jpm_frontend');
-        if (false !== $cached_application) {
-            return $cached_application;
-        }
+        // No object cache
 
         // Search for application by application number in notes field
         $search_term = '%' . $wpdb->esc_like($normalized_number) . '%';
@@ -1339,14 +1316,12 @@ class JPM_Frontend
                     $stored_app_number = sanitize_text_field($form_data[$field_name]);
                     // Case-insensitive comparison
                     if (strcasecmp(trim($stored_app_number), trim($normalized_number)) === 0) {
-                        wp_cache_set($cache_key, $app, 'jpm_frontend', 5 * MINUTE_IN_SECONDS);
                         return $app;
                     }
                 }
             }
         }
 
-        wp_cache_set($cache_key, null, 'jpm_frontend', 1 * MINUTE_IN_SECONDS);
         return null;
     }
 
@@ -4365,15 +4340,10 @@ class JPM_Frontend
         // Get user applications
         global $wpdb;
         $table = $this->get_validated_applications_table();
-        $applications_cache_key = 'jpm_user_apps_' . absint($user_id);
-        $applications = wp_cache_get($applications_cache_key, 'jpm_frontend');
-        if (false === $applications) {
-            $applications = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC",
-                absint($user_id)
-            ));
-            wp_cache_set($applications_cache_key, $applications, 'jpm_frontend', 5 * MINUTE_IN_SECONDS);
-        }
+        $applications = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC",
+            absint($user_id)
+        ));
 
         // Get all jobs for dashboard stats
         $all_jobs = get_posts([

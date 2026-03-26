@@ -48,9 +48,7 @@ class JPM_Admin
         add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
         add_action('admin_notices', [$this, 'display_expiration_duration_error']);
 
-        // Clear caches when post status changes
-        add_action('transition_post_status', [$this, 'clear_caches_on_status_change'], 10, 3);
-        add_action('delete_post', [$this, 'clear_caches_on_delete']);
+        // Removed cache-related hooks
     }
 
     /**
@@ -58,13 +56,7 @@ class JPM_Admin
      */
     public function clear_caches_on_status_change($new_status, $old_status, $post)
     {
-        if ($post->post_type === 'job_posting') {
-            // Clear stats cache
-            wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
-            wp_cache_delete('jpm_dashboard_app_stats', 'jpm_stats');
-            // Clear filter caches
-            wp_cache_flush_group('jpm_filters');
-        }
+        return;
     }
 
     /**
@@ -72,14 +64,7 @@ class JPM_Admin
      */
     public function clear_caches_on_delete($post_id)
     {
-        $post = get_post($post_id);
-        if ($post && $post->post_type === 'job_posting') {
-            // Clear stats cache
-            wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
-            wp_cache_delete('jpm_dashboard_app_stats', 'jpm_stats');
-            // Clear filter caches
-            wp_cache_flush_group('jpm_filters');
-        }
+        return;
     }
 
     /**
@@ -113,75 +98,48 @@ class JPM_Admin
         global $wpdb;
         $table = $this->get_validated_applications_table();
 
-        // Total jobs by status - Optimized: Cache wp_count_posts result
-        $post_counts = wp_cache_get('jpm_job_post_counts', 'jpm_stats');
-        if (false === $post_counts) {
-            $post_counts = wp_count_posts('job_posting');
-            wp_cache_set('jpm_job_post_counts', $post_counts, 'jpm_stats', 5 * MINUTE_IN_SECONDS);
-        }
+        // Total jobs by status - compute live
+        $post_counts = wp_count_posts('job_posting');
         $total_published = $post_counts->publish ?? 0;
         $total_draft = $post_counts->draft ?? 0;
         $total_pending = $post_counts->pending ?? 0;
         $total_jobs = $total_published + $total_draft + $total_pending;
 
-        // Cache repeated dashboard application stats to reduce DB load.
-        $dashboard_stats = wp_cache_get('jpm_dashboard_app_stats', 'jpm_stats');
-        if (false === $dashboard_stats) {
-            // Total applications
-            $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        // Compute application stats live
+        $total_applications = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
 
-            // Applications by status
-            $applications_by_status = $wpdb->get_results(
-                "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status",
-                ARRAY_A
-            );
-            $status_counts = [];
-            foreach ($applications_by_status as $row) {
-                $status_counts[$row['status']] = intval($row['count']);
-            }
+        $applications_by_status = $wpdb->get_results(
+            "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status",
+            ARRAY_A
+        );
+        $status_counts = [];
+        foreach ($applications_by_status as $row) {
+            $status_counts[$row['status']] = intval($row['count']);
+        }
 
-            // Recent applications (last 7 days)
-            $recent_applications = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$table} WHERE application_date >= %s",
-                    gmdate('Y-m-d H:i:s', strtotime('-7 days'))
-                )
-            );
+        $recent_applications = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE application_date >= %s",
+                gmdate('Y-m-d H:i:s', strtotime('-7 days'))
+            )
+        );
 
-            // Applications this month
-            $month_applications = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$table} WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
-                    gmdate('n'),
-                    gmdate('Y')
-                )
-            );
+        $month_applications = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE MONTH(application_date) = %d AND YEAR(application_date) = %d",
+                gmdate('n'),
+                gmdate('Y')
+            )
+        );
 
-            // Jobs with most applications (top 5)
-            $top_jobs = $wpdb->get_results(
-                "SELECT job_id, COUNT(*) as app_count 
+        $top_jobs = $wpdb->get_results(
+            "SELECT job_id, COUNT(*) as app_count 
                  FROM {$table} 
                  GROUP BY job_id 
                  ORDER BY app_count DESC 
                  LIMIT 5",
-                ARRAY_A
-            );
-
-            $dashboard_stats = [
-                'total_applications' => intval($total_applications),
-                'status_counts' => $status_counts,
-                'recent_applications' => intval($recent_applications),
-                'month_applications' => intval($month_applications),
-                'top_jobs' => $top_jobs,
-            ];
-            wp_cache_set('jpm_dashboard_app_stats', $dashboard_stats, 'jpm_stats', 5 * MINUTE_IN_SECONDS);
-        }
-
-        $total_applications = $dashboard_stats['total_applications'];
-        $status_counts = $dashboard_stats['status_counts'];
-        $recent_applications = $dashboard_stats['recent_applications'];
-        $month_applications = $dashboard_stats['month_applications'];
-        $top_jobs = $dashboard_stats['top_jobs'];
+            ARRAY_A
+        );
 
         // Get chart period filter
         $chart_period = isset($_GET['chart_period']) ? sanitize_text_field(wp_unslash($_GET['chart_period'])) : '7days';
@@ -209,7 +167,6 @@ class JPM_Admin
         // Optimize: Pre-fetch all post meta and application counts to avoid N+1 queries
         if (!empty($jobs)) {
             $job_ids = wp_list_pluck($jobs, 'ID');
-            update_postmeta_cache($job_ids);
 
             // Batch fetch application counts for all jobs
             $job_ids_placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
@@ -1649,8 +1606,7 @@ class JPM_Admin
                     closeInterviewModal(true);
                 });
 
-                // View Requirements functionality - Cache for requirements data
-                const requirementsCache = {};
+                // View Requirements functionality - no client-side caching
 
                 function closeViewRequirementsModal() {
                     $('#jpm-view-requirements-modal').hide();
@@ -1731,15 +1687,6 @@ class JPM_Admin
                         $title.text('<?php echo esc_js(__('Medical Requirements', 'job-posting-manager')); ?>');
                     }
 
-                    // Check cache first
-                    const cacheKey = applicationId + '_' + type;
-                    if (requirementsCache[cacheKey]) {
-                        // Use cached data - no loading needed
-                        $content.html(requirementsCache[cacheKey].html);
-                        $modal.show();
-                        return;
-                    }
-
                     // Show loading state
                     $content.html('<div style="text-align: center; padding: 20px;"><span class="spinner is-active" style="float: none; margin: 0;"></span><p><?php echo esc_js(__('Loading requirements...', 'job-posting-manager')); ?></p></div>');
                     $modal.show();
@@ -1761,12 +1708,6 @@ class JPM_Admin
                         if (response.success && response.data && response.data.details) {
                             const details = response.data.details;
                             const html = renderRequirementsHTML(details, type);
-
-                            // Cache the rendered HTML
-                            requirementsCache[cacheKey] = {
-                                html: html,
-                                details: details
-                            };
 
                             $content.html(html);
                         } else {
@@ -1938,8 +1879,6 @@ class JPM_Admin
             // Validate required expiration duration field
             $expiration_missing = empty($_POST['expiration_duration']) || empty($_POST['expiration_unit']);
             if ($expiration_missing) {
-                // Set a transient error message
-                set_transient('jpm_expiration_duration_error', __('Expiration Duration is required. Please specify how long until this job posting expires.', 'job-posting-manager'), 30);
                 // Prevent saving if this is a new post or if explicitly saving (not autosave)
                 if (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE) {
                     // For new posts, we'll let it save but show an error
@@ -2015,26 +1954,10 @@ class JPM_Admin
 
             // Clear filter caches when location or company is updated
             if (isset($_POST['location']) || isset($_POST['company_name'])) {
-                // Clear all location and company filter caches
-                global $wpdb;
-                $cache_keys = $wpdb->get_col(
-                    "SELECT option_name FROM {$wpdb->options} 
-                    WHERE option_name LIKE '_transient_jpm_locations_%' 
-                    OR option_name LIKE '_transient_jpm_companies_%' 
-                    OR option_name LIKE '_transient_timeout_jpm_locations_%' 
-                    OR option_name LIKE '_transient_timeout_jpm_companies_%'"
-                );
-                foreach ($cache_keys as $key) {
-                    $transient = str_replace('_transient_', '', $key);
-                    $transient = str_replace('_transient_timeout_', '', $transient);
-                    delete_transient($transient);
-                }
-                // Also clear object cache
-                wp_cache_flush_group('jpm_filters');
+                // No caching to clear
             }
 
-            // Clear stats cache when job is saved
-            wp_cache_delete('jpm_job_post_counts', 'jpm_stats');
+            // No stats cache to clear
 
             // Handle case when expiration fields are missing (only if not already handled above)
             if ($expiration_missing && (!defined('DOING_AUTOSAVE') || !DOING_AUTOSAVE)) {
@@ -2065,12 +1988,7 @@ class JPM_Admin
         if (!$screen || $screen->post_type !== 'job_posting') {
             return;
         }
-
-        $error_message = get_transient('jpm_expiration_duration_error');
-        if ($error_message) {
-            echo '<div class="notice notice-error is-dismissible"><p><strong>' . esc_html__('Error:', 'job-posting-manager') . '</strong> ' . esc_html($error_message) . '</p></div>';
-            delete_transient('jpm_expiration_duration_error');
-        }
+        // No transient-based error display
     }
 
     /**

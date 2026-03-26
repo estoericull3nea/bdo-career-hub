@@ -4,11 +4,15 @@ jQuery(document).ready(function ($) {
     const $form = $("#jpm-application-form");
     if ($form.length === 0) return;
 
-    const $steps = $(".jpm-form-step");
-    const $stepperNav = $(".jpm-stepper-navigation .jpm-stepper-step");
-    const $prevBtn = $(".jpm-btn-prev");
-    const $nextBtn = $(".jpm-btn-next");
-    const $submitBtn = $(".jpm-btn-submit");
+    // Scope step/controls to this specific application form to avoid collisions
+    // with other elements on the page.
+    const $steps = $form.find(".jpm-form-step");
+    const $stepperNav = $form
+      .closest(".jpm-application-form-wrapper")
+      .find(".jpm-stepper-navigation .jpm-stepper-step");
+    const $prevBtn = $form.find(".jpm-btn-prev");
+    const $nextBtn = $form.find(".jpm-btn-next");
+    const $submitBtn = $form.find(".jpm-btn-submit");
 
     // Step 0 is application info (always visible), form steps start at 1
     // Summary step is the last step
@@ -901,7 +905,7 @@ jQuery(document).ready(function ($) {
     const $form = $("#jpm-application-form");
     if ($form.length === 0) return;
 
-    const $steps = $(".jpm-form-step");
+    const $steps = $form.find(".jpm-form-step");
     const totalSteps = $steps.length;
 
     $(document).on("click", ".jpm-summary-item", function () {
@@ -937,7 +941,9 @@ jQuery(document).ready(function ($) {
       // Navigate to the step containing this field
       if (targetStep > 0) {
         // Trigger the stepper navigation to go to that step
-        const $stepperNav = $(".jpm-stepper-navigation .jpm-stepper-step");
+        const $stepperNav = $form
+          .closest(".jpm-application-form-wrapper")
+          .find(".jpm-stepper-navigation .jpm-stepper-step");
         $stepperNav.each(function (index) {
           const navStepIndex = parseInt($(this).data("step"));
           const isSummaryNav = index === $stepperNav.length - 1;
@@ -1360,8 +1366,6 @@ jQuery(document).ready(function ($) {
   }, 30000);
 
   // Latest Jobs Modal Functionality
-  // Cache for job details
-  const jobDetailsCache = {};
 
   // Open modal on Quick View button click
   $(document).on("click", ".jpm-btn-quick-view", function (e) {
@@ -1381,14 +1385,6 @@ jQuery(document).ready(function ($) {
     $modal.addClass("active");
     $("body").css("overflow", "hidden");
 
-    // Check if job details are cached
-    if (jobDetailsCache[jobId]) {
-      // Use cached data
-      $loading.hide();
-      $content.html(jobDetailsCache[jobId]).fadeIn();
-      return;
-    }
-
     // Show loading, hide content
     $loading.show();
     $content.hide().empty();
@@ -1406,8 +1402,6 @@ jQuery(document).ready(function ($) {
         $loading.hide();
 
         if (response.success && response.data.html) {
-          // Cache the job details
-          jobDetailsCache[jobId] = response.data.html;
           $content.html(response.data.html).fadeIn();
         } else {
           const errorHtml =

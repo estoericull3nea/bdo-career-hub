@@ -36,47 +36,8 @@ class JPM_Security
      */
     public static function check_rate_limit($action, $identifier = null)
     {
-        if (!isset(self::$rate_limits[$action])) {
-            return ['allowed' => true, 'remaining' => 999, 'reset_time' => 0];
-        }
-
-        $limit_config = self::$rate_limits[$action];
-        $limit = $limit_config['limit'];
-        $window = $limit_config['window'];
-
-        // Use IP address if identifier not provided
-        if ($identifier === null) {
-            $identifier = self::get_client_ip();
-        }
-
-        // Create unique key for this action and identifier
-        $cache_key = 'jpm_rate_limit_' . $action . '_' . md5($identifier);
-        
-        // Get current attempts
-        $attempts = get_transient($cache_key);
-        if ($attempts === false) {
-            $attempts = 0;
-        }
-
-        // Check if limit exceeded
-        if ($attempts >= $limit) {
-            $reset_time = get_option('_transient_timeout_' . $cache_key);
-            return [
-                'allowed' => false,
-                'remaining' => 0,
-                'reset_time' => $reset_time ?: (time() + $window)
-            ];
-        }
-
-        // Increment attempts
-        $attempts++;
-        set_transient($cache_key, $attempts, $window);
-
-        return [
-            'allowed' => true,
-            'remaining' => $limit - $attempts,
-            'reset_time' => time() + $window
-        ];
+        // Disable cached/persistent rate limiting; always allow
+        return ['allowed' => true, 'remaining' => 999, 'reset_time' => 0];
     }
 
     /**
@@ -122,17 +83,17 @@ class JPM_Security
         if (empty($email)) {
             return false;
         }
-        
+
         $email = sanitize_email($email);
         if (!is_email($email)) {
             return false;
         }
-        
+
         // Additional validation: check length
         if (strlen($email) > 254) {
             return false;
         }
-        
+
         return $email;
     }
 
@@ -198,7 +159,7 @@ class JPM_Security
     public static function validate_int($input, $min = null, $max = null)
     {
         $input = filter_var($input, FILTER_VALIDATE_INT);
-        
+
         if ($input === false) {
             return false;
         }
@@ -227,7 +188,7 @@ class JPM_Security
         }
 
         $url = esc_url_raw($url);
-        
+
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             return false;
         }
@@ -291,7 +252,7 @@ class JPM_Security
         // Validate MIME type
         $file_type = wp_check_filetype($file['name']);
         $mime_type = $file['type'];
-        
+
         // Double-check MIME type using WordPress function
         if (function_exists('mime_content_type')) {
             $detected_mime = mime_content_type($file['tmp_name']);
@@ -357,7 +318,7 @@ class JPM_Security
 
         // Verify nonce
         $valid = wp_verify_nonce($nonce, $action);
-        
+
         if (!$valid) {
             // Log failed nonce attempts
             do_action('jpm_log_error', sprintf(
@@ -502,7 +463,7 @@ class JPM_Security
         }
 
         $decoded = json_decode($json, true, $max_depth);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             return false;
         }

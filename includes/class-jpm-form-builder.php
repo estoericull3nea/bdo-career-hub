@@ -624,15 +624,10 @@ class JPM_Form_Builder
                             // Fallback: Get user's most recent application data
                             global $wpdb;
                             $table = $this->get_validated_applications_table();
-                            $cache_key = 'jpm_latest_application_' . absint($user_id);
-                            $latest_application = wp_cache_get($cache_key, 'jpm_form_builder');
-                            if (false === $latest_application) {
-                                $latest_application = $wpdb->get_row($wpdb->prepare(
-                                    "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC LIMIT 1",
-                                    absint($user_id)
-                                ));
-                                wp_cache_set($cache_key, $latest_application, 'jpm_form_builder', 5 * MINUTE_IN_SECONDS);
-                            }
+                            $latest_application = $wpdb->get_row($wpdb->prepare(
+                                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC LIMIT 1",
+                                absint($user_id)
+                            ));
 
                             if ($latest_application && !empty($latest_application->notes)) {
                                 $form_data = json_decode($latest_application->notes, true);
@@ -1111,7 +1106,9 @@ class JPM_Form_Builder
             if (!empty($row_field['field']['description'])) {
                 echo '<p class="description">' . esc_html($row_field['field']['description']) . '</p>';
             }
-            echo wp_kses_post($this->render_form_field($row_field['field'], absint($row_field['index'])));
+            // Render trusted server-generated field HTML directly so form controls
+            // like <input>, <select>, and <option> are not stripped.
+            echo $this->render_form_field($row_field['field'], absint($row_field['index']));
             echo '<span class="jpm-field-error" data-field-name="' . esc_attr($row_field['field']['name']) . '" style="display: none;"></span>';
             echo '</div>';
             echo '</div>';

@@ -29,17 +29,6 @@ class JPM_Database
     }
 
     /**
-     * Clear shared cache entries for application reads.
-     *
-     * @return void
-     */
-    private static function clear_application_caches()
-    {
-        wp_cache_delete('jpm_applications_last_changed', 'jpm_database');
-        wp_cache_set('jpm_applications_last_changed', microtime(true), 'jpm_database');
-    }
-
-    /**
      * Create database tables
      */
     public static function create_tables()
@@ -106,7 +95,6 @@ class JPM_Database
             return new WP_Error('db_error', __('Failed to insert application.', 'job-posting-manager'));
         }
 
-        self::clear_application_caches();
         return $wpdb->insert_id;
     }
 
@@ -125,9 +113,6 @@ class JPM_Database
             ['status' => sanitize_text_field($status)],
             ['id' => absint($id)]
         );
-        if (false !== $updated) {
-            self::clear_application_caches();
-        }
         return $updated;
     }
 
@@ -148,16 +133,6 @@ class JPM_Database
             'user_id' => isset($filters['user_id']) ? absint($filters['user_id']) : 0,
             'search' => isset($filters['search']) ? sanitize_text_field((string) $filters['search']) : '',
         ];
-        $last_changed = wp_cache_get('jpm_applications_last_changed', 'jpm_database');
-        if (false === $last_changed) {
-            $last_changed = microtime(true);
-            wp_cache_set('jpm_applications_last_changed', $last_changed, 'jpm_database');
-        }
-        $cache_key = 'jpm_applications_' . md5(wp_json_encode($normalized_filters) . '|' . (string) $last_changed);
-        $cached_results = wp_cache_get($cache_key, 'jpm_database');
-        if (false !== $cached_results) {
-            return $cached_results;
-        }
 
         $where = [];
         $where_values = [];
@@ -189,7 +164,6 @@ class JPM_Database
             $applications = self::filter_applications_by_search($applications, $normalized_filters['search']);
         }
 
-        wp_cache_set($cache_key, $applications, 'jpm_database', 5 * MINUTE_IN_SECONDS);
         return $applications;
     }
 
@@ -325,19 +299,8 @@ class JPM_Database
         if ($id <= 0) {
             return null;
         }
-        $last_changed = wp_cache_get('jpm_applications_last_changed', 'jpm_database');
-        if (false === $last_changed) {
-            $last_changed = microtime(true);
-            wp_cache_set('jpm_applications_last_changed', $last_changed, 'jpm_database');
-        }
-        $cache_key = 'jpm_application_' . $id . '_' . md5((string) $last_changed);
-        $cached_application = wp_cache_get($cache_key, 'jpm_database');
-        if (false !== $cached_application) {
-            return $cached_application;
-        }
 
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id));
-        wp_cache_set($cache_key, $application, 'jpm_database', 5 * MINUTE_IN_SECONDS);
 
         return $application;
     }
@@ -357,9 +320,6 @@ class JPM_Database
             ['notes' => sanitize_textarea_field($notes)],
             ['id' => absint($id)]
         );
-        if (false !== $updated) {
-            self::clear_application_caches();
-        }
         return $updated;
     }
 
@@ -377,9 +337,6 @@ class JPM_Database
             ['id' => absint($id)],
             ['%d']
         );
-        if (false !== $deleted) {
-            self::clear_application_caches();
-        }
         return $deleted;
     }
 }

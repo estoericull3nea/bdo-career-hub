@@ -36,16 +36,9 @@ class JPM_Emails
             return null;
         }
 
-        $cache_key = 'jpm_email_app_' . $app_id;
-        $cached = wp_cache_get($cache_key, 'jpm_emails');
-        if (false !== $cached) {
-            return $cached;
-        }
-
         global $wpdb;
         $table = self::get_validated_applications_table();
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
-        wp_cache_set($cache_key, $application, 'jpm_emails', 5 * MINUTE_IN_SECONDS);
 
         return $application;
     }
