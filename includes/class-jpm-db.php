@@ -794,6 +794,7 @@ class JPM_Admin
                             $application_count = isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0;
                             $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
                             $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= current_time('timestamp');
+                            $time_remaining = !$is_expired ? $this->get_time_remaining($job->ID) : false;
                             $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
                             $view_url = get_permalink($job->ID);
                             $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
@@ -812,8 +813,19 @@ class JPM_Admin
                                         <span
                                             style="color: #b32d2e; font-weight: 600;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
                                     <?php else: ?>
-                                        <span
-                                            style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                                            <span style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                                            <span style="color: #1e7e34; font-weight: 600; font-size: 12px;">
+                                                <?php
+                                                if ($time_remaining) {
+                                                    /* translators: %s is like "2 days left" */
+                                                    echo esc_html(sprintf(__('Expires in %s', 'job-posting-manager'), $time_remaining));
+                                                } else {
+                                                    esc_html_e('Expires in --', 'job-posting-manager');
+                                                }
+                                                ?>
+                                            </span>
+                                        </div>
                                     <?php endif; ?>
                                 </td>
                                 <td>
