@@ -762,7 +762,40 @@ class JPM_Admin
         $next_url = $paged < $total_pages ? add_query_arg(array_merge($pagination_base_args, ['paged' => $paged + 1]), admin_url('admin.php')) : '';
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Job Listings', 'job-posting-manager'); ?></h1>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
+                <h1 style="margin-bottom: 0;"><?php esc_html_e('Job Listings', 'job-posting-manager'); ?></h1>
+                <?php if (current_user_can('manage_options')): ?>
+                    <?php
+                    $export_filters = [];
+                    if (!empty($search)) {
+                        $export_filters['search'] = $search;
+                    }
+                    if (!empty($status_filter)) {
+                        $export_filters['status'] = $status_filter;
+                    }
+                    if (!empty($expired_filter)) {
+                        $export_filters['expired'] = $expired_filter;
+                    }
+                    $export_query = !empty($export_filters) ? ('&' . http_build_query($export_filters)) : '';
+                    $export_csv_url = wp_nonce_url(
+                        admin_url('admin.php?page=jpm-job-listings&export=csv' . $export_query),
+                        'jpm_export_jobs',
+                        'jpm_export_nonce'
+                    );
+                    $export_json_url = wp_nonce_url(
+                        admin_url('admin.php?page=jpm-job-listings&export=json' . $export_query),
+                        'jpm_export_jobs',
+                        'jpm_export_nonce'
+                    );
+                    ?>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <a href="<?php echo esc_url($export_csv_url); ?>"
+                            class="button"><?php esc_html_e('Export CSV', 'job-posting-manager'); ?></a>
+                        <a href="<?php echo esc_url($export_json_url); ?>"
+                            class="button"><?php esc_html_e('Export JSON', 'job-posting-manager'); ?></a>
+                    </div>
+                <?php endif; ?>
+            </div>
             <?php if (isset($_GET['updated_expiration']) && sanitize_text_field(wp_unslash($_GET['updated_expiration'])) === '1'): ?>
                 <div class="notice notice-success is-dismissible">
                     <p>
@@ -2615,7 +2648,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                                                         });
+                                                                                                                                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
@@ -4338,45 +4371,391 @@ class JPM_Admin
      */
     public function handle_export()
     {
-        // Check if export is requested
-        if (!isset($_GET['page']) || sanitize_text_field(wp_unslash($_GET['page'])) !== 'jpm-applications' || !isset($_GET['export'])) {
+        global $wpdb;
+
+        if (!isset($_GET['page']) || !isset($_GET['export'])) {
             return;
         }
 
-        // Check user capabilities (admin or editor)
-        if (!current_user_can('edit_posts')) {
-            wp_die(__('You do not have permission to export applications.', 'job-posting-manager'));
-        }
-
-        if (
-            !isset($_GET['jpm_export_nonce']) ||
-            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_export_nonce'])), 'jpm_export_applications')
-        ) {
-            wp_die(__('Security check failed.', 'job-posting-manager'));
-        }
-
+        $page = sanitize_text_field(wp_unslash($_GET['page']));
         $export_format = sanitize_text_field(wp_unslash($_GET['export'] ?? ''));
 
-        if (!in_array($export_format, ['csv', 'json'])) {
-            wp_die(__('Invalid export format.', 'job-posting-manager'));
+        // Applications export (existing)
+        if ($page === 'jpm-applications') {
+            // Check user capabilities (admin or editor)
+            if (!current_user_can('edit_posts')) {
+                wp_die(__('You do not have permission to export applications.', 'job-posting-manager'));
+            }
+
+            if (
+                !isset($_GET['jpm_export_nonce']) ||
+                !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_export_nonce'])), 'jpm_export_applications')
+            ) {
+                wp_die(__('Security check failed.', 'job-posting-manager'));
+            }
+
+            if (!in_array($export_format, ['csv', 'json'], true)) {
+                wp_die(__('Invalid export format.', 'job-posting-manager'));
+            }
+
+            // Get filters
+            $filters = [
+                'status' => isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '',
+                'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
+                'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+            ];
+
+            // Get applications
+            $applications = JPM_DB::get_applications($filters);
+
+            if ($export_format === 'csv') {
+                $this->export_to_csv($applications);
+            } else {
+                $this->export_to_json($applications);
+            }
+
+            exit;
         }
 
-        // Get filters
-        $filters = [
-            'status' => isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '',
-            'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
-            'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+        // Job Listings export
+        if ($page === 'jpm-job-listings') {
+            if (!current_user_can('manage_options')) {
+                wp_die(__('You do not have permission to export jobs.', 'job-posting-manager'));
+            }
+
+            if (
+                !isset($_GET['jpm_export_nonce']) ||
+                !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_export_nonce'])), 'jpm_export_jobs')
+            ) {
+                wp_die(__('Security check failed.', 'job-posting-manager'));
+            }
+
+            if (!in_array($export_format, ['csv', 'json'], true)) {
+                wp_die(__('Invalid export format.', 'job-posting-manager'));
+            }
+
+            $search = isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '';
+            $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
+            $expired_filter = isset($_GET['expired']) ? sanitize_text_field(wp_unslash($_GET['expired'])) : '';
+
+            $table = $this->get_validated_applications_table();
+            $current_time = current_time('timestamp');
+
+            $query_args = [
+                'post_type' => 'job_posting',
+                'posts_per_page' => -1,
+                'paged' => 1,
+                'post_status' => $status_filter ? $status_filter : 'any',
+                'orderby' => 'date',
+                'order' => 'DESC',
+            ];
+
+            if (!empty($search)) {
+                $query_args['s'] = $search;
+            }
+
+            if ($expired_filter === 'expired') {
+                $query_args['meta_query'] = [
+                    [
+                        'key' => 'expiration_date',
+                        'value' => $current_time,
+                        'compare' => '<=',
+                        'type' => 'NUMERIC',
+                    ],
+                ];
+            } elseif ($expired_filter === 'not_expired') {
+                $query_args['meta_query'] = [
+                    'relation' => 'OR',
+                    [
+                        'key' => 'expiration_date',
+                        'compare' => 'NOT EXISTS',
+                    ],
+                    [
+                        'key' => 'expiration_date',
+                        'value' => '',
+                        'compare' => '=',
+                    ],
+                    [
+                        'key' => 'expiration_date',
+                        'value' => $current_time,
+                        'compare' => '>',
+                        'type' => 'NUMERIC',
+                    ],
+                ];
+            }
+
+            $jobs_query = new WP_Query($query_args);
+            $jobs = $jobs_query->posts;
+
+            $application_counts = [];
+            if (!empty($jobs)) {
+                $job_ids = wp_list_pluck($jobs, 'ID');
+                $placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
+
+                $query = $wpdb->prepare(
+                    "SELECT job_id, COUNT(*) AS app_count FROM {$table} WHERE job_id IN ({$placeholders}) GROUP BY job_id",
+                    $job_ids
+                );
+                $results = $wpdb->get_results($query, ARRAY_A);
+                foreach ($results as $row) {
+                    $application_counts[(int) $row['job_id']] = (int) $row['app_count'];
+                }
+            }
+
+            if ($export_format === 'csv') {
+                $this->export_jobs_to_csv($jobs, $application_counts);
+            }
+
+            if ($export_format === 'json') {
+                $this->export_jobs_to_json($jobs, $application_counts);
+            }
+
+            exit;
+        }
+    }
+
+    /**
+     * Export jobs (job_posting) to CSV.
+     *
+     * @param array $jobs WP posts array
+     * @param array $application_counts job_id => count
+     */
+    private function export_jobs_to_csv($jobs, $application_counts)
+    {
+        global $wpdb;
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=job-listings-' . date('Y-m-d-H-i-s') . '.csv');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        $headers = [
+            __('ID', 'job-posting-manager'),
+            __('Job Title', 'job-posting-manager'),
+            __('Company', 'job-posting-manager'),
+            __('Location', 'job-posting-manager'),
+            __('Status', 'job-posting-manager'),
+            __('Is Expired', 'job-posting-manager'),
+            __('Expiration Date', 'job-posting-manager'),
+            __('Applications', 'job-posting-manager'),
         ];
+        fputcsv($output, $headers);
 
-        // Get applications
-        $applications = JPM_DB::get_applications($filters);
+        $current_time = current_time('timestamp');
 
-        if ($export_format === 'csv') {
-            $this->export_to_csv($applications);
-        } elseif ($export_format === 'json') {
-            $this->export_to_json($applications);
+        foreach ($jobs as $job) {
+            $company_name = get_post_meta($job->ID, 'company_name', true);
+            $location = get_post_meta($job->ID, 'location', true);
+            $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
+            $expiration_formatted = get_post_meta($job->ID, 'expiration_date_formatted', true);
+            if (empty($expiration_formatted) && !empty($expiration_timestamp)) {
+                $expiration_formatted = date('Y-m-d H:i:s', $expiration_timestamp);
+            }
+
+            $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= $current_time;
+
+            $row = [
+                $job->ID,
+                $job->post_title,
+                $company_name,
+                $location,
+                get_post_status($job->ID),
+                $is_expired ? 'Yes' : 'No',
+                $expiration_formatted,
+                isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0,
+            ];
+            fputcsv($output, $row);
         }
 
+        exit;
+    }
+
+    /**
+     * Export jobs (job_posting) to JSON.
+     *
+     * @param array $jobs WP posts array
+     * @param array $application_counts job_id => count
+     */
+    private function export_jobs_to_json($jobs, $application_counts)
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename=job-listings-' . date('Y-m-d-H-i-s') . '.json');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $current_time = current_time('timestamp');
+
+        $data = [];
+        foreach ($jobs as $job) {
+            $company_name = get_post_meta($job->ID, 'company_name', true);
+            $location = get_post_meta($job->ID, 'location', true);
+
+            $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
+            $expiration_formatted = get_post_meta($job->ID, 'expiration_date_formatted', true);
+            if (empty($expiration_formatted) && !empty($expiration_timestamp)) {
+                $expiration_formatted = date('Y-m-d H:i:s', $expiration_timestamp);
+            }
+
+            $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= $current_time;
+
+            $data[] = [
+                'id' => (int) $job->ID,
+                'title' => $job->post_title,
+                'company' => $company_name,
+                'location' => $location,
+                'status' => get_post_status($job->ID),
+                'isExpired' => $is_expired ? 'Yes' : 'No',
+                'expirationDate' => $expiration_formatted,
+                'expirationTimestamp' => $expiration_timestamp,
+                'applications' => isset($application_counts[$job->ID]) ? (int) $application_counts[$job->ID] : 0,
+            ];
+        }
+
+        echo wp_json_encode($data, JSON_PRETTY_PRINT);
+        exit;
+    }
+
+    /**
+     * Export jobs (job_posting) to a printable HTML view (user can Save as PDF).
+     *
+     * @param array $jobs WP posts array
+     * @param array $application_counts job_id => count
+     * @param array $filters
+     */
+    private function export_jobs_to_pdf_html($jobs, $application_counts, $filters = [])
+    {
+        global $wpdb;
+
+        header('Content-Type: text/html; charset=utf-8');
+
+        $title = __('Job Listings Export', 'job-posting-manager');
+        $filters_text = [];
+        if (!empty($filters['search'])) {
+            $filters_text[] = sprintf(__('Search: %s', 'job-posting-manager'), $filters['search']);
+        }
+        if (!empty($filters['status'])) {
+            $filters_text[] = sprintf(__('Status: %s', 'job-posting-manager'), $filters['status']);
+        }
+        if (!empty($filters['expired'])) {
+            $filters_text[] = sprintf(__('Expired filter: %s', 'job-posting-manager'), $filters['expired']);
+        }
+        $filters_text = !empty($filters_text) ? implode(' | ', $filters_text) : __('All jobs', 'job-posting-manager');
+
+        $current_time = current_time('timestamp');
+
+        ?>
+        <!doctype html>
+        <html>
+
+        <head>
+            <meta charset="utf-8">
+            <title><?php echo esc_html($title); ?></title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: 18px;
+                }
+
+                h1 {
+                    font-size: 18px;
+                    margin: 0 0 8px 0;
+                }
+
+                .meta {
+                    color: #666;
+                    margin-bottom: 14px;
+                    font-size: 12px;
+                }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+
+                th,
+                td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    font-size: 12px;
+                    vertical-align: top;
+                }
+
+                th {
+                    background: #f5f5f5;
+                    text-align: left;
+                }
+
+                .badge {
+                    font-weight: bold;
+                }
+            </style>
+            <script>
+                window.onload = function () {
+                    window.print();
+                };
+            </script>
+        </head>
+
+        <body>
+            <h1><?php echo esc_html($title); ?></h1>
+            <div class="meta">
+                <?php echo esc_html($filters_text); ?> | <?php echo esc_html(date('Y-m-d H:i:s', $current_time)); ?>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th><?php echo esc_html(__('ID', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Job Title', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Company', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Location', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Status', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Is Expired', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Expiration Date', 'job-posting-manager')); ?></th>
+                        <th><?php echo esc_html(__('Applications', 'job-posting-manager')); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($jobs)): ?>
+                        <tr>
+                            <td colspan="8"><?php echo esc_html(__('No jobs found.', 'job-posting-manager')); ?></td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($jobs as $job): ?>
+                            <?php
+                            $company_name = get_post_meta($job->ID, 'company_name', true);
+                            $location = get_post_meta($job->ID, 'location', true);
+                            $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
+                            $expiration_formatted = get_post_meta($job->ID, 'expiration_date_formatted', true);
+                            if (empty($expiration_formatted) && !empty($expiration_timestamp)) {
+                                $expiration_formatted = date('Y-m-d H:i:s', $expiration_timestamp);
+                            }
+                            $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= $current_time;
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html($job->ID); ?></td>
+                                <td><?php echo esc_html($job->post_title); ?></td>
+                                <td><?php echo esc_html($company_name); ?></td>
+                                <td><?php echo esc_html($location); ?></td>
+                                <td><?php echo esc_html(get_post_status($job->ID)); ?></td>
+                                <td class="badge" style="color: <?php echo $is_expired ? '#b32d2e' : '#1e7e34'; ?>;">
+                                    <?php echo esc_html($is_expired ? __('Expired', 'job-posting-manager') : __('Not expired', 'job-posting-manager')); ?>
+                                </td>
+                                <td><?php echo esc_html($expiration_formatted); ?></td>
+                                <td><?php echo esc_html(isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0); ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </body>
+
+        </html>
+        <?php
         exit;
     }
 
