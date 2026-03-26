@@ -1012,6 +1012,7 @@ class JPM_Admin
                             <th style="width: 14%;"><?php esc_html_e('Company', 'job-posting-manager'); ?></th>
                             <th style="width: 12%;"><?php esc_html_e('Location', 'job-posting-manager'); ?></th>
                             <th style="width: 10%;"><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
+                            <th style="width: 12%;"><?php esc_html_e('Publish Date', 'job-posting-manager'); ?></th>
                             <th style="width: 12%;"><?php esc_html_e('Is Expired', 'job-posting-manager'); ?></th>
                             <th style="width: 8%;"><?php esc_html_e('Applications', 'job-posting-manager'); ?></th>
                             <th style="width: 12%;"><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
@@ -1041,6 +1042,7 @@ class JPM_Admin
                                 <td><?php echo !empty($company_name) ? esc_html($company_name) : '--'; ?></td>
                                 <td><?php echo !empty($location) ? esc_html($location) : '--'; ?></td>
                                 <td><?php echo esc_html(ucfirst($post_status)); ?></td>
+                                <td><?php echo esc_html(get_the_date('', $job->ID)); ?></td>
                                 <td>
                                     <?php if ($is_expired): ?>
                                         <span
@@ -2757,7 +2759,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                 });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 });
         </script>
         <?php
     }
