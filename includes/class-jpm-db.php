@@ -674,10 +674,13 @@ class JPM_Admin
         $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
         $expired_filter = isset($_GET['expired']) ? sanitize_text_field(wp_unslash($_GET['expired'])) : '';
         $current_time = current_time('timestamp');
+        $per_page = 10;
+        $paged = isset($_GET['paged']) ? max(1, absint(wp_unslash($_GET['paged']))) : 1;
 
         $query_args = [
             'post_type' => 'job_posting',
-            'posts_per_page' => -1,
+            'posts_per_page' => $per_page,
+            'paged' => $paged,
             'post_status' => $status_filter ? $status_filter : 'any',
             'orderby' => 'date',
             'order' => 'DESC',
@@ -717,7 +720,8 @@ class JPM_Admin
             ];
         }
 
-        $jobs = get_posts($query_args);
+        $jobs_query = new WP_Query($query_args);
+        $jobs = $jobs_query->posts;
         $application_counts = [];
 
         if (!empty($jobs)) {
@@ -734,6 +738,28 @@ class JPM_Admin
                 $application_counts[(int) $row['job_id']] = (int) $row['app_count'];
             }
         }
+
+        $total_jobs = (int) ($jobs_query->found_posts ?? 0);
+        $total_pages = (int) ($jobs_query->max_num_pages ?? 0);
+        if ($total_pages < 1) {
+            $total_pages = 1;
+        }
+
+        $pagination_base_args = [
+            'page' => 'jpm-job-listings',
+        ];
+        if (!empty($search)) {
+            $pagination_base_args['search'] = $search;
+        }
+        if (!empty($status_filter)) {
+            $pagination_base_args['status'] = $status_filter;
+        }
+        if (!empty($expired_filter)) {
+            $pagination_base_args['expired'] = $expired_filter;
+        }
+
+        $prev_url = $paged > 1 ? add_query_arg(array_merge($pagination_base_args, ['paged' => $paged - 1]), admin_url('admin.php')) : '';
+        $next_url = $paged < $total_pages ? add_query_arg(array_merge($pagination_base_args, ['paged' => $paged + 1]), admin_url('admin.php')) : '';
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('Job Listings', 'job-posting-manager'); ?></h1>
@@ -811,6 +837,26 @@ class JPM_Admin
                     <?php esc_html_e('Add New Job', 'job-posting-manager'); ?>
                 </a>
             </div>
+
+            <?php if ($total_pages > 1): ?>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
+                    <div class="tablenav-pages">
+                        <span class="displaying-num">
+                            <?php echo esc_html(sprintf(__('Showing %d of %d job(s)', 'job-posting-manager'), min($total_jobs, ($paged * $per_page)), $total_jobs)); ?>
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <?php if (!empty($prev_url)): ?>
+                            <a class="button" href="<?php echo esc_url($prev_url); ?>">&laquo;
+                                <?php esc_html_e('Previous', 'job-posting-manager'); ?></a>
+                        <?php endif; ?>
+                        <?php if (!empty($next_url)): ?>
+                            <a class="button"
+                                href="<?php echo esc_url($next_url); ?>"><?php esc_html_e('Next', 'job-posting-manager'); ?> &raquo;</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <?php if (empty($jobs)): ?>
                 <p><?php esc_html_e('No jobs found.', 'job-posting-manager'); ?></p>
@@ -934,6 +980,26 @@ class JPM_Admin
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+
+                <?php if ($total_pages > 1): ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
+                        <div class="tablenav-pages">
+                            <span class="displaying-num">
+                                <?php echo esc_html(sprintf(__('Showing %d of %d job(s)', 'job-posting-manager'), min($total_jobs, ($paged * $per_page)), $total_jobs)); ?>
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <?php if (!empty($prev_url)): ?>
+                                <a class="button" href="<?php echo esc_url($prev_url); ?>">&laquo;
+                                    <?php esc_html_e('Previous', 'job-posting-manager'); ?></a>
+                            <?php endif; ?>
+                            <?php if (!empty($next_url)): ?>
+                                <a class="button"
+                                    href="<?php echo esc_url($next_url); ?>"><?php esc_html_e('Next', 'job-posting-manager'); ?> &raquo;</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
         <?php
@@ -2549,7 +2615,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                                         });
+                                                                                                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
