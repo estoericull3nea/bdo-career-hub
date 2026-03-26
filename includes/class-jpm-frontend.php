@@ -53,6 +53,35 @@ class JPM_Frontend
         return $ids;
     }
 
+    /**
+     * Format salary with currency icon.
+     * Prefers `salary_currency` meta, otherwise infers from stored `salary` string.
+     */
+    private function format_salary($job_id, $salary_value = '')
+    {
+        $salary_value = $salary_value !== '' ? $salary_value : get_post_meta($job_id, 'salary', true);
+        if (empty($salary_value)) {
+            return '';
+        }
+
+        $currency = get_post_meta($job_id, 'salary_currency', true);
+        if (!in_array($currency, ['php', 'usd'], true)) {
+            if (strpos((string) $salary_value, '₱') !== false) {
+                $currency = 'php';
+            } elseif (strpos((string) $salary_value, '$') !== false) {
+                $currency = 'usd';
+            } else {
+                $currency = 'php';
+            }
+        }
+
+        $symbol = $currency === 'usd' ? '$' : '₱';
+        $amount = str_replace(['₱', '$'], '', (string) $salary_value);
+        $amount = trim($amount);
+
+        return !empty($amount) ? $symbol . $amount : '';
+    }
+
     public function __construct()
     {
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
@@ -309,7 +338,7 @@ class JPM_Frontend
                                         class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
-                                        class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
+                                        class="dashicons dashicons-money-alt"></i> <?php echo esc_html($this->format_salary($job->ID, $salary)); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
@@ -431,7 +460,7 @@ class JPM_Frontend
                 <?php if (!empty($salary)): ?>
                     <li>
                         <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($salary); ?></span>
+                        <span><?php echo esc_html($this->format_salary($job_id, $salary)); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
@@ -728,7 +757,7 @@ class JPM_Frontend
                                                 class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($salary)): ?> <span class="jpm-job-info-item"> <i
-                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
+                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($this->format_salary($job_id, $salary)); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
@@ -1023,7 +1052,7 @@ class JPM_Frontend
                             <?php if (!empty($salary)): ?>
                                 <span class="jpm-job-info-item">
                                     <i class="dashicons dashicons-money-alt"></i>
-                                    <?php echo esc_html($salary); ?>
+                                    <?php echo esc_html($this->format_salary($job_id, $salary)); ?>
                                 </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?>

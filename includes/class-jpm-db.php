@@ -2333,6 +2333,11 @@ class JPM_Admin
         $company_name = get_post_meta($post->ID, 'company_name', true);
         $location = get_post_meta($post->ID, 'location', true);
         $salary = get_post_meta($post->ID, 'salary', true);
+        $salary_currency = get_post_meta($post->ID, 'salary_currency', true);
+        if (!in_array($salary_currency, ['php', 'usd'], true)) {
+            $salary_currency = 'php';
+        }
+        $salary_amount = str_replace(['₱', '$'], '', (string) $salary);
         $duration = get_post_meta($post->ID, 'duration', true);
         $expiration_duration = get_post_meta($post->ID, 'expiration_duration', true);
         $expiration_unit = get_post_meta($post->ID, 'expiration_unit', true);
@@ -2359,7 +2364,7 @@ class JPM_Admin
                 <td>
                     <input type="text" id="location" name="location" class="regular-text"
                         value="<?php echo esc_attr($location); ?>"
-                        placeholder="<?php esc_attr_e('e.g., New York, NY', 'job-posting-manager'); ?>" />
+                        placeholder="<?php esc_attr_e('e.g., Manila, NCR', 'job-posting-manager'); ?>" />
                     <p class="description"><?php esc_html_e('Optional: Job location', 'job-posting-manager'); ?></p>
                 </td>
             </tr>
@@ -2368,8 +2373,17 @@ class JPM_Admin
                     <label for="salary"><?php esc_html_e('Salary', 'job-posting-manager'); ?></label>
                 </th>
                 <td>
-                    <input type="text" id="salary" name="salary" class="regular-text" value="<?php echo esc_attr($salary); ?>"
-                        placeholder="<?php esc_attr_e('e.g., $50,000 - $70,000', 'job-posting-manager'); ?>" />
+                    <select id="salary_currency" name="salary_currency">
+                        <option value="php" <?php selected($salary_currency, 'php'); ?>>
+                            <?php esc_html_e('₱', 'job-posting-manager'); ?>
+                        </option>
+                        <option value="usd" <?php selected($salary_currency, 'usd'); ?>>
+                            <?php esc_html_e('$', 'job-posting-manager'); ?>
+                        </option>
+                    </select>
+                    <input type="text" id="salary" name="salary" class="regular-text"
+                        value="<?php echo esc_attr($salary_amount); ?>"
+                        placeholder="<?php esc_attr_e('e.g., 50,000 - 70,000', 'job-posting-manager'); ?>" />
                     <p class="description"><?php esc_html_e('Optional: Salary range or amount', 'job-posting-manager'); ?></p>
                 </td>
             </tr>
@@ -2479,9 +2493,26 @@ class JPM_Admin
             }
 
             if (isset($_POST['salary'])) {
-                update_post_meta($post_id, 'salary', sanitize_text_field(wp_unslash($_POST['salary'])));
+                $salary_currency = isset($_POST['salary_currency']) ? sanitize_text_field(wp_unslash($_POST['salary_currency'])) : 'php';
+                if (!in_array($salary_currency, ['php', 'usd'], true)) {
+                    $salary_currency = 'php';
+                }
+
+                $salary_symbol = $salary_currency === 'usd' ? '$' : '₱';
+                $salary_amount = sanitize_text_field(wp_unslash($_POST['salary']));
+                $salary_amount = str_replace(['₱', '$'], '', $salary_amount);
+                $salary_amount = trim($salary_amount);
+
+                if (!empty($salary_amount)) {
+                    update_post_meta($post_id, 'salary', $salary_symbol . $salary_amount);
+                } else {
+                    delete_post_meta($post_id, 'salary');
+                }
+
+                update_post_meta($post_id, 'salary_currency', $salary_currency);
             } else {
                 delete_post_meta($post_id, 'salary');
+                delete_post_meta($post_id, 'salary_currency');
             }
 
             if (isset($_POST['duration'])) {
@@ -2758,7 +2789,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
@@ -3261,6 +3292,37 @@ class JPM_Admin
     }
 
     /**
+     * Format salary with the configured currency symbol.
+     *
+     * - Prefers `salary_currency` meta when available
+     * - Otherwise infers symbol from the stored `salary` string
+     */
+    private function format_salary($job_id, $salary_value = '')
+    {
+        $salary_value = $salary_value !== '' ? $salary_value : get_post_meta($job_id, 'salary', true);
+        if (empty($salary_value)) {
+            return '';
+        }
+
+        $currency = get_post_meta($job_id, 'salary_currency', true);
+        if (!in_array($currency, ['php', 'usd'], true)) {
+            if (strpos((string) $salary_value, '₱') !== false) {
+                $currency = 'php';
+            } elseif (strpos((string) $salary_value, '$') !== false) {
+                $currency = 'usd';
+            } else {
+                $currency = 'php';
+            }
+        }
+
+        $symbol = $currency === 'usd' ? '$' : '₱';
+        $amount = str_replace(['₱', '$'], '', (string) $salary_value);
+        $amount = trim($amount);
+
+        return !empty($amount) ? $symbol . $amount : '';
+    }
+
+    /**
      * Display job details on single job posting page
      * @param string $content The post content
      * @return string Modified content with job details
@@ -3277,6 +3339,7 @@ class JPM_Admin
         $company_name = get_post_meta($post->ID, 'company_name', true);
         $location = get_post_meta($post->ID, 'location', true);
         $salary = get_post_meta($post->ID, 'salary', true);
+        $salary_display = $this->format_salary($post->ID, $salary);
         $duration = get_post_meta($post->ID, 'duration', true);
         $time_remaining = $this->get_time_remaining($post->ID);
 
@@ -3301,7 +3364,7 @@ class JPM_Admin
                 <?php if (!empty($salary)): ?>
                     <li class="jpm-job-detail-item jpm-job-salary">
                         <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($salary); ?></span>
+                        <span><?php echo esc_html($salary_display); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
