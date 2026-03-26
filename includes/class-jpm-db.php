@@ -821,54 +821,85 @@ class JPM_Admin
                 <?php endif; ?>
             </div>
 
-            <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin: 16px 0;">
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <div
-                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
-                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Total Jobs', 'job-posting-manager'); ?>
-                        </div>
-                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;">
-                            <?php echo esc_html($total_jobs_all); ?>
-                        </div>
+            <div class="jpm-analytics-cards"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+              
+
+                <!-- Published Card -->
+                <div class="jpm-analytics-card"
+                    style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                            <?php esc_html_e('Published', 'job-posting-manager'); ?>
+                        </h3>
+                        <span class="dashicons dashicons-yes" style="font-size: 24px; color: #28a745;"></span>
                     </div>
-                    <div
-                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
-                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Published', 'job-posting-manager'); ?>
-                        </div>
-                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;">
-                            <?php echo esc_html($published_count); ?>
-                        </div>
+                    <div style="font-size: 32px; font-weight: bold; color: #28a745; margin-bottom: 10px;">
+                        <?php echo esc_html($published_count); ?>
                     </div>
-                    <div
-                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
-                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Draft', 'job-posting-manager'); ?></div>
-                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;"><?php echo esc_html($draft_count); ?>
-                        </div>
+                    <div style="font-size: 12px; color: #666;">
+                        <?php esc_html_e('Total job postings', 'job-posting-manager'); ?>
                     </div>
-                    <div
-                        style="flex: 1; min-width: 180px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
-                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Pending', 'job-posting-manager'); ?></div>
-                        <div style="font-size: 22px; margin-top: 8px; font-weight: 700;"><?php echo esc_html($pending_count); ?>
-                        </div>
+                </div>
+
+                <!-- Draft Card -->
+                <div class="jpm-analytics-card"
+                    style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                            <?php esc_html_e('Draft', 'job-posting-manager'); ?>
+                        </h3>
+                        <span class="dashicons dashicons-edit" style="font-size: 24px; color: #6c757d;"></span>
                     </div>
-                    <div
-                        style="flex: 1; min-width: 220px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;">
-                        <div style="font-weight: 600; color: #111;"><?php esc_html_e('Expiration', 'job-posting-manager'); ?>
-                        </div>
-                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                            <div
-                                style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 999px; padding: 6px 10px;">
-                                <span
-                                    style="color: #b32d2e; font-weight: 800;"><?php echo esc_html($expired_jobs_all); ?></span>
-                                <span
-                                    style="color: #6b7280; margin-left: 6px;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
+                    <div style="font-size: 32px; font-weight: bold; color: #6c757d; margin-bottom: 10px;">
+                        <?php echo esc_html($draft_count); ?>
+                    </div>
+                    <div style="font-size: 12px; color: #666;">
+                        <?php esc_html_e('Not published yet', 'job-posting-manager'); ?>
+                    </div>
+                </div>
+
+                <!-- Pending Card -->
+                <div class="jpm-analytics-card"
+                    style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                            <?php esc_html_e('Pending', 'job-posting-manager'); ?>
+                        </h3>
+                        <span class="dashicons dashicons-clock" style="font-size: 24px; color: #ffc107;"></span>
+                    </div>
+                    <div style="font-size: 32px; font-weight: bold; color: #ffc107; margin-bottom: 10px;">
+                        <?php echo esc_html($pending_count); ?>
+                    </div>
+                    <div style="font-size: 12px; color: #666;">
+                        <?php esc_html_e('Awaiting review', 'job-posting-manager'); ?>
+                    </div>
+                </div>
+
+                <!-- Expiration Card -->
+                <div class="jpm-analytics-card"
+                    style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                            <?php esc_html_e('Expiration', 'job-posting-manager'); ?>
+                        </h3>
+                        <span class="dashicons dashicons-clock" style="font-size: 24px; color: #0073aa;"></span>
+                    </div>
+                    <div style="display: flex; gap: 15px; flex-direction: row;">
+                        <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; #b32d2e;">
+                            <div style="font-size: 24px; font-weight: bold; color: #b32d2e; margin-bottom: 5px;">
+                                <?php echo esc_html($expired_jobs_all); ?>
                             </div>
-                            <div
-                                style="background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 999px; padding: 6px 10px;">
-                                <span
-                                    style="color: #1e7e34; font-weight: 800;"><?php echo esc_html($not_expired_jobs_all); ?></span>
-                                <span
-                                    style="color: #6b7280; margin-left: 6px;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                            <div style="font-size: 14px; color: #666;">
+                                <?php esc_html_e('Expired', 'job-posting-manager'); ?>
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px; #1e7e34;">
+                            <div style="font-size: 24px; font-weight: bold; color: #1e7e34; margin-bottom: 5px;">
+                                <?php echo esc_html($not_expired_jobs_all); ?>
+                            </div>
+                            <div style="font-size: 14px; color: #666;">
+                                <?php esc_html_e('Not expired', 'job-posting-manager'); ?>
                             </div>
                         </div>
                     </div>
