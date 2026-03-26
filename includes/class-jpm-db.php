@@ -83,6 +83,7 @@ class JPM_Admin
     {
         add_menu_page(__('Job Postings', 'job-posting-manager'), __('Job Postings', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page'], 'dashicons-businessman');
         add_submenu_page('jpm-dashboard', __('Dashboard', 'job-posting-manager'), __('Dashboard', 'job-posting-manager'), 'manage_options', 'jpm-dashboard', [$this, 'dashboard_page']);
+        add_submenu_page('jpm-dashboard', __('Job Listings', 'job-posting-manager'), __('Job Listings', 'job-posting-manager'), 'manage_options', 'jpm-job-listings', [$this, 'job_listings_page']);
         add_submenu_page('jpm-dashboard', __('Add New Job', 'job-posting-manager'), __('Add New Job', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
         add_submenu_page('jpm-dashboard', __('Status Management', 'job-posting-manager'), __('Status Management', 'job-posting-manager'), 'manage_options', 'jpm-status-management', [$this, 'status_management_page']);
@@ -563,6 +564,143 @@ class JPM_Admin
                 </tbody>
             </table>
         <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    public function job_listings_page()
+    {
+        global $wpdb;
+        $table = $this->get_validated_applications_table();
+
+        $search = isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '';
+        $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
+
+        $query_args = [
+            'post_type' => 'job_posting',
+            'posts_per_page' => -1,
+            'post_status' => $status_filter ? $status_filter : 'any',
+            'orderby' => 'date',
+            'order' => 'DESC',
+        ];
+
+        if (!empty($search)) {
+            $query_args['s'] = $search;
+        }
+
+        $jobs = get_posts($query_args);
+        $application_counts = [];
+
+        if (!empty($jobs)) {
+            $job_ids = wp_list_pluck($jobs, 'ID');
+            $placeholders = implode(',', array_fill(0, count($job_ids), '%d'));
+
+            $query = $wpdb->prepare(
+                "SELECT job_id, COUNT(*) AS app_count FROM {$table} WHERE job_id IN ({$placeholders}) GROUP BY job_id",
+                $job_ids
+            );
+            $results = $wpdb->get_results($query, ARRAY_A);
+
+            foreach ($results as $row) {
+                $application_counts[(int) $row['job_id']] = (int) $row['app_count'];
+            }
+        }
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Job Listings', 'job-posting-manager'); ?></h1>
+
+            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+                <form method="get" action="">
+                    <input type="hidden" name="page" value="jpm-job-listings">
+
+                    <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                                <?php esc_html_e('Search Jobs:', 'job-posting-manager'); ?>
+                            </label>
+                            <input type="text" name="search" class="regular-text" value="<?php echo esc_attr($search); ?>"
+                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>" style="width: 300px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                                <?php esc_html_e('Filter by Status:', 'job-posting-manager'); ?>
+                            </label>
+                            <select name="status">
+                                <option value=""><?php esc_html_e('All Statuses', 'job-posting-manager'); ?></option>
+                                <option value="publish" <?php selected($status_filter, 'publish'); ?>><?php esc_html_e('Published', 'job-posting-manager'); ?></option>
+                                <option value="draft" <?php selected($status_filter, 'draft'); ?>><?php esc_html_e('Draft', 'job-posting-manager'); ?></option>
+                                <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php esc_html_e('Pending', 'job-posting-manager'); ?></option>
+                            </select>
+                        </div>
+                        <div>
+                            <input type="submit" class="button button-primary" value="<?php esc_attr_e('Search/Filter', 'job-posting-manager'); ?>">
+                            <?php if (!empty($search) || !empty($status_filter)): ?>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-job-listings')); ?>" class="button">
+                                    <?php esc_html_e('Clear', 'job-posting-manager'); ?>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <a href="<?php echo esc_url(admin_url('post-new.php?post_type=job_posting')); ?>" class="button button-primary">
+                    <?php esc_html_e('Add New Job', 'job-posting-manager'); ?>
+                </a>
+            </div>
+
+            <?php if (empty($jobs)): ?>
+                <p><?php esc_html_e('No jobs found.', 'job-posting-manager'); ?></p>
+            <?php else: ?>
+                <table class="widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th style="width: 6%;"><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
+                            <th style="width: 30%;"><?php esc_html_e('Job Title', 'job-posting-manager'); ?></th>
+                            <th style="width: 16%;"><?php esc_html_e('Company', 'job-posting-manager'); ?></th>
+                            <th style="width: 14%;"><?php esc_html_e('Location', 'job-posting-manager'); ?></th>
+                            <th style="width: 12%;"><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
+                            <th style="width: 10%;"><?php esc_html_e('Applications', 'job-posting-manager'); ?></th>
+                            <th style="width: 12%;"><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($jobs as $job):
+                            $company_name = get_post_meta($job->ID, 'company_name', true);
+                            $location = get_post_meta($job->ID, 'location', true);
+                            $post_status = get_post_status($job->ID);
+                            $application_count = isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0;
+                            $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
+                            $view_url = get_permalink($job->ID);
+                            $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html($job->ID); ?></td>
+                                <td>
+                                    <strong><a href="<?php echo esc_url($edit_url); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a></strong>
+                                </td>
+                                <td><?php echo !empty($company_name) ? esc_html($company_name) : '--'; ?></td>
+                                <td><?php echo !empty($location) ? esc_html($location) : '--'; ?></td>
+                                <td><?php echo esc_html(ucfirst($post_status)); ?></td>
+                                <td>
+                                    <a href="<?php echo esc_url($applications_url); ?>" style="font-weight: bold; color: #0073aa;">
+                                        <?php echo esc_html($application_count); ?>
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">
+                                        <?php esc_html_e('Edit', 'job-posting-manager'); ?>
+                                    </a>
+                                    <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
+                                        <?php esc_html_e('View', 'job-posting-manager'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </div>
         <?php
     }
