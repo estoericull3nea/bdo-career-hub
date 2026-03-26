@@ -1516,6 +1516,13 @@ jQuery(document).ready(function ($) {
         nonce: jpm_ajax.nonce,
       },
       success: function (response) {
+        if (typeof response === "string") {
+          try {
+            response = JSON.parse(response);
+          } catch (e) {
+            // fall through to existing handling below
+          }
+        }
         // Hide search indicator
         $(".jpm-search-indicator").hide();
 
@@ -1559,7 +1566,45 @@ jQuery(document).ready(function ($) {
           );
         }
       },
-      error: function () {
+      error: function (xhr) {
+        // Try to recover from noisy output around JSON.
+        var raw = (xhr && xhr.responseText) ? xhr.responseText : "";
+        if (raw) {
+          var start = raw.indexOf("{");
+          var end = raw.lastIndexOf("}");
+          if (start !== -1 && end > start) {
+            try {
+              var parsed = JSON.parse(raw.substring(start, end + 1));
+              if (parsed && parsed.success && parsed.data) {
+                $(".jpm-search-indicator").hide();
+                if (parsed.data.html) {
+                  $jobsGrid.html(parsed.data.html);
+                } else {
+                  $jobsGrid.html(
+                    '<div class="jpm-no-jobs"><p>No jobs found matching your criteria.</p></div>'
+                  );
+                }
+                var total = parsed.data.total || 0;
+                var perPage = 12;
+                var currentPageNum = currentPage;
+                var startNum = (currentPageNum - 1) * perPage + 1;
+                var endNum = Math.min(currentPageNum * perPage, total);
+                if (total > 0) {
+                  $resultsCount.html(
+                    "<p>Showing " + startNum + "-" + endNum + " of " + total + " jobs</p>"
+                  );
+                } else {
+                  $resultsCount.html("<p>No jobs found.</p>");
+                }
+                updatePagination(parsed.data.pages || 1, currentPageNum);
+                updateURL(searchTerm, locationFilter, companyFilter, currentPageNum);
+                return;
+              }
+            } catch (e) {
+              // continue to generic error
+            }
+          }
+        }
         // Hide search indicator
         $(".jpm-search-indicator").hide();
         $jobsGrid.html(
@@ -1761,6 +1806,13 @@ jQuery(document).ready(function ($) {
           nonce: jpm_ajax.nonce,
         },
         success: function (response) {
+          if (typeof response === "string") {
+            try {
+              response = JSON.parse(response);
+            } catch (e) {
+              // fall through to existing handling below
+            }
+          }
           if (response.success) {
             if (response.data.html) {
               $jobsGrid.html(response.data.html);
@@ -1795,7 +1847,36 @@ jQuery(document).ready(function ($) {
             );
           }
         },
-        error: function () {
+        error: function (xhr) {
+          var raw = (xhr && xhr.responseText) ? xhr.responseText : "";
+          if (raw) {
+            var start = raw.indexOf("{");
+            var end = raw.lastIndexOf("}");
+            if (start !== -1 && end > start) {
+              try {
+                var parsed = JSON.parse(raw.substring(start, end + 1));
+                if (parsed && parsed.success && parsed.data && parsed.data.html) {
+                  $jobsGrid.html(parsed.data.html);
+                  const total = parsed.data.total || 0;
+                  const perPage = 12;
+                  const startNum = (page - 1) * perPage + 1;
+                  const endNum = Math.min(page * perPage, total);
+                  if (total > 0) {
+                    $resultsCount.html(
+                      "<p>Showing " + startNum + "-" + endNum + " of " + total + " jobs</p>"
+                    );
+                  } else {
+                    $resultsCount.html("<p>No jobs found.</p>");
+                  }
+                  updatePagination(parsed.data.pages || 1, parseInt(page));
+                  updateURL(search, location, company, parseInt(page));
+                  return;
+                }
+              } catch (e) {
+                // continue to generic error
+              }
+            }
+          }
           $jobsGrid.html(
             '<div class="jpm-no-jobs"><p>An error occurred. Please try again.</p></div>'
           );
