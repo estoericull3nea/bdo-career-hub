@@ -575,6 +575,8 @@ class JPM_Admin
 
         $search = isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '';
         $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
+        $expired_filter = isset($_GET['expired']) ? sanitize_text_field(wp_unslash($_GET['expired'])) : '';
+        $current_time = current_time('timestamp');
 
         $query_args = [
             'post_type' => 'job_posting',
@@ -586,6 +588,36 @@ class JPM_Admin
 
         if (!empty($search)) {
             $query_args['s'] = $search;
+        }
+
+        if ($expired_filter === 'expired') {
+            $query_args['meta_query'] = [
+                [
+                    'key' => 'expiration_date',
+                    'value' => $current_time,
+                    'compare' => '<=',
+                    'type' => 'NUMERIC',
+                ],
+            ];
+        } elseif ($expired_filter === 'not_expired') {
+            $query_args['meta_query'] = [
+                'relation' => 'OR',
+                [
+                    'key' => 'expiration_date',
+                    'compare' => 'NOT EXISTS',
+                ],
+                [
+                    'key' => 'expiration_date',
+                    'value' => '',
+                    'compare' => '=',
+                ],
+                [
+                    'key' => 'expiration_date',
+                    'value' => $current_time,
+                    'compare' => '>',
+                    'type' => 'NUMERIC',
+                ],
+            ];
         }
 
         $jobs = get_posts($query_args);
@@ -633,8 +665,18 @@ class JPM_Admin
                             </select>
                         </div>
                         <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                                <?php esc_html_e('Filter by Expiration:', 'job-posting-manager'); ?>
+                            </label>
+                            <select name="expired">
+                                <option value=""><?php esc_html_e('All', 'job-posting-manager'); ?></option>
+                                <option value="expired" <?php selected($expired_filter, 'expired'); ?>><?php esc_html_e('Expired', 'job-posting-manager'); ?></option>
+                                <option value="not_expired" <?php selected($expired_filter, 'not_expired'); ?>><?php esc_html_e('Not expired', 'job-posting-manager'); ?></option>
+                            </select>
+                        </div>
+                        <div>
                             <input type="submit" class="button button-primary" value="<?php esc_attr_e('Search/Filter', 'job-posting-manager'); ?>">
-                            <?php if (!empty($search) || !empty($status_filter)): ?>
+                            <?php if (!empty($search) || !empty($status_filter) || !empty($expired_filter)): ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-job-listings')); ?>" class="button">
                                     <?php esc_html_e('Clear', 'job-posting-manager'); ?>
                                 </a>
@@ -657,11 +699,12 @@ class JPM_Admin
                     <thead>
                         <tr>
                             <th style="width: 6%;"><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
-                            <th style="width: 30%;"><?php esc_html_e('Job Title', 'job-posting-manager'); ?></th>
-                            <th style="width: 16%;"><?php esc_html_e('Company', 'job-posting-manager'); ?></th>
-                            <th style="width: 14%;"><?php esc_html_e('Location', 'job-posting-manager'); ?></th>
-                            <th style="width: 12%;"><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
-                            <th style="width: 10%;"><?php esc_html_e('Applications', 'job-posting-manager'); ?></th>
+                            <th style="width: 26%;"><?php esc_html_e('Job Title', 'job-posting-manager'); ?></th>
+                            <th style="width: 14%;"><?php esc_html_e('Company', 'job-posting-manager'); ?></th>
+                            <th style="width: 12%;"><?php esc_html_e('Location', 'job-posting-manager'); ?></th>
+                            <th style="width: 10%;"><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
+                            <th style="width: 12%;"><?php esc_html_e('Is Expired', 'job-posting-manager'); ?></th>
+                            <th style="width: 8%;"><?php esc_html_e('Applications', 'job-posting-manager'); ?></th>
                             <th style="width: 12%;"><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
                         </tr>
                     </thead>
@@ -671,6 +714,8 @@ class JPM_Admin
                             $location = get_post_meta($job->ID, 'location', true);
                             $post_status = get_post_status($job->ID);
                             $application_count = isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0;
+                            $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
+                            $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= current_time('timestamp');
                             $edit_url = admin_url('post.php?post=' . $job->ID . '&action=edit');
                             $view_url = get_permalink($job->ID);
                             $applications_url = admin_url('admin.php?page=jpm-applications&job_id=' . $job->ID);
@@ -683,6 +728,13 @@ class JPM_Admin
                                 <td><?php echo !empty($company_name) ? esc_html($company_name) : '--'; ?></td>
                                 <td><?php echo !empty($location) ? esc_html($location) : '--'; ?></td>
                                 <td><?php echo esc_html(ucfirst($post_status)); ?></td>
+                                <td>
+                                    <?php if ($is_expired): ?>
+                                        <span style="color: #b32d2e; font-weight: 600;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
+                                    <?php else: ?>
+                                        <span style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <a href="<?php echo esc_url($applications_url); ?>" style="font-weight: bold; color: #0073aa;">
                                         <?php echo esc_html($application_count); ?>
