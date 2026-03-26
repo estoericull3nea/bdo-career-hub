@@ -47,6 +47,7 @@ class JPM_Admin
         add_action('wp_ajax_jpm_get_chart_data', [$this, 'get_chart_data_ajax']);
         add_action('load-edit.php', [$this, 'redirect_job_postings_list']);
         add_action('admin_notices', [$this, 'display_expiration_duration_error']);
+        add_action('admin_post_jpm_update_expiration', [$this, 'handle_update_expiration']);
 
         // Removed cache-related hooks
     }
@@ -87,6 +88,62 @@ class JPM_Admin
         add_submenu_page('jpm-dashboard', __('Add New Job', 'job-posting-manager'), __('Add New Job', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
         add_submenu_page('jpm-dashboard', __('Status Management', 'job-posting-manager'), __('Status Management', 'job-posting-manager'), 'manage_options', 'jpm-status-management', [$this, 'status_management_page']);
+    }
+
+    /**
+     * Handle updating a job's expiration from the Job Listings list table.
+     * Runs via admin-post.php to avoid "headers already sent" issues.
+     */
+    public function handle_update_expiration()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_expiration_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_expiration_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_update_expiration')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $job_id = isset($_POST['job_id']) ? absint(wp_unslash($_POST['job_id'])) : 0;
+        $duration = isset($_POST['expiration_duration']) ? absint(wp_unslash($_POST['expiration_duration'])) : 0;
+        $unit = isset($_POST['expiration_unit']) ? sanitize_text_field(wp_unslash($_POST['expiration_unit'])) : '';
+
+        $allowed_units = ['minutes', 'hours', 'days', 'months'];
+        if ($job_id > 0 && $duration > 0 && in_array($unit, $allowed_units, true)) {
+            $current_time = current_time('timestamp');
+            $expiration_timestamp = $current_time;
+
+            switch ($unit) {
+                case 'minutes':
+                    $expiration_timestamp = $current_time + ($duration * 60);
+                    break;
+                case 'hours':
+                    $expiration_timestamp = $current_time + ($duration * 60 * 60);
+                    break;
+                case 'days':
+                    $expiration_timestamp = $current_time + ($duration * 24 * 60 * 60);
+                    break;
+                case 'months':
+                    $expiration_timestamp = strtotime('+' . $duration . ' months', $current_time);
+                    break;
+            }
+
+            update_post_meta($job_id, 'expiration_duration', $duration);
+            update_post_meta($job_id, 'expiration_unit', $unit);
+            update_post_meta($job_id, 'expiration_date', $expiration_timestamp);
+            update_post_meta($job_id, 'expiration_date_formatted', date('Y-m-d H:i:s', $expiration_timestamp));
+        }
+
+        $redirect_url = add_query_arg(
+            [
+                'page' => 'jpm-job-listings',
+                'updated_expiration' => '1',
+            ],
+            admin_url('admin.php')
+        );
+        wp_safe_redirect($redirect_url);
+        exit;
     }
 
     public function dashboard_page()
@@ -640,6 +697,13 @@ class JPM_Admin
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('Job Listings', 'job-posting-manager'); ?></h1>
+            <?php if (isset($_GET['updated_expiration']) && sanitize_text_field(wp_unslash($_GET['updated_expiration'])) === '1'): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p>
+                        <?php esc_html_e('Job expiration updated successfully.', 'job-posting-manager'); ?>
+                    </p>
+                </div>
+            <?php endif; ?>
 
             <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
@@ -651,7 +715,8 @@ class JPM_Admin
                                 <?php esc_html_e('Search Jobs:', 'job-posting-manager'); ?>
                             </label>
                             <input type="text" name="search" class="regular-text" value="<?php echo esc_attr($search); ?>"
-                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>" style="width: 300px;">
+                                placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>"
+                                style="width: 300px;">
                         </div>
                         <div>
                             <label style="display: block; margin-bottom: 5px; font-weight: bold;">
@@ -659,9 +724,15 @@ class JPM_Admin
                             </label>
                             <select name="status">
                                 <option value=""><?php esc_html_e('All Statuses', 'job-posting-manager'); ?></option>
-                                <option value="publish" <?php selected($status_filter, 'publish'); ?>><?php esc_html_e('Published', 'job-posting-manager'); ?></option>
-                                <option value="draft" <?php selected($status_filter, 'draft'); ?>><?php esc_html_e('Draft', 'job-posting-manager'); ?></option>
-                                <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php esc_html_e('Pending', 'job-posting-manager'); ?></option>
+                                <option value="publish" <?php selected($status_filter, 'publish'); ?>>
+                                    <?php esc_html_e('Published', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="draft" <?php selected($status_filter, 'draft'); ?>>
+                                    <?php esc_html_e('Draft', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="pending" <?php selected($status_filter, 'pending'); ?>>
+                                    <?php esc_html_e('Pending', 'job-posting-manager'); ?>
+                                </option>
                             </select>
                         </div>
                         <div>
@@ -670,12 +741,17 @@ class JPM_Admin
                             </label>
                             <select name="expired">
                                 <option value=""><?php esc_html_e('All', 'job-posting-manager'); ?></option>
-                                <option value="expired" <?php selected($expired_filter, 'expired'); ?>><?php esc_html_e('Expired', 'job-posting-manager'); ?></option>
-                                <option value="not_expired" <?php selected($expired_filter, 'not_expired'); ?>><?php esc_html_e('Not expired', 'job-posting-manager'); ?></option>
+                                <option value="expired" <?php selected($expired_filter, 'expired'); ?>>
+                                    <?php esc_html_e('Expired', 'job-posting-manager'); ?>
+                                </option>
+                                <option value="not_expired" <?php selected($expired_filter, 'not_expired'); ?>>
+                                    <?php esc_html_e('Not expired', 'job-posting-manager'); ?>
+                                </option>
                             </select>
                         </div>
                         <div>
-                            <input type="submit" class="button button-primary" value="<?php esc_attr_e('Search/Filter', 'job-posting-manager'); ?>">
+                            <input type="submit" class="button button-primary"
+                                value="<?php esc_attr_e('Search/Filter', 'job-posting-manager'); ?>">
                             <?php if (!empty($search) || !empty($status_filter) || !empty($expired_filter)): ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-job-listings')); ?>" class="button">
                                     <?php esc_html_e('Clear', 'job-posting-manager'); ?>
@@ -713,6 +789,8 @@ class JPM_Admin
                             $company_name = get_post_meta($job->ID, 'company_name', true);
                             $location = get_post_meta($job->ID, 'location', true);
                             $post_status = get_post_status($job->ID);
+                            $expiration_duration = absint(get_post_meta($job->ID, 'expiration_duration', true));
+                            $expiration_unit = get_post_meta($job->ID, 'expiration_unit', true);
                             $application_count = isset($application_counts[$job->ID]) ? $application_counts[$job->ID] : 0;
                             $expiration_timestamp = (int) get_post_meta($job->ID, 'expiration_date', true);
                             $is_expired = !empty($expiration_timestamp) && $expiration_timestamp <= current_time('timestamp');
@@ -723,16 +801,19 @@ class JPM_Admin
                             <tr>
                                 <td><?php echo esc_html($job->ID); ?></td>
                                 <td>
-                                    <strong><a href="<?php echo esc_url($edit_url); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a></strong>
+                                    <strong><a
+                                            href="<?php echo esc_url($edit_url); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a></strong>
                                 </td>
                                 <td><?php echo !empty($company_name) ? esc_html($company_name) : '--'; ?></td>
                                 <td><?php echo !empty($location) ? esc_html($location) : '--'; ?></td>
                                 <td><?php echo esc_html(ucfirst($post_status)); ?></td>
                                 <td>
                                     <?php if ($is_expired): ?>
-                                        <span style="color: #b32d2e; font-weight: 600;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
+                                        <span
+                                            style="color: #b32d2e; font-weight: 600;"><?php esc_html_e('Expired', 'job-posting-manager'); ?></span>
                                     <?php else: ?>
-                                        <span style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
+                                        <span
+                                            style="color: #1e7e34; font-weight: 600;"><?php esc_html_e('Not expired', 'job-posting-manager'); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -747,6 +828,39 @@ class JPM_Admin
                                     <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
                                         <?php esc_html_e('View', 'job-posting-manager'); ?>
                                     </a>
+                                    <?php if ($is_expired): ?>
+                                        <details style="margin-top: 6px;">
+                                            <summary style="cursor: pointer; color: #0073aa; font-weight: 600;">
+                                                <?php esc_html_e('Expiration', 'job-posting-manager'); ?>
+                                            </summary>
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                                style="margin-top: 8px;">
+                                                <?php wp_nonce_field('jpm_update_expiration', 'jpm_expiration_nonce'); ?>
+                                                <input type="hidden" name="action" value="jpm_update_expiration">
+                                                <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
+                                                <input type="number" name="expiration_duration" min="1" step="1"
+                                                    value="<?php echo esc_attr($expiration_duration > 0 ? $expiration_duration : 30); ?>"
+                                                    style="width: 70px;">
+                                                <select name="expiration_unit">
+                                                    <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>>
+                                                        <?php esc_html_e('Minutes', 'job-posting-manager'); ?>
+                                                    </option>
+                                                    <option value="hours" <?php selected($expiration_unit, 'hours'); ?>>
+                                                        <?php esc_html_e('Hours', 'job-posting-manager'); ?>
+                                                    </option>
+                                                    <option value="days" <?php selected($expiration_unit, 'days'); ?>>
+                                                        <?php esc_html_e('Days', 'job-posting-manager'); ?>
+                                                    </option>
+                                                    <option value="months" <?php selected($expiration_unit, 'months'); ?>>
+                                                        <?php esc_html_e('Months', 'job-posting-manager'); ?>
+                                                    </option>
+                                                </select>
+                                                <button type="submit" class="button button-small">
+                                                    <?php esc_html_e('Save', 'job-posting-manager'); ?>
+                                                </button>
+                                            </form>
+                                        </details>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -2367,7 +2481,7 @@ class JPM_Admin
 
         <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
             });
-                                                                                                                                                                                                                                                         });
+                                                                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
