@@ -31,8 +31,8 @@ class JPM_Frontend
     private function get_unexpired_job_ids()
     {
         global $wpdb;
-        $today = gmdate('Y-m-d');
-        // No object cache
+        // Stored expiration_date values are UNIX timestamps.
+        $now_timestamp = (string) current_time('timestamp');
 
         $ids = $wpdb->get_col(
             $wpdb->prepare(
@@ -41,10 +41,10 @@ class JPM_Frontend
                 LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
                 WHERE p.post_type = %s
                 AND p.post_status = %s
-                AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR pm_exp.meta_value >= %s)",
+                AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)",
                 'job_posting',
                 'publish',
-                $today
+                $now_timestamp
             )
         );
 
@@ -511,7 +511,7 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
-        // Restrict queries to unexpired jobs first (cached ID list).
+        // Restrict results to non-expired jobs.
         $unexpired_job_ids = $this->get_unexpired_job_ids();
         if (empty($unexpired_job_ids)) {
             return '<div class="jpm-no-jobs-container"><p class="jpm-no-jobs-message">' . esc_html__('No jobs found matching your criteria.', 'job-posting-manager') . '</p></div>';
@@ -550,82 +550,44 @@ class JPM_Frontend
 
         $jobs_query = new WP_Query($args);
 
-        // Get unique locations and companies for filter dropdowns (only non-expired jobs)
-        // Optimized: Use direct SQL query instead of fetching all posts
+        // Get unique locations and companies for filter dropdowns (non-expired jobs only)
+        // Optimized: Use direct SQL query instead of fetching all posts.
         global $wpdb;
-        $expiration_date = gmdate('Y-m-d');
+        $now_timestamp = (string) current_time('timestamp');
 
-        // Build expiration date condition
-        $locations = null;
-        $companies = null;
-        {
-            // Build expiration date condition
-            $expiration_condition = '';
-            if (!empty($expiration_date)) {
-                $expiration_condition = $wpdb->prepare(
-                    " AND pm_exp.meta_value >= %s",
-                    $expiration_date
-                );
-            }
+        $locations_query = $wpdb->prepare(
+            "
+            SELECT DISTINCT pm_loc.meta_value as location
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
+            LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+            WHERE p.post_type = 'job_posting'
+            AND p.post_status = 'publish'
+            AND pm_loc.meta_value != ''
+            AND pm_loc.meta_value IS NOT NULL
+            AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)
+            ORDER BY pm_loc.meta_value ASC",
+            $now_timestamp
+        );
+        $location_results = $wpdb->get_col($locations_query);
+        $locations = array_filter(array_map('trim', $location_results));
 
-            // Get unique locations
-            if (!empty($expiration_date)) {
-                $locations_query = $wpdb->prepare(
-                    "SELECT DISTINCT pm_loc.meta_value as location
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
-                    LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_loc.meta_value != ''
-                    AND pm_loc.meta_value IS NOT NULL
-                    AND pm_exp.meta_value >= %s
-                    ORDER BY pm_loc.meta_value ASC",
-                    $expiration_date
-                );
-            } else {
-                $locations_query = "SELECT DISTINCT pm_loc.meta_value as location
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_loc.meta_value != ''
-                    AND pm_loc.meta_value IS NOT NULL
-                    ORDER BY pm_loc.meta_value ASC";
-            }
-
-            $location_results = $wpdb->get_col($locations_query);
-            $locations = array_filter(array_map('trim', $location_results));
-
-            // Get unique companies
-            if (!empty($expiration_date)) {
-                $companies_query = $wpdb->prepare(
-                    "SELECT DISTINCT pm_comp.meta_value as company
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
-                    LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_comp.meta_value != ''
-                    AND pm_comp.meta_value IS NOT NULL
-                    AND pm_exp.meta_value >= %s
-                    ORDER BY pm_comp.meta_value ASC",
-                    $expiration_date
-                );
-            } else {
-                $companies_query = "SELECT DISTINCT pm_comp.meta_value as company
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_comp.meta_value != ''
-                    AND pm_comp.meta_value IS NOT NULL
-                    ORDER BY pm_comp.meta_value ASC";
-            }
-
-            $company_results = $wpdb->get_col($companies_query);
-            $companies = array_filter(array_map('trim', $company_results));
-        }
+        $companies_query = $wpdb->prepare(
+            "
+            SELECT DISTINCT pm_comp.meta_value as company
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
+            LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+            WHERE p.post_type = 'job_posting'
+            AND p.post_status = 'publish'
+            AND pm_comp.meta_value != ''
+            AND pm_comp.meta_value IS NOT NULL
+            AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)
+            ORDER BY pm_comp.meta_value ASC",
+            $now_timestamp
+        );
+        $company_results = $wpdb->get_col($companies_query);
+        $companies = array_filter(array_map('trim', $company_results));
 
         ob_start();
         ?>
@@ -966,6 +928,7 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
+        // Restrict results to non-expired jobs.
         $unexpired_job_ids = $this->get_unexpired_job_ids();
         if (empty($unexpired_job_ids)) {
             wp_send_json_success(['html' => '<div class="jpm-no-jobs-container"><p class="jpm-no-jobs-message">' . esc_html__('No jobs found matching your criteria.', 'job-posting-manager') . '</p></div>']);
