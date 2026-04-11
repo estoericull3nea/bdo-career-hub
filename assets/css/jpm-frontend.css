@@ -688,6 +688,26 @@
   flex-shrink: 0;
 }
 
+.jpm-file-upload-icon.dashicons,
+.jpm-upload-icon.dashicons {
+  display: inline-block;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.jpm-upload-icon.dashicons {
+  width: 32px;
+  height: 32px;
+  font-size: 32px;
+}
+
+.jpm-file-upload-icon.dashicons {
+  width: 24px;
+  height: 24px;
+  font-size: 24px;
+}
+
 .jpm-file-upload-text {
   color: #0073aa;
   font-weight: 600;

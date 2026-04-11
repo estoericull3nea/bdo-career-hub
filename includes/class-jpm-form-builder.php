@@ -573,7 +573,7 @@ class JPM_Form_Builder
                         data-step="<?php echo esc_attr($step_index); ?>">
                         <span class="jpm-stepper-number"><?php echo esc_html($step_index + 1); ?>.</span>
                         <span class="jpm-stepper-label"><?php echo esc_html($step['title']); ?></span>
-                        <span class="jpm-stepper-chevron">â€º</span>
+                        <span class="jpm-stepper-chevron" aria-hidden="true">&#8250;</span>
                     </div>
                 <?php endforeach; ?>
                 <!-- Summary Step -->
@@ -740,7 +740,7 @@ class JPM_Form_Builder
                                 <?php esc_html_e('Please review all the information below before submitting your application.', 'job-posting-manager'); ?>
                                 <br>
                                 <small
-                                    style="color: #0073aa; font-style: italic;"><?php esc_html_e('ðŸ’¡ Tip: Click on any field to go back and edit it.', 'job-posting-manager'); ?></small>
+                                    style="color: #0073aa; font-style: italic;"><?php esc_html_e('Tip: Click on any field to go back and edit it.', 'job-posting-manager'); ?></small>
                             </p>
 
                             <div class="jpm-summary-content">
@@ -1577,43 +1577,42 @@ class JPM_Form_Builder
                     $required_attr = $required ? 'required' : '';
                     return sprintf(
                         '<div class="jpm-picture-upload-container">
-                            <input type="file" id="%s" name="%s" class="jpm-form-field jpm-file-input jpm-picture-input" accept="image/*" %s style="display: none;">
+                            <input type="file" id="%1$s" name="%2$s" class="jpm-form-field jpm-file-input jpm-picture-input" accept="image/*" %3$s style="display: none;">
                             <div class="jpm-upload-slot jpm-single-photo" data-slot="1">
-                                <label for="%s" class="jpm-upload-label">
-                                    <span class="jpm-upload-icon">ðŸ“·</span>
-                                    <span class="jpm-upload-text">%s</span>
-                                    <span class="jpm-upload-hint">%s</span>
+                                <label for="%1$s" class="jpm-upload-label">
+                                    <span class="jpm-upload-icon dashicons dashicons-camera-alt" aria-hidden="true"></span>
+                                    <span class="jpm-upload-text">%4$s</span>
+                                    <span class="jpm-upload-hint">%5$s</span>
                                 </label>
                                 <div class="jpm-upload-preview"></div>
-                                <button type="button" class="jpm-upload-remove" style="display: none;">Ã—</button>
+                                <button type="button" class="jpm-upload-remove" style="display: none;" aria-label="%6$s">&#215;</button>
                             </div>
                         </div>',
                         $field_id,
                         $field_name,
                         $required_attr,
-                        $field_id,
-                        __('Photo 1', 'job-posting-manager'),
-                        __('Click to upload', 'job-posting-manager')
+                        esc_html__('Photo 1', 'job-posting-manager'),
+                        esc_html__('Click to upload', 'job-posting-manager'),
+                        esc_attr__('Remove photo', 'job-posting-manager')
                     );
                 } else {
                     // Regular file upload
                     return sprintf(
                         '<div class="jpm-file-upload-wrapper">
-                            <input type="file" id="%s" name="%s" class="jpm-form-field jpm-file-input" %s style="display: none;">
-                            <label for="%s" class="jpm-file-upload-label">
-                                <span class="jpm-file-upload-icon">ðŸ“„</span>
-                                <span class="jpm-file-upload-text">%s</span>
+                            <input type="file" id="%1$s" name="%2$s" class="jpm-form-field jpm-file-input" %3$s style="display: none;">
+                            <label for="%1$s" class="jpm-file-upload-label">
+                                <span class="jpm-file-upload-icon dashicons dashicons-media-document" aria-hidden="true"></span>
+                                <span class="jpm-file-upload-text">%4$s</span>
                                 <span class="jpm-file-upload-filename"></span>
                             </label>
                             <div class="jpm-file-upload-preview"></div>
-                            <button type="button" class="jpm-file-upload-remove" style="display: none;">%s</button>
+                            <button type="button" class="jpm-file-upload-remove" style="display: none;">%5$s</button>
                         </div>',
                         $field_id,
                         $field_name,
                         $required,
-                        $field_id,
-                        __('Choose File', 'job-posting-manager'),
-                        __('Remove', 'job-posting-manager')
+                        esc_html__('Choose File', 'job-posting-manager'),
+                        esc_html__('Remove', 'job-posting-manager')
                     );
                 }
 
