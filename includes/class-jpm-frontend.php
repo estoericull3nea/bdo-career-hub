@@ -123,6 +123,63 @@ class JPM_Frontend
 
         // Filter password reset email to use custom reset page
         add_filter('retrieve_password_message', [$this, 'customize_password_reset_email'], 10, 4);
+
+        // Fix 404 when a Page uses the same slug as the job CPT base (e.g. page "job-postings" + job "human-resources-coordinator").
+        add_filter('request', [$this, 'resolve_job_posting_pagename_conflict'], 5);
+    }
+
+    /**
+     * If WordPress matched /{job-base}/{job-slug}/ as a hierarchical Page path, no child page exists → 404.
+     * When a published job_posting with that slug exists, rewrite query vars to load the job instead.
+     *
+     * @param array $query_vars Query variables from WP parse.
+     * @return array
+     */
+    public function resolve_job_posting_pagename_conflict($query_vars)
+    {
+        if (is_admin()) {
+            return $query_vars;
+        }
+
+        $pagename = isset($query_vars['pagename']) ? (string) $query_vars['pagename'] : '';
+        if ($pagename === '') {
+            return $query_vars;
+        }
+
+        $pto = get_post_type_object('job_posting');
+        if (!$pto || empty($pto->public) || empty($pto->rewrite)) {
+            return $query_vars;
+        }
+
+        $slug_base = is_array($pto->rewrite) && !empty($pto->rewrite['slug'])
+            ? trim((string) $pto->rewrite['slug'], '/')
+            : 'job-postings';
+
+        if (!preg_match('#^' . preg_quote($slug_base, '#') . '/([^/]+)/?$#', $pagename, $matches)) {
+            return $query_vars;
+        }
+
+        $job_slug = $matches[1];
+        $job = get_posts([
+            'name' => $job_slug,
+            'post_type' => 'job_posting',
+            'post_status' => 'publish',
+            'posts_per_page' => 1,
+            'no_found_rows' => true,
+            'suppress_filters' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ]);
+
+        if (empty($job)) {
+            return $query_vars;
+        }
+
+        unset($query_vars['pagename'], $query_vars['page'], $query_vars['attachment'], $query_vars['error']);
+        $query_vars['post_type'] = 'job_posting';
+        $query_vars['name'] = $job_slug;
+
+        return $query_vars;
     }
 
     public function job_listings_shortcode($atts)
