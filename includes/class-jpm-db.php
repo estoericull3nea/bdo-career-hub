@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -49,6 +49,7 @@ class JPM_Admin
         add_action('admin_notices', [$this, 'display_expiration_duration_error']);
         add_action('admin_post_jpm_update_expiration', [$this, 'handle_update_expiration']);
         add_action('admin_post_jpm_mark_expired', [$this, 'handle_mark_expired']);
+        add_action('admin_post_jpm_delete_job', [$this, 'handle_delete_job']);
 
         // Removed cache-related hooks
     }
@@ -183,6 +184,63 @@ class JPM_Admin
             admin_url('admin.php')
         );
         wp_safe_redirect($redirect_url);
+        exit;
+    }
+
+    /**
+     * Permanently delete a job posting and its application rows from the Job Listings screen.
+     */
+    public function handle_delete_job()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_delete_job_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_delete_job_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_delete_job')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $job_id = isset($_POST['job_id']) ? absint(wp_unslash($_POST['job_id'])) : 0;
+        if ($job_id <= 0 || get_post_type($job_id) !== 'job_posting') {
+            wp_safe_redirect(
+                add_query_arg(
+                    [
+                        'page' => 'jpm-job-listings',
+                        'job_delete_error' => '1',
+                    ],
+                    admin_url('admin.php')
+                )
+            );
+            exit;
+        }
+
+        if (!wp_delete_post($job_id, true)) {
+            wp_safe_redirect(
+                add_query_arg(
+                    [
+                        'page' => 'jpm-job-listings',
+                        'job_delete_error' => '1',
+                    ],
+                    admin_url('admin.php')
+                )
+            );
+            exit;
+        }
+
+        global $wpdb;
+        $table = $this->get_validated_applications_table();
+        $wpdb->delete($table, ['job_id' => $job_id], ['%d']);
+
+        wp_safe_redirect(
+            add_query_arg(
+                [
+                    'page' => 'jpm-job-listings',
+                    'job_deleted' => '1',
+                ],
+                admin_url('admin.php')
+            )
+        );
         exit;
     }
 
@@ -916,6 +974,14 @@ class JPM_Admin
                 <div class="notice notice-success is-dismissible">
                     <p><?php esc_html_e('Job marked as expired successfully.', 'job-posting-manager'); ?></p>
                 </div>
+            <?php elseif (isset($_GET['job_deleted']) && sanitize_text_field(wp_unslash($_GET['job_deleted'])) === '1'): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Job deleted permanently.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php elseif (isset($_GET['job_delete_error']) && sanitize_text_field(wp_unslash($_GET['job_delete_error'])) === '1'): ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php esc_html_e('Could not delete that job. It may have already been removed.', 'job-posting-manager'); ?></p>
+                </div>
             <?php endif; ?>
 
             <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
@@ -1075,6 +1141,17 @@ class JPM_Admin
                                     <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
                                         <?php esc_html_e('View', 'job-posting-manager'); ?>
                                     </a>
+                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                        style="margin-top: 6px;">
+                                        <?php wp_nonce_field('jpm_delete_job', 'jpm_delete_job_nonce'); ?>
+                                        <input type="hidden" name="action" value="jpm_delete_job">
+                                        <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
+                                        <button type="submit" class="button button-small"
+                                            style="border-color: #b32d2e; color: #b32d2e;"
+                                            onclick="return confirm('<?php echo esc_js(__('Delete this job and all of its applications permanently? This cannot be undone.', 'job-posting-manager')); ?>');">
+                                            <?php esc_html_e('Delete', 'job-posting-manager'); ?>
+                                        </button>
+                                    </form>
                                     <?php if (!$is_expired): ?>
                                         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
                                             style="margin-top: 6px;">
