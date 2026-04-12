@@ -250,7 +250,7 @@ class JPM_Frontend
             return;
         }
 
-        $file_validation = JPM_Security::validate_file_upload($_FILES['resume'], [], 5242880); // 5MB max
+        $file_validation = JPM_Security::validate_file_upload($_FILES['resume'], [], 5242880, 'resume'); // 5MB max; PDF/DOCX only
         if (!$file_validation['valid']) {
             wp_send_json_error(['message' => $file_validation['error']]);
             return;
@@ -2311,9 +2311,9 @@ class JPM_Frontend
                     }
 
                     if (password === confirmPassword) {
-                        $matchIndicator.html('âœ“ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
+                        $matchIndicator.html('&#10003; <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
                     } else {
-                        $matchIndicator.html('âœ— <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
+                        $matchIndicator.html('&#10007; <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
                     }
                 });
 
@@ -4297,9 +4297,9 @@ class JPM_Frontend
                     }
 
                     if (password === confirmPassword) {
-                        $matchIndicator.html('âœ“ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
+                        $matchIndicator.html('&#10003; <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
                     } else {
-                        $matchIndicator.html('âœ— <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
+                        $matchIndicator.html('&#10007; <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
                     }
                 });
 

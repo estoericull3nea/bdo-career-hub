@@ -205,22 +205,41 @@ class JPM_Security
 
     /**
      * Validate file upload
-     * 
-     * @param array $file $_FILES array element
-     * @param array $allowed_types Allowed MIME types
-     * @param int $max_size Maximum file size in bytes
+     *
+     * @param array  $file          $_FILES array element
+     * @param array  $allowed_types Allowed MIME types (empty = use $upload_kind presets)
+     * @param int    $max_size      Maximum file size in bytes
+     * @param string $upload_kind   When $allowed_types is empty: 'photo' (WEBP/JPG/PNG), 'resume' (PDF/DOCX), or 'documents' (PDF/DOC/DOCX/TXT)
      * @return array ['valid' => bool, 'error' => string|null, 'file' => array|null]
      */
-    public static function validate_file_upload($file, $allowed_types = [], $max_size = 5242880)
+    public static function validate_file_upload($file, $allowed_types = [], $max_size = 5242880, $upload_kind = 'documents')
     {
-        // Default allowed types for resumes
-        if (empty($allowed_types)) {
+        $type_error = '';
+        $allowed_extensions = [];
+
+        if (!empty($allowed_types)) {
+            $type_error = __('File type not allowed. Please upload PDF, DOC, DOCX, or TXT files only.', 'job-posting-manager');
+            $allowed_extensions = ['pdf', 'doc', 'docx', 'txt'];
+        } elseif ($upload_kind === 'photo') {
+            $allowed_types = ['image/webp', 'image/jpeg', 'image/png'];
+            $allowed_extensions = ['webp', 'jpg', 'jpeg', 'png'];
+            $type_error = __('File type not allowed. Please upload WEBP, JPG, or PNG images only.', 'job-posting-manager');
+        } elseif ($upload_kind === 'resume') {
+            $allowed_types = [
+                'application/pdf',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ];
+            $allowed_extensions = ['pdf', 'docx'];
+            $type_error = __('File type not allowed. Please upload PDF or DOCX files only.', 'job-posting-manager');
+        } else {
             $allowed_types = [
                 'application/pdf',
                 'application/msword',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'text/plain'
+                'text/plain',
             ];
+            $allowed_extensions = ['pdf', 'doc', 'docx', 'txt'];
+            $type_error = __('File type not allowed. Please upload PDF, DOC, DOCX, or TXT files only.', 'job-posting-manager');
         }
 
         // Check for upload errors
@@ -261,19 +280,17 @@ class JPM_Security
             }
         }
 
-        // Check against allowed types
-        $allowed = false;
-        foreach ($allowed_types as $allowed_type) {
-            if ($mime_type === $allowed_type || strpos($mime_type, $allowed_type) !== false) {
-                $allowed = true;
-                break;
-            }
+        $mime_base = strtolower(trim(preg_replace('/\s*;.*/', '', (string) $mime_type)));
+        if ($mime_base === 'image/jpg') {
+            $mime_base = 'image/jpeg';
         }
 
-        // Also check file extension
+        $allowed_types_lower = array_map('strtolower', $allowed_types);
+        $allowed = in_array($mime_base, $allowed_types_lower, true);
+
+        // Also check file extension (helps when servers report generic MIME types)
         if (!$allowed && !empty($file_type['ext'])) {
-            $allowed_extensions = ['pdf', 'doc', 'docx', 'txt'];
-            if (in_array(strtolower($file_type['ext']), $allowed_extensions)) {
+            if (in_array(strtolower($file_type['ext']), $allowed_extensions, true)) {
                 $allowed = true;
             }
         }
@@ -281,7 +298,7 @@ class JPM_Security
         if (!$allowed) {
             return [
                 'valid' => false,
-                'error' => __('File type not allowed. Please upload PDF, DOC, DOCX, or TXT files only.', 'job-posting-manager'),
+                'error' => $type_error,
                 'file' => null
             ];
         }

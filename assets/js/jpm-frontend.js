@@ -807,6 +807,33 @@ jQuery(document).ready(function ($) {
 
   // File Upload Preview Functionality
   function initFileUploads() {
+    function jpmAllowedPictureFile(file) {
+      if (!file || !file.name) {
+        return false;
+      }
+      const ext = file.name.split(".").pop().toLowerCase();
+      const okExt = ["webp", "jpg", "jpeg", "png"].indexOf(ext) !== -1;
+      const okMime =
+        file.type === "image/webp" ||
+        file.type === "image/jpeg" ||
+        file.type === "image/png" ||
+        file.type === "image/jpg";
+      return okExt || okMime;
+    }
+
+    function jpmAllowedResumeFile(file) {
+      if (!file || !file.name) {
+        return false;
+      }
+      const ext = file.name.split(".").pop().toLowerCase();
+      const okExt = ext === "pdf" || ext === "docx";
+      const okMime =
+        file.type === "application/pdf" ||
+        file.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      return okExt || okMime;
+    }
+
     // Regular file uploads
     $(document).on(
       "change",
@@ -821,6 +848,18 @@ jQuery(document).ready(function ($) {
         const file = this.files[0];
 
         if (file) {
+          const nameAttr = ($input.attr("name") || "").toLowerCase();
+          if (nameAttr.indexOf("resume") !== -1 && !jpmAllowedResumeFile(file)) {
+            alert(
+              "Please upload a PDF or DOCX file for your resume/CV."
+            );
+            $input.val("");
+            $filename.text("");
+            $removeBtn.hide();
+            $preview.hide().empty();
+            return;
+          }
+
           $filename.text(file.name);
           $removeBtn.show();
 
@@ -868,7 +907,7 @@ jQuery(document).ready(function ($) {
       const $removeBtn = $slot.find(".jpm-upload-remove");
       const file = this.files[0];
 
-      if (file && file.type.startsWith("image/")) {
+      if (file && jpmAllowedPictureFile(file)) {
         const reader = new FileReader();
         reader.onload = function (e) {
           $preview.html('<img src="' + e.target.result + '" alt="Preview">');
@@ -877,7 +916,9 @@ jQuery(document).ready(function ($) {
         };
         reader.readAsDataURL(file);
       } else {
-        alert("Please select a valid image file.");
+        alert(
+          "Please select a WEBP, JPG, or PNG image."
+        );
         $input.val("");
       }
     });

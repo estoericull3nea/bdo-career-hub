@@ -221,6 +221,43 @@ class JPM_Form_Builder
     }
 
     /**
+     * Picture-style file fields (2x2, headshot, etc.) — must match server-side upload kind.
+     *
+     * @param array $field
+     * @return bool
+     */
+    private function is_file_field_picture(array $field)
+    {
+        $name = isset($field['name']) ? (string) $field['name'] : '';
+        $label = isset($field['label']) ? (string) $field['label'] : '';
+
+        return stripos($name, 'picture') !== false
+            || stripos($name, 'photo') !== false
+            || stripos($name, 'image') !== false
+            || stripos($label, 'picture') !== false
+            || stripos($label, 'photo') !== false
+            || stripos($label, 'image') !== false;
+    }
+
+    /**
+     * @param array $field
+     * @return string 'photo'|'resume'|'documents'
+     */
+    private function get_file_field_upload_kind(array $field)
+    {
+        if ($this->is_file_field_picture($field)) {
+            return 'photo';
+        }
+
+        $name = strtolower((string) ($field['name'] ?? ''));
+        if ($name === 'resume' || $name === 'resume_upload' || strpos($name, 'resume') !== false) {
+            return 'resume';
+        }
+
+        return 'documents';
+    }
+
+    /**
      * Render field editor
      */
     private function render_field_editor($field, $index)
@@ -526,7 +563,7 @@ class JPM_Form_Builder
             <div class="jpm-thank-you-message" style="display: none;">
                 <div class="jpm-thank-you-icon">
                     <div class="jpm-checkmark-circle">
-                        <span class="jpm-checkmark">âœ“</span>
+                        <span class="jpm-checkmark">&#10003;</span>
                     </div>
                 </div>
                 <h2 class="jpm-thank-you-title"><?php esc_html_e('Thank You for Your Application!', 'job-posting-manager'); ?>
@@ -1584,20 +1621,14 @@ class JPM_Form_Builder
                 return $options_html;
 
             case 'file':
-                // Check if this is a picture/photo field
-                $is_picture = stripos($field['name'], 'picture') !== false ||
-                    stripos($field['name'], 'photo') !== false ||
-                    stripos($field['name'], 'image') !== false ||
-                    stripos($field['label'], 'picture') !== false ||
-                    stripos($field['label'], 'photo') !== false ||
-                    stripos($field['label'], 'image') !== false;
+                $is_picture = $this->is_file_field_picture($field);
 
                 if ($is_picture) {
                     // Single photo upload (Photo 1 only)
                     $required_attr = $required ? 'required' : '';
                     return sprintf(
                         '<div class="jpm-picture-upload-container">
-                            <input type="file" id="%1$s" name="%2$s" class="jpm-form-field jpm-file-input jpm-picture-input" accept="image/*" %3$s style="display: none;">
+                            <input type="file" id="%1$s" name="%2$s" class="jpm-form-field jpm-file-input jpm-picture-input" accept="image/webp,image/jpeg,image/png,.webp,.jpg,.jpeg,.png" %3$s style="display: none;">
                             <div class="jpm-upload-slot jpm-single-photo" data-slot="1">
                                 <label for="%1$s" class="jpm-upload-label">
                                     <span class="jpm-upload-icon dashicons dashicons-camera-alt" aria-hidden="true"></span>
@@ -1616,7 +1647,11 @@ class JPM_Form_Builder
                         esc_attr__('Remove photo', 'job-posting-manager')
                     );
                 } else {
-                    // Regular file upload
+                    // Regular file upload (resume: PDF/DOCX only in UI)
+                    $file_attrs = $required;
+                    if ($this->get_file_field_upload_kind($field) === 'resume') {
+                        $file_attrs = trim($required . ' accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"');
+                    }
                     return sprintf(
                         '<div class="jpm-file-upload-wrapper">
                             <input type="file" id="%1$s" name="%2$s" class="jpm-form-field jpm-file-input" %3$s style="display: none;">
@@ -1630,7 +1665,7 @@ class JPM_Form_Builder
                         </div>',
                         $field_id,
                         $field_name,
-                        $required,
+                        $file_attrs,
                         esc_html__('Choose File', 'job-posting-manager'),
                         esc_html__('Remove', 'job-posting-manager')
                     );
@@ -1861,8 +1896,8 @@ class JPM_Form_Builder
                         'size' => $_FILES['jpm_fields']['size'][$field_name]
                     ];
 
-                    // Validate file upload
-                    $file_validation = JPM_Security::validate_file_upload($file, [], 10485760); // 10MB max
+                    // Validate file upload (photo vs resume vs generic documents)
+                    $file_validation = JPM_Security::validate_file_upload($file, [], 10485760, $this->get_file_field_upload_kind($field)); // 10MB max
                     if (!$file_validation['valid']) {
                         wp_send_json_error(['message' => sprintf(__('File upload error for %s: %s', 'job-posting-manager'), $field['label'], $file_validation['error'])]);
                         return;
