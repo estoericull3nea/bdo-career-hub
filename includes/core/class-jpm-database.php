@@ -29,6 +29,34 @@ class JPM_Database
     }
 
     /**
+     * Turn stored form data values into one lowercase string for search (arrays from repeaters, checkboxes, etc.).
+     *
+     * @param mixed $value
+     * @return string
+     */
+    private static function form_value_to_search_string($value)
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        if (is_scalar($value)) {
+            return strtolower((string) $value);
+        }
+        if (is_array($value)) {
+            $parts = [];
+            array_walk_recursive($value, static function ($v) use (&$parts) {
+                if (is_scalar($v) && (string) $v !== '') {
+                    $parts[] = (string) $v;
+                }
+            });
+
+            return strtolower(implode(' ', $parts));
+        }
+
+        return '';
+    }
+
+    /**
      * Create database tables
      */
     public static function create_tables()
@@ -241,8 +269,8 @@ class JPM_Database
             // Check each search field
             foreach ($search_fields as $field_name) {
                 if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
-                    $field_value = strtolower(strval($form_data[$field_name]));
-                    if (strpos($field_value, $search_term) !== false) {
+                    $field_value = self::form_value_to_search_string($form_data[$field_name]);
+                    if ($field_value !== '' && strpos($field_value, $search_term) !== false) {
                         $match = true;
                         break;
                     }
@@ -252,11 +280,11 @@ class JPM_Database
             // Also try case-insensitive partial matching on all form data
             if (!$match) {
                 foreach ($form_data as $field_name => $field_value) {
-                    $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', $field_name));
-                    $field_value_lower = strtolower(strval($field_value));
+                    $field_name_lower = strtolower(str_replace(['_', '-', ' '], '', (string) $field_name));
+                    $field_value_lower = self::form_value_to_search_string($field_value);
 
                     if (in_array($field_name_lower, ['firstname', 'fname', 'givenname', 'given', 'middlename', 'mname', 'middle', 'lastname', 'lname', 'surname', 'familyname', 'family', 'email', 'applicationnumber'])) {
-                        if (strpos($field_value_lower, $search_term) !== false) {
+                        if ($field_value_lower !== '' && strpos($field_value_lower, $search_term) !== false) {
                             $match = true;
                             break;
                         }
