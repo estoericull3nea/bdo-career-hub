@@ -50,6 +50,7 @@ class JPM_Admin
         add_action('admin_post_jpm_update_expiration', [$this, 'handle_update_expiration']);
         add_action('admin_post_jpm_mark_expired', [$this, 'handle_mark_expired']);
         add_action('admin_post_jpm_delete_job', [$this, 'handle_delete_job']);
+        add_action('admin_post_jpm_delete_application', [$this, 'handle_delete_application']);
 
         // Removed cache-related hooks
     }
@@ -241,6 +242,62 @@ class JPM_Admin
                 admin_url('admin.php')
             )
         );
+        exit;
+    }
+
+    /**
+     * Permanently delete a single application from the Applications screen.
+     */
+    public function handle_delete_application()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_delete_application_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_delete_application_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_delete_application')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
+
+        $redirect_args = [
+            'page' => 'jpm-applications',
+            'application_delete_error' => '1',
+        ];
+        if (isset($_POST['jpm_return_search']) && $_POST['jpm_return_search'] !== '') {
+            $redirect_args['search'] = sanitize_text_field(wp_unslash($_POST['jpm_return_search']));
+        }
+        if (isset($_POST['jpm_return_job_id'])) {
+            $rj = absint(wp_unslash($_POST['jpm_return_job_id']));
+            if ($rj > 0) {
+                $redirect_args['job_id'] = $rj;
+            }
+        }
+        if (isset($_POST['jpm_return_status']) && $_POST['jpm_return_status'] !== '') {
+            $redirect_args['status'] = sanitize_text_field(wp_unslash($_POST['jpm_return_status']));
+        }
+
+        if ($application_id <= 0) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $application = JPM_Database::get_application($application_id);
+        if (!$application) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $deleted = JPM_DB::delete_application($application_id);
+        if (!$deleted) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        unset($redirect_args['application_delete_error']);
+        $redirect_args['application_deleted'] = '1';
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
 
@@ -1286,6 +1343,17 @@ class JPM_Admin
         <div class="wrap">
             <h1><?php esc_html_e('Applications', 'job-posting-manager'); ?></h1>
 
+            <?php if (!empty($_GET['application_deleted'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Application deleted.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($_GET['application_delete_error'])): ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php esc_html_e('Could not delete that application.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+
             <?php if ($has_applications): ?>
                 <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
                     <form method="get" action="">
@@ -1495,6 +1563,20 @@ class JPM_Admin
                                                 <?php esc_html_e('View Requirements', 'job-posting-manager'); ?>
                                             </button>
                                         <?php endif; ?>
+                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                            style="display: inline-block; margin: 0;">
+                                            <?php wp_nonce_field('jpm_delete_application', 'jpm_delete_application_nonce'); ?>
+                                            <input type="hidden" name="action" value="jpm_delete_application">
+                                            <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
+                                            <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                                            <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                            <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
+                                            <button type="submit" class="button button-small"
+                                                style="border-color: #b32d2e; color: #b32d2e;"
+                                                onclick="return confirm('<?php echo esc_js(__('Delete this application permanently? This cannot be undone.', 'job-posting-manager')); ?>');">
+                                                <?php esc_html_e('Delete', 'job-posting-manager'); ?>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

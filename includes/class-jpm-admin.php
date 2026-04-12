@@ -48,6 +48,15 @@ class JPM_DB
     }
 
     /**
+     * Delete an application by ID.
+     * Delegates to JPM_Database
+     */
+    public static function delete_application($id)
+    {
+        return JPM_Database::delete_application($id);
+    }
+
+    /**
      * Get all statuses with full information
      * Delegates to JPM_Status_Manager
      */
