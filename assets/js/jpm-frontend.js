@@ -4,11 +4,15 @@ jQuery(document).ready(function ($) {
     const $form = $("#jpm-application-form");
     if ($form.length === 0) return;
 
-    const $steps = $(".jpm-form-step");
-    const $stepperNav = $(".jpm-stepper-navigation .jpm-stepper-step");
-    const $prevBtn = $(".jpm-btn-prev");
-    const $nextBtn = $(".jpm-btn-next");
-    const $submitBtn = $(".jpm-btn-submit");
+    // Scope step/controls to this specific application form to avoid collisions
+    // with other elements on the page.
+    const $steps = $form.find(".jpm-form-step");
+    const $stepperNav = $form
+      .closest(".jpm-application-form-wrapper")
+      .find(".jpm-stepper-navigation .jpm-stepper-step");
+    const $prevBtn = $form.find(".jpm-btn-prev");
+    const $nextBtn = $form.find(".jpm-btn-next");
+    const $submitBtn = $form.find(".jpm-btn-submit");
 
     // Step 0 is application info (always visible), form steps start at 1
     // Summary step is the last step
@@ -25,9 +29,13 @@ jQuery(document).ready(function ($) {
       currentStep = 1;
     }
 
-    // Function to go to a specific step (step 0 is always visible)
-    function goToStep(stepIndex) {
+    // Function to go to a specific step (step 0 is always visible).
+    // shouldScroll: pass false on first paint so the page does not jump to the form (job content stays in view).
+    function goToStep(stepIndex, shouldScroll) {
       if (stepIndex < 1 || stepIndex >= totalSteps) return;
+      if (typeof shouldScroll === "undefined") {
+        shouldScroll = true;
+      }
 
       // Hide all form steps (but keep step 0 visible)
       $steps.not('[data-step="0"]').removeClass("active").hide();
@@ -77,13 +85,14 @@ jQuery(document).ready(function ($) {
 
       currentStep = stepIndex;
 
-      // Scroll to top of form
-      $("html, body").animate(
-        {
-          scrollTop: $form.offset().top - 100,
-        },
-        300
-      );
+      if (shouldScroll) {
+        $("html, body").animate(
+          {
+            scrollTop: $form.offset().top - 100,
+          },
+          300
+        );
+      }
     }
 
     // Populate summary with form values
@@ -493,8 +502,8 @@ jQuery(document).ready(function ($) {
       return isValid;
     }
 
-    // Initialize stepper
-    goToStep(currentStep);
+    // Initialize stepper (do not scroll — user should read job details from the top first)
+    goToStep(currentStep, false);
   }
 
   // Initialize stepper on page load
@@ -798,6 +807,33 @@ jQuery(document).ready(function ($) {
 
   // File Upload Preview Functionality
   function initFileUploads() {
+    function jpmAllowedPictureFile(file) {
+      if (!file || !file.name) {
+        return false;
+      }
+      const ext = file.name.split(".").pop().toLowerCase();
+      const okExt = ["webp", "jpg", "jpeg", "png"].indexOf(ext) !== -1;
+      const okMime =
+        file.type === "image/webp" ||
+        file.type === "image/jpeg" ||
+        file.type === "image/png" ||
+        file.type === "image/jpg";
+      return okExt || okMime;
+    }
+
+    function jpmAllowedResumeFile(file) {
+      if (!file || !file.name) {
+        return false;
+      }
+      const ext = file.name.split(".").pop().toLowerCase();
+      const okExt = ext === "pdf" || ext === "docx";
+      const okMime =
+        file.type === "application/pdf" ||
+        file.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      return okExt || okMime;
+    }
+
     // Regular file uploads
     $(document).on(
       "change",
@@ -812,6 +848,18 @@ jQuery(document).ready(function ($) {
         const file = this.files[0];
 
         if (file) {
+          const nameAttr = ($input.attr("name") || "").toLowerCase();
+          if (nameAttr.indexOf("resume") !== -1 && !jpmAllowedResumeFile(file)) {
+            alert(
+              "Please upload a PDF or DOCX file for your resume/CV."
+            );
+            $input.val("");
+            $filename.text("");
+            $removeBtn.hide();
+            $preview.hide().empty();
+            return;
+          }
+
           $filename.text(file.name);
           $removeBtn.show();
 
@@ -859,7 +907,7 @@ jQuery(document).ready(function ($) {
       const $removeBtn = $slot.find(".jpm-upload-remove");
       const file = this.files[0];
 
-      if (file && file.type.startsWith("image/")) {
+      if (file && jpmAllowedPictureFile(file)) {
         const reader = new FileReader();
         reader.onload = function (e) {
           $preview.html('<img src="' + e.target.result + '" alt="Preview">');
@@ -868,7 +916,9 @@ jQuery(document).ready(function ($) {
         };
         reader.readAsDataURL(file);
       } else {
-        alert("Please select a valid image file.");
+        alert(
+          "Please select a WEBP, JPG, or PNG image."
+        );
         $input.val("");
       }
     });
@@ -901,7 +951,7 @@ jQuery(document).ready(function ($) {
     const $form = $("#jpm-application-form");
     if ($form.length === 0) return;
 
-    const $steps = $(".jpm-form-step");
+    const $steps = $form.find(".jpm-form-step");
     const totalSteps = $steps.length;
 
     $(document).on("click", ".jpm-summary-item", function () {
@@ -937,7 +987,9 @@ jQuery(document).ready(function ($) {
       // Navigate to the step containing this field
       if (targetStep > 0) {
         // Trigger the stepper navigation to go to that step
-        const $stepperNav = $(".jpm-stepper-navigation .jpm-stepper-step");
+        const $stepperNav = $form
+          .closest(".jpm-application-form-wrapper")
+          .find(".jpm-stepper-navigation .jpm-stepper-step");
         $stepperNav.each(function (index) {
           const navStepIndex = parseInt($(this).data("step"));
           const isSummaryNav = index === $stepperNav.length - 1;
@@ -1360,8 +1412,6 @@ jQuery(document).ready(function ($) {
   }, 30000);
 
   // Latest Jobs Modal Functionality
-  // Cache for job details
-  const jobDetailsCache = {};
 
   // Open modal on Quick View button click
   $(document).on("click", ".jpm-btn-quick-view", function (e) {
@@ -1381,14 +1431,6 @@ jQuery(document).ready(function ($) {
     $modal.addClass("active");
     $("body").css("overflow", "hidden");
 
-    // Check if job details are cached
-    if (jobDetailsCache[jobId]) {
-      // Use cached data
-      $loading.hide();
-      $content.html(jobDetailsCache[jobId]).fadeIn();
-      return;
-    }
-
     // Show loading, hide content
     $loading.show();
     $content.hide().empty();
@@ -1403,11 +1445,23 @@ jQuery(document).ready(function ($) {
         nonce: jpm_ajax.nonce,
       },
       success: function (response) {
+        // Be resilient to non-standard AJAX responses (e.g. noisy output).
+        if (typeof response === "string") {
+          try {
+            response = JSON.parse(response);
+          } catch (e) {
+            // If backend returned raw HTML, render it directly.
+            if (response && response.indexOf("<") !== -1) {
+              $loading.hide();
+              $content.html(response).fadeIn();
+              return;
+            }
+          }
+        }
+
         $loading.hide();
 
         if (response.success && response.data.html) {
-          // Cache the job details
-          jobDetailsCache[jobId] = response.data.html;
           $content.html(response.data.html).fadeIn();
         } else {
           const errorHtml =
@@ -1417,7 +1471,33 @@ jQuery(document).ready(function ($) {
           $content.html(errorHtml).fadeIn();
         }
       },
-      error: function () {
+      error: function (xhr) {
+        // Attempt recovery if server responded with parsable JSON inside noisy output.
+        var raw = (xhr && xhr.responseText) ? xhr.responseText : "";
+        if (raw) {
+          var start = raw.indexOf("{");
+          var end = raw.lastIndexOf("}");
+          if (start !== -1 && end > start) {
+            try {
+              var parsed = JSON.parse(raw.substring(start, end + 1));
+              if (parsed && parsed.success && parsed.data && parsed.data.html) {
+                $loading.hide();
+                $content.html(parsed.data.html).fadeIn();
+                return;
+              }
+              if (parsed && parsed.data && parsed.data.message) {
+                $loading.hide();
+                $content
+                  .html('<p class="jpm-error">' + parsed.data.message + "</p>")
+                  .fadeIn();
+                return;
+              }
+            } catch (e) {
+              // Fall through to generic error below.
+            }
+          }
+        }
+
         $loading.hide();
         const errorHtml =
           '<p class="jpm-error">An error occurred while loading job details. Please try again.</p>';
@@ -1482,6 +1562,13 @@ jQuery(document).ready(function ($) {
         nonce: jpm_ajax.nonce,
       },
       success: function (response) {
+        if (typeof response === "string") {
+          try {
+            response = JSON.parse(response);
+          } catch (e) {
+            // fall through to existing handling below
+          }
+        }
         // Hide search indicator
         $(".jpm-search-indicator").hide();
 
@@ -1525,7 +1612,45 @@ jQuery(document).ready(function ($) {
           );
         }
       },
-      error: function () {
+      error: function (xhr) {
+        // Try to recover from noisy output around JSON.
+        var raw = (xhr && xhr.responseText) ? xhr.responseText : "";
+        if (raw) {
+          var start = raw.indexOf("{");
+          var end = raw.lastIndexOf("}");
+          if (start !== -1 && end > start) {
+            try {
+              var parsed = JSON.parse(raw.substring(start, end + 1));
+              if (parsed && parsed.success && parsed.data) {
+                $(".jpm-search-indicator").hide();
+                if (parsed.data.html) {
+                  $jobsGrid.html(parsed.data.html);
+                } else {
+                  $jobsGrid.html(
+                    '<div class="jpm-no-jobs"><p>No jobs found matching your criteria.</p></div>'
+                  );
+                }
+                var total = parsed.data.total || 0;
+                var perPage = 12;
+                var currentPageNum = currentPage;
+                var startNum = (currentPageNum - 1) * perPage + 1;
+                var endNum = Math.min(currentPageNum * perPage, total);
+                if (total > 0) {
+                  $resultsCount.html(
+                    "<p>Showing " + startNum + "-" + endNum + " of " + total + " jobs</p>"
+                  );
+                } else {
+                  $resultsCount.html("<p>No jobs found.</p>");
+                }
+                updatePagination(parsed.data.pages || 1, currentPageNum);
+                updateURL(searchTerm, locationFilter, companyFilter, currentPageNum);
+                return;
+              }
+            } catch (e) {
+              // continue to generic error
+            }
+          }
+        }
         // Hide search indicator
         $(".jpm-search-indicator").hide();
         $jobsGrid.html(
@@ -1727,6 +1852,13 @@ jQuery(document).ready(function ($) {
           nonce: jpm_ajax.nonce,
         },
         success: function (response) {
+          if (typeof response === "string") {
+            try {
+              response = JSON.parse(response);
+            } catch (e) {
+              // fall through to existing handling below
+            }
+          }
           if (response.success) {
             if (response.data.html) {
               $jobsGrid.html(response.data.html);
@@ -1761,7 +1893,36 @@ jQuery(document).ready(function ($) {
             );
           }
         },
-        error: function () {
+        error: function (xhr) {
+          var raw = (xhr && xhr.responseText) ? xhr.responseText : "";
+          if (raw) {
+            var start = raw.indexOf("{");
+            var end = raw.lastIndexOf("}");
+            if (start !== -1 && end > start) {
+              try {
+                var parsed = JSON.parse(raw.substring(start, end + 1));
+                if (parsed && parsed.success && parsed.data && parsed.data.html) {
+                  $jobsGrid.html(parsed.data.html);
+                  const total = parsed.data.total || 0;
+                  const perPage = 12;
+                  const startNum = (page - 1) * perPage + 1;
+                  const endNum = Math.min(page * perPage, total);
+                  if (total > 0) {
+                    $resultsCount.html(
+                      "<p>Showing " + startNum + "-" + endNum + " of " + total + " jobs</p>"
+                    );
+                  } else {
+                    $resultsCount.html("<p>No jobs found.</p>");
+                  }
+                  updatePagination(parsed.data.pages || 1, parseInt(page));
+                  updateURL(search, location, company, parseInt(page));
+                  return;
+                }
+              } catch (e) {
+                // continue to generic error
+              }
+            }
+          }
           $jobsGrid.html(
             '<div class="jpm-no-jobs"><p>An error occurred. Please try again.</p></div>'
           );

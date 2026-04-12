@@ -1,4 +1,8 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * JPM_DB - Backward Compatibility Wrapper
  * 
@@ -41,6 +45,15 @@ class JPM_DB
     public static function get_applications($filters = [])
     {
         return JPM_Database::get_applications($filters);
+    }
+
+    /**
+     * Delete an application by ID.
+     * Delegates to JPM_Database
+     */
+    public static function delete_application($id)
+    {
+        return JPM_Database::delete_application($id);
     }
 
     /**

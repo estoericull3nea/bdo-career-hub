@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Job Posting Manager
  * Description: A plugin for managing job postings, applications, and notifications.
- * Version: 5.1.1
+ * Version: 5.2.1
  * Author: Ericson Palisoc
  * License: GPL v2 or later
  * Text Domain: job-posting-manager
@@ -59,8 +59,8 @@ function jpm_deactivate_plugin()
 add_action('wp_enqueue_scripts', 'jpm_enqueue_frontend_scripts');
 function jpm_enqueue_frontend_scripts()
 {
-    wp_enqueue_style('jpm-frontend-styles', JPM_PLUGIN_URL . 'assets/css/jpm-frontend.css', [], JPM_VERSION);
-    wp_enqueue_script('jpm-frontend-js', JPM_PLUGIN_URL . 'assets/js/jpm-frontend.js', ['jquery'], JPM_VERSION, true);
+    wp_enqueue_style('jpm-frontend-styles', JPM_PLUGIN_URL . 'assets/css/jpm-frontend.css', [], time());
+    wp_enqueue_script('jpm-frontend-js', JPM_PLUGIN_URL . 'assets/js/jpm-frontend.js', ['jquery'], time(), true);
     wp_localize_script('jpm-frontend-js', 'jpm_ajax', [
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('jpm_nonce')
@@ -93,20 +93,20 @@ function jpm_enqueue_admin_scripts($hook)
     }
 
     if ($is_jpm_page || $is_job_posting) {
-        wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-admin.css', [], JPM_VERSION);
+        wp_enqueue_style('jpm-admin-styles', JPM_PLUGIN_URL . 'assets/css/jpm-admin.css', [], time());
         wp_enqueue_script('jquery-ui-draggable');
         wp_enqueue_script('jquery-ui-droppable');
 
         // Enqueue form builder components in dependency order
-        wp_enqueue_script('jpm-form-builder-utils', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-utils.js', ['jquery'], JPM_VERSION, true);
-        wp_enqueue_script('jpm-form-builder-fields', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-fields.js', ['jquery', 'jpm-form-builder-utils'], JPM_VERSION, true);
-        wp_enqueue_script('jpm-form-builder-layout', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-layout.js', ['jquery', 'jpm-form-builder-utils'], JPM_VERSION, true);
-        wp_enqueue_script('jpm-form-builder-dragdrop', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-dragdrop.js', ['jquery', 'jquery-ui-draggable', 'jquery-ui-droppable', 'jpm-form-builder-utils', 'jpm-form-builder-layout'], JPM_VERSION, true);
-        wp_enqueue_script('jpm-form-builder-persistence', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-persistence.js', ['jquery'], JPM_VERSION, true);
-        wp_enqueue_script('jpm-form-builder-core', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-core.js', ['jquery', 'jpm-form-builder-utils', 'jpm-form-builder-fields', 'jpm-form-builder-layout', 'jpm-form-builder-dragdrop', 'jpm-form-builder-persistence'], JPM_VERSION, true);
+        wp_enqueue_script('jpm-form-builder-utils', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-utils.js', ['jquery'], time(), true);
+        wp_enqueue_script('jpm-form-builder-fields', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-fields.js', ['jquery', 'jpm-form-builder-utils'], time(), true);
+        wp_enqueue_script('jpm-form-builder-layout', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-layout.js', ['jquery', 'jpm-form-builder-utils'], time(), true);
+        wp_enqueue_script('jpm-form-builder-dragdrop', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-dragdrop.js', ['jquery', 'jquery-ui-draggable', 'jquery-ui-droppable', 'jpm-form-builder-utils', 'jpm-form-builder-layout'], time(), true);
+        wp_enqueue_script('jpm-form-builder-persistence', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-persistence.js', ['jquery'], time(), true);
+        wp_enqueue_script('jpm-form-builder-core', JPM_PLUGIN_URL . 'assets/js/components/jpm-form-builder-core.js', ['jquery', 'jpm-form-builder-utils', 'jpm-form-builder-fields', 'jpm-form-builder-layout', 'jpm-form-builder-dragdrop', 'jpm-form-builder-persistence'], time(), true);
 
         // Main admin script (loads last)
-        wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jpm-form-builder-core'], JPM_VERSION, true);
+        wp_enqueue_script('jpm-admin-js', JPM_PLUGIN_URL . 'assets/js/jpm-admin.js', ['jquery', 'jpm-form-builder-core'], time(), true);
         wp_localize_script('jpm-admin-js', 'jpm_ajax', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('jpm_nonce')

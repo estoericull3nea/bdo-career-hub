@@ -1,4 +1,8 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Template Management Class
  * Handles form templates for job applications
@@ -42,37 +46,37 @@ class JPM_Templates {
         }
         ?>
         <div class="wrap">
-            <h1><?php _e('Form Templates', 'job-posting-manager'); ?></h1>
+            <h1><?php esc_html_e('Form Templates', 'job-posting-manager'); ?></h1>
             
             <div class="jpm-templates-wrapper">
                 <div class="jpm-templates-list">
-                    <h2><?php _e('Available Templates', 'job-posting-manager'); ?></h2>
-                    <a href="<?php echo admin_url('admin.php?page=jpm-templates&edit=0'); ?>" class="button button-primary">
-                        <?php _e('+ Create New Template', 'job-posting-manager'); ?>
+                    <h2><?php esc_html_e('Available Templates', 'job-posting-manager'); ?></h2>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-templates&edit=0')); ?>" class="button button-primary">
+                        <?php esc_html_e('+ Create New Template', 'job-posting-manager'); ?>
                     </a>
                     
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
                             <tr>
-                                <th><?php _e('Template Name', 'job-posting-manager'); ?></th>
-                                <th><?php _e('Fields', 'job-posting-manager'); ?></th>
-                                <th><?php _e('Default', 'job-posting-manager'); ?></th>
-                                <th><?php _e('Actions', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Template Name', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Fields', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Default', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($templates as $template): ?>
                                 <tr>
                                     <td><strong><?php echo esc_html($template['name']); ?></strong></td>
-                                    <td><?php echo count($template['fields']); ?> <?php _e('fields', 'job-posting-manager'); ?></td>
-                                    <td><?php echo !empty($template['is_default']) ? __('Yes', 'job-posting-manager') : __('No', 'job-posting-manager'); ?></td>
+                                    <td><?php echo esc_html(absint(count($template['fields']))); ?> <?php esc_html_e('fields', 'job-posting-manager'); ?></td>
+                                    <td><?php echo !empty($template['is_default']) ? esc_html__('Yes', 'job-posting-manager') : esc_html__('No', 'job-posting-manager'); ?></td>
                                     <td>
-                                        <a href="<?php echo admin_url('admin.php?page=jpm-templates&edit=' . $template['id']); ?>" class="button button-small">
-                                            <?php _e('Edit', 'job-posting-manager'); ?>
+                                        <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-templates&edit=' . absint($template['id']))); ?>" class="button button-small">
+                                            <?php esc_html_e('Edit', 'job-posting-manager'); ?>
                                         </a>
                                         <?php if (empty($template['is_default'])): ?>
-                                            <button type="button" class="button button-small jpm-delete-template" data-id="<?php echo $template['id']; ?>">
-                                                <?php _e('Delete', 'job-posting-manager'); ?>
+                                            <button type="button" class="button button-small jpm-delete-template" data-id="<?php echo esc_attr(absint($template['id'])); ?>">
+                                                <?php esc_html_e('Delete', 'job-posting-manager'); ?>
                                             </button>
                                         <?php endif; ?>
                                     </td>
@@ -110,22 +114,22 @@ class JPM_Templates {
         ?>
         <p>
             <label for="jpm_template_select">
-                <?php _e('Select a template to auto-populate form fields:', 'job-posting-manager'); ?>
+                <?php esc_html_e('Select a template to auto-populate form fields:', 'job-posting-manager'); ?>
             </label>
             <select name="jpm_selected_template" id="jpm_template_select" style="width: 100%;">
-                <option value=""><?php _e('-- Select Template --', 'job-posting-manager'); ?></option>
+                <option value=""><?php esc_html_e('-- Select Template --', 'job-posting-manager'); ?></option>
                 <?php foreach ($templates as $template): ?>
                     <option value="<?php echo esc_attr($template['id']); ?>" <?php selected($selected_template, $template['id']); ?>>
                         <?php echo esc_html($template['name']); ?>
                         <?php if (!empty($template['is_default'])): ?>
-                            (<?php _e('Default', 'job-posting-manager'); ?>)
+                            (<?php esc_html_e('Default', 'job-posting-manager'); ?>)
                         <?php endif; ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </p>
         <p class="description">
-            <?php _e('When you save this job, the selected template will be applied to create the application form.', 'job-posting-manager'); ?>
+            <?php esc_html_e('When you save this job, the selected template will be applied to create the application form.', 'job-posting-manager'); ?>
         </p>
         <?php
     }
@@ -180,11 +184,11 @@ class JPM_Templates {
         // Apply template if selected
         if (isset($_POST['jpm_selected_template']) && !empty($_POST['jpm_selected_template'])) {
             // Verify nonce if it exists
-            if (isset($_POST['jpm_template_selector_nonce']) && !wp_verify_nonce($_POST['jpm_template_selector_nonce'], 'jpm_template_selector')) {
+            if (isset($_POST['jpm_template_selector_nonce']) && !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['jpm_template_selector_nonce'])), 'jpm_template_selector')) {
                 return;
             }
             
-            $template_id = intval($_POST['jpm_selected_template']);
+            $template_id = absint(wp_unslash($_POST['jpm_selected_template']));
             $template = $this->get_template($template_id);
             
             if ($template && !empty($template['fields'])) {
@@ -247,6 +251,18 @@ class JPM_Templates {
                     if ($has_old_fields) {
                         $templates[$index]['fields'] = $this->get_default_template_fields();
                         update_option('jpm_form_templates', $templates);
+                        update_option('jpm_default_template_fields_version', 2);
+                    } else {
+                        $fields_version = (int) get_option('jpm_default_template_fields_version', 1);
+                        if ($fields_version < 2) {
+                            $templates[$index]['fields'] = $this->ensure_default_top_upload_fields(
+                                isset($templates[$index]['fields']) && is_array($templates[$index]['fields'])
+                                    ? $templates[$index]['fields']
+                                    : []
+                            );
+                            update_option('jpm_form_templates', $templates);
+                            update_option('jpm_default_template_fields_version', 2);
+                        }
                     }
                     break;
                 }
@@ -282,8 +298,55 @@ class JPM_Templates {
         
         $templates = [$default_template];
         update_option('jpm_form_templates', $templates);
-        
+        update_option('jpm_default_template_fields_version', 2);
+
         return $default_template;
+    }
+
+    /**
+     * Photo + resume rows always shown first on the default application form.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function get_default_template_top_upload_fields() {
+        return [
+            [
+                'type' => 'file',
+                'label' => '2x2 Picture',
+                'name' => 'applicant_photo_2x2',
+                'required' => true,
+                'placeholder' => '',
+                'options' => '',
+                'description' => '',
+                'column_width' => '6',
+            ],
+            [
+                'type' => 'file',
+                'label' => 'Upload Resume',
+                'name' => 'resume_upload',
+                'required' => true,
+                'placeholder' => '',
+                'options' => '',
+                'description' => '',
+                'column_width' => '6',
+            ],
+        ];
+    }
+
+    /**
+     * Put photo + resume at the top; drop duplicate entries elsewhere by field name.
+     *
+     * @param array<int, array<string, mixed>> $fields
+     * @return array<int, array<string, mixed>>
+     */
+    private function ensure_default_top_upload_fields(array $fields) {
+        $skip_names = ['applicant_photo_2x2', 'resume_upload'];
+        $rest = array_values(array_filter($fields, function ($f) use ($skip_names) {
+            $n = isset($f['name']) ? (string) $f['name'] : '';
+            return !in_array($n, $skip_names, true);
+        }));
+
+        return array_merge($this->get_default_template_top_upload_fields(), $rest);
     }
 
     /**
@@ -292,8 +355,10 @@ class JPM_Templates {
     private function get_default_template_fields() {
         // Position choice fields will be populated dynamically from available jobs
         // So we don't need to set options here - they'll be loaded when the form is rendered
-        
-        return [
+
+        return array_merge(
+            $this->get_default_template_top_upload_fields(),
+            [
             // POSITION APPLIED section
             [
                 'type' => 'select',
@@ -537,7 +602,8 @@ class JPM_Templates {
                 'description' => '',
                 'column_width' => '4'
             ],
-        ];
+            ]
+        );
     }
 
     /**
@@ -545,7 +611,7 @@ class JPM_Templates {
      */
     public function ajax_save_template() {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed', 'job-posting-manager')]);
         }
         
@@ -553,9 +619,13 @@ class JPM_Templates {
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $template_id = intval($_POST['template_id'] ?? 0);
-        $template_name = sanitize_text_field($_POST['template_name'] ?? '');
-        $form_fields = json_decode(stripslashes($_POST['form_fields'] ?? '[]'), true);
+        $template_id = isset($_POST['template_id']) ? absint(wp_unslash($_POST['template_id'])) : 0;
+        $template_name = isset($_POST['template_name']) ? sanitize_text_field(wp_unslash($_POST['template_name'])) : '';
+        $form_fields_json = isset($_POST['form_fields']) ? wp_unslash($_POST['form_fields']) : '[]';
+        $form_fields = json_decode($form_fields_json, true);
+        if (!is_array($form_fields)) {
+            $form_fields = [];
+        }
 
         if (empty($template_name)) {
             wp_send_json_error(['message' => __('Template name is required', 'job-posting-manager')]);
@@ -597,7 +667,7 @@ class JPM_Templates {
      */
     public function ajax_delete_template() {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed', 'job-posting-manager')]);
         }
         
@@ -605,7 +675,7 @@ class JPM_Templates {
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $template_id = intval($_POST['template_id'] ?? 0);
+        $template_id = isset($_POST['template_id']) ? absint(wp_unslash($_POST['template_id'])) : 0;
         
         $templates = $this->get_all_templates();
         $templates = array_filter($templates, function($template) use ($template_id) {
@@ -621,7 +691,7 @@ class JPM_Templates {
      */
     public function ajax_get_template() {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed', 'job-posting-manager')]);
         }
         
@@ -629,7 +699,7 @@ class JPM_Templates {
             wp_send_json_error(['message' => __('Permission denied', 'job-posting-manager')]);
         }
 
-        $template_id = intval($_POST['template_id'] ?? 0);
+        $template_id = isset($_POST['template_id']) ? absint(wp_unslash($_POST['template_id'])) : 0;
         $template = $this->get_template($template_id);
         
         if ($template) {
@@ -650,4 +720,5 @@ class JPM_Templates {
         }
     }
 }
+
 

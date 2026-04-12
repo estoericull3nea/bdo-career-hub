@@ -1,6 +1,87 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 class JPM_Frontend
 {
+    /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
+    /**
+     * Get cached IDs for non-expired published job posts.
+     *
+     * @return int[]
+     */
+    private function get_unexpired_job_ids()
+    {
+        global $wpdb;
+        // Stored expiration_date values are UNIX timestamps.
+        $now_timestamp = (string) current_time('timestamp');
+
+        $ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT DISTINCT p.ID
+                FROM {$wpdb->posts} p
+                LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+                WHERE p.post_type = %s
+                AND p.post_status = %s
+                AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)",
+                'job_posting',
+                'publish',
+                $now_timestamp
+            )
+        );
+
+        $ids = array_map('absint', (array) $ids);
+
+        return $ids;
+    }
+
+    /**
+     * Format salary with currency icon.
+     * Prefers `salary_currency` meta, otherwise infers from stored `salary` string.
+     */
+    private function format_salary($job_id, $salary_value = '')
+    {
+        $salary_value = $salary_value !== '' ? $salary_value : get_post_meta($job_id, 'salary', true);
+        if (empty($salary_value)) {
+            return '';
+        }
+
+        $currency = get_post_meta($job_id, 'salary_currency', true);
+        if (!in_array($currency, ['php', 'usd'], true)) {
+            if (strpos((string) $salary_value, '₱') !== false) {
+                $currency = 'php';
+            } elseif (strpos((string) $salary_value, '$') !== false) {
+                $currency = 'usd';
+            } else {
+                $currency = 'php';
+            }
+        }
+
+        $symbol = $currency === 'usd' ? '$' : '₱';
+        $amount = str_replace(['₱', '$'], '', (string) $salary_value);
+        $amount = trim($amount);
+
+        return !empty($amount) ? $symbol . $amount : '';
+    }
+
     public function __construct()
     {
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
@@ -42,6 +123,63 @@ class JPM_Frontend
 
         // Filter password reset email to use custom reset page
         add_filter('retrieve_password_message', [$this, 'customize_password_reset_email'], 10, 4);
+
+        // Fix 404 when a Page uses the same slug as the job CPT base (e.g. page "job-postings" + job "human-resources-coordinator").
+        add_filter('request', [$this, 'resolve_job_posting_pagename_conflict'], 5);
+    }
+
+    /**
+     * If WordPress matched /{job-base}/{job-slug}/ as a hierarchical Page path, no child page exists → 404.
+     * When a published job_posting with that slug exists, rewrite query vars to load the job instead.
+     *
+     * @param array $query_vars Query variables from WP parse.
+     * @return array
+     */
+    public function resolve_job_posting_pagename_conflict($query_vars)
+    {
+        if (is_admin()) {
+            return $query_vars;
+        }
+
+        $pagename = isset($query_vars['pagename']) ? (string) $query_vars['pagename'] : '';
+        if ($pagename === '') {
+            return $query_vars;
+        }
+
+        $pto = get_post_type_object('job_posting');
+        if (!$pto || empty($pto->public) || empty($pto->rewrite)) {
+            return $query_vars;
+        }
+
+        $slug_base = is_array($pto->rewrite) && !empty($pto->rewrite['slug'])
+            ? trim((string) $pto->rewrite['slug'], '/')
+            : 'job-postings';
+
+        if (!preg_match('#^' . preg_quote($slug_base, '#') . '/([^/]+)/?$#', $pagename, $matches)) {
+            return $query_vars;
+        }
+
+        $job_slug = $matches[1];
+        $job = get_posts([
+            'name' => $job_slug,
+            'post_type' => 'job_posting',
+            'post_status' => 'publish',
+            'posts_per_page' => 1,
+            'no_found_rows' => true,
+            'suppress_filters' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ]);
+
+        if (empty($job)) {
+            return $query_vars;
+        }
+
+        unset($query_vars['pagename'], $query_vars['page'], $query_vars['attachment'], $query_vars['error']);
+        $query_vars['post_type'] = 'job_posting';
+        $query_vars['name'] = $job_slug;
+
+        return $query_vars;
     }
 
     public function job_listings_shortcode($atts)
@@ -68,7 +206,7 @@ class JPM_Frontend
     public function handle_application()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_nonce', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_nonce', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -76,8 +214,9 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('application');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next attempt is allowed. */
                 'message' => sprintf(__('Too many applications. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -90,7 +229,7 @@ class JPM_Frontend
         }
 
         // Validate and sanitize inputs
-        $job_id = JPM_Security::validate_int($_POST['job_id'] ?? 0, 1);
+        $job_id = JPM_Security::validate_int(isset($_POST['job_id']) ? wp_unslash($_POST['job_id']) : 0, 1);
         if (!$job_id) {
             wp_send_json_error(['message' => __('Invalid job posting.', 'job-posting-manager')]);
             return;
@@ -103,15 +242,15 @@ class JPM_Frontend
             return;
         }
 
-        $cover_letter = JPM_Security::validate_textarea($_POST['cover_letter'] ?? '', 5000);
+        $cover_letter = JPM_Security::validate_textarea(isset($_POST['cover_letter']) ? wp_unslash($_POST['cover_letter']) : '', 5000);
 
         // Validate file upload
-        if (empty($_FILES['resume']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
+        if (!isset($_FILES['resume'], $_FILES['resume']['error']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
             wp_send_json_error(['message' => __('Please upload a valid resume file.', 'job-posting-manager')]);
             return;
         }
 
-        $file_validation = JPM_Security::validate_file_upload($_FILES['resume'], [], 5242880); // 5MB max
+        $file_validation = JPM_Security::validate_file_upload($_FILES['resume'], [], 5242880, 'resume'); // 5MB max; PDF/DOCX only
         if (!$file_validation['valid']) {
             wp_send_json_error(['message' => $file_validation['error']]);
             return;
@@ -184,25 +323,26 @@ class JPM_Frontend
             $view_all_url = home_url('/jobs/');
         }
 
-        // Query latest published jobs (exclude expired)
+        // Query latest published non-expired jobs.
+        $unexpired_job_ids = $this->get_unexpired_job_ids();
+        if (empty($unexpired_job_ids)) {
+            return '<p class="jpm-no-jobs">' . __('No jobs available at the moment.', 'job-posting-manager') . '</p>';
+        }
+
         $jobs = get_posts([
             'post_type' => 'job_posting',
             'posts_per_page' => $count,
             'post_status' => 'publish',
             'orderby' => 'date',
             'order' => 'DESC',
-            'meta_query' => [
-                $this->get_expiration_filter()
-            ]
+            'post__in' => $unexpired_job_ids,
         ]);
 
         if (empty($jobs)) {
             return '<p class="jpm-no-jobs">' . __('No jobs available at the moment.', 'job-posting-manager') . '</p>';
         }
 
-        // Optimize: Pre-fetch all post meta to avoid N+1 queries
-        $job_ids = wp_list_pluck($jobs, 'ID');
-        update_post_meta_cache($job_ids);
+        // Pre-fetching cache disabled
 
         ob_start();
         ?>
@@ -225,7 +365,7 @@ class JPM_Frontend
                 $post_status = get_post_status($job->ID);
                 $status_badge = '';
                 if ($post_status === 'publish') {
-                    $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
+                    $status_badge = '<span class="jpm-status-badge jpm-status-active">' . esc_html__('Active', 'job-posting-manager') . '</span>';
                 }
                 $time_remaining = $this->get_time_remaining($job->ID);
                 ?>
@@ -242,7 +382,7 @@ class JPM_Frontend
                                 <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a>
                             </h3>
                             <?php if (!empty($status_badge)): ?>
-                                <?php echo $status_badge; ?>
+                                <?php echo wp_kses_post($status_badge); ?>
                             <?php endif; ?>
                         </div>
                         <?php if (!empty($company_name)): ?>
@@ -255,7 +395,8 @@ class JPM_Frontend
                                         class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
-                                        class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
+                                        class="dashicons dashicons-money-alt"></i>
+                                    <?php echo esc_html($this->format_salary($job->ID, $salary)); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
@@ -275,9 +416,9 @@ class JPM_Frontend
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
-                                data-job-id="<?php echo esc_attr($job->ID); ?>"><?php _e('Quick View', 'job-posting-manager'); ?></button>
+                                data-job-id="<?php echo esc_attr($job->ID); ?>"><?php esc_html_e('Quick View', 'job-posting-manager'); ?></button>
                             <a href="<?php echo esc_url($job_link); ?>" class="jpm-btn jpm-btn-apply">
-                                <?php _e('Apply Now', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Apply Now', 'job-posting-manager'); ?>
                             </a>
                         </div>
                     </div>
@@ -288,7 +429,7 @@ class JPM_Frontend
         <?php if (!empty($view_all_url)): ?>
             <div class="jpm-view-all-jobs">
                 <a href="<?php echo esc_url($view_all_url); ?>" class="jpm-btn jpm-btn-view-all">
-                    <?php _e('View All Jobs', 'job-posting-manager'); ?>
+                    <?php esc_html_e('View All Jobs', 'job-posting-manager'); ?>
                 </a>
             </div>
         <?php endif; ?>
@@ -303,7 +444,7 @@ class JPM_Frontend
                 <div class="jpm-modal-body">
                     <div class="jpm-modal-loading">
                         <span class="spinner is-active"></span>
-                        <p><?php _e('Loading job details...', 'job-posting-manager'); ?></p>
+                        <p><?php esc_html_e('Loading job details...', 'job-posting-manager'); ?></p>
                     </div>
                     <div class="jpm-modal-job-content" style="display: none;"></div>
                 </div>
@@ -318,12 +459,13 @@ class JPM_Frontend
      */
     public function get_job_details()
     {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        // Verify nonce when provided (read-only endpoint fallback-safe)
+        $nonce = isset($_REQUEST['nonce']) ? sanitize_text_field(wp_unslash($_REQUEST['nonce'])) : '';
+        if (!empty($nonce) && !wp_verify_nonce($nonce, 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $job_id = intval($_POST['job_id'] ?? 0);
+        $job_id = isset($_REQUEST['job_id']) ? absint(wp_unslash($_REQUEST['job_id'])) : 0;
 
         if ($job_id <= 0) {
             wp_send_json_error(['message' => __('Invalid job ID.', 'job-posting-manager')]);
@@ -365,34 +507,34 @@ class JPM_Frontend
         </div>
 
         <div class="jpm-modal-job-details">
-            <h3><?php _e('Job Details', 'job-posting-manager'); ?></h3>
+            <h3><?php esc_html_e('Job Details', 'job-posting-manager'); ?></h3>
             <ul class="jpm-modal-job-details-list">
                 <?php if (!empty($location)): ?>
                     <li>
-                        <strong><?php _e('Location:', 'job-posting-manager'); ?></strong>
+                        <strong><?php esc_html_e('Location:', 'job-posting-manager'); ?></strong>
                         <span><?php echo esc_html($location); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($salary)): ?>
                     <li>
-                        <strong><?php _e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($salary); ?></span>
+                        <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
+                        <span><?php echo esc_html($this->format_salary($job_id, $salary)); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
                     <li>
-                        <strong><?php _e('Duration:', 'job-posting-manager'); ?></strong>
+                        <strong><?php esc_html_e('Duration:', 'job-posting-manager'); ?></strong>
                         <span><?php echo esc_html($duration); ?></span>
                     </li>
                 <?php endif; ?>
                 <li>
-                    <strong><?php _e('Posted Date:', 'job-posting-manager'); ?></strong>
+                    <strong><?php esc_html_e('Posted Date:', 'job-posting-manager'); ?></strong>
                     <span><?php echo esc_html(get_the_date('', $job_id)); ?></span>
                 </li>
                 <?php if ($time_remaining): ?>
                     <li>
                         <strong>
-                            <?php _e('Expiration:', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Expiration:', 'job-posting-manager'); ?>
                         </strong>
                         <span class="jpm-job-expiration-text"> <i class="dashicons dashicons-clock"></i>
                             <?php echo esc_html($time_remaining); ?>
@@ -403,7 +545,7 @@ class JPM_Frontend
         </div>
 
         <div class="jpm-modal-job-description">
-            <h3><?php _e('Job Description', 'job-posting-manager'); ?></h3>
+            <h3><?php esc_html_e('Job Description', 'job-posting-manager'); ?></h3>
             <div class="jpm-modal-job-content-text">
                 <?php echo wp_kses_post(apply_filters('the_content', $job->post_content)); ?>
             </div>
@@ -411,7 +553,7 @@ class JPM_Frontend
 
         <div class="jpm-modal-job-actions">
             <a href="<?php echo esc_url($job_link); ?>"
-                class="jpm-btn jpm-btn-apply jpm-btn-block"><?php _e('Apply Now', 'job-posting-manager'); ?></a>
+                class="jpm-btn jpm-btn-apply jpm-btn-block"><?php esc_html_e('Apply Now', 'job-posting-manager'); ?></a>
         </div>
         <?php
         $html = ob_get_clean();
@@ -435,12 +577,12 @@ class JPM_Frontend
         }
 
         // Get current page
-        $paged = isset($_GET['jpm_page']) ? max(1, intval($_GET['jpm_page'])) : 1;
+        $paged = isset($_GET['jpm_page']) ? max(1, absint(wp_unslash($_GET['jpm_page']))) : 1;
 
         // Get filter values
-        $search = isset($_GET['jpm_search']) ? sanitize_text_field($_GET['jpm_search']) : '';
-        $location_filter = isset($_GET['jpm_location']) ? sanitize_text_field($_GET['jpm_location']) : '';
-        $company_filter = isset($_GET['jpm_company']) ? sanitize_text_field($_GET['jpm_company']) : '';
+        $search = isset($_GET['jpm_search']) ? sanitize_text_field(wp_unslash($_GET['jpm_search'])) : '';
+        $location_filter = isset($_GET['jpm_location']) ? sanitize_text_field(wp_unslash($_GET['jpm_location'])) : '';
+        $company_filter = isset($_GET['jpm_company']) ? sanitize_text_field(wp_unslash($_GET['jpm_company'])) : '';
 
         // Query jobs with filters
         $args = [
@@ -457,11 +599,15 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
-        // Add meta query for location, company filters, and expiration
-        $meta_query = [];
+        // Restrict results to non-expired jobs.
+        $unexpired_job_ids = $this->get_unexpired_job_ids();
+        if (empty($unexpired_job_ids)) {
+            return '<div class="jpm-no-jobs-container"><p class="jpm-no-jobs-message">' . esc_html__('No jobs found matching your criteria.', 'job-posting-manager') . '</p></div>';
+        }
+        $args['post__in'] = $unexpired_job_ids;
 
-        // Add expiration filter (exclude expired jobs)
-        $meta_query[] = $this->get_expiration_filter();
+        // Add meta query for location/company filters only.
+        $meta_query = [];
 
         if (!empty($location_filter)) {
             $meta_query[] = [
@@ -478,7 +624,7 @@ class JPM_Frontend
             ];
         }
 
-        // Set relation to AND so all conditions must be met
+        // Set relation to AND so all conditions must be met.
         if (!empty($meta_query)) {
             if (count($meta_query) > 1) {
                 $args['meta_query'] = array_merge(
@@ -492,94 +638,44 @@ class JPM_Frontend
 
         $jobs_query = new WP_Query($args);
 
-        // Get unique locations and companies for filter dropdowns (only non-expired jobs)
-        // Optimized: Use direct SQL query instead of fetching all posts
+        // Get unique locations and companies for filter dropdowns (non-expired jobs only)
+        // Optimized: Use direct SQL query instead of fetching all posts.
         global $wpdb;
-        $expiration_filter = $this->get_expiration_filter();
-        $expiration_date = '';
-        if (!empty($expiration_filter) && isset($expiration_filter['value'])) {
-            $expiration_date = $expiration_filter['value'];
-        }
+        $now_timestamp = (string) current_time('timestamp');
 
-        // Cache key for locations and companies
-        $cache_key_locations = 'jpm_locations_' . md5($expiration_date);
-        $cache_key_companies = 'jpm_companies_' . md5($expiration_date);
+        $locations_query = $wpdb->prepare(
+            "
+            SELECT DISTINCT pm_loc.meta_value as location
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
+            LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+            WHERE p.post_type = 'job_posting'
+            AND p.post_status = 'publish'
+            AND pm_loc.meta_value != ''
+            AND pm_loc.meta_value IS NOT NULL
+            AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)
+            ORDER BY pm_loc.meta_value ASC",
+            $now_timestamp
+        );
+        $location_results = $wpdb->get_col($locations_query);
+        $locations = array_filter(array_map('trim', $location_results));
 
-        $locations = wp_cache_get($cache_key_locations, 'jpm_filters');
-        $companies = wp_cache_get($cache_key_companies, 'jpm_filters');
-
-        if (false === $locations || false === $companies) {
-            // Build expiration date condition
-            $expiration_condition = '';
-            if (!empty($expiration_date)) {
-                $expiration_condition = $wpdb->prepare(
-                    " AND pm_exp.meta_value >= %s",
-                    $expiration_date
-                );
-            }
-
-            // Get unique locations
-            if (!empty($expiration_date)) {
-                $locations_query = $wpdb->prepare(
-                    "SELECT DISTINCT pm_loc.meta_value as location
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
-                    LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_loc.meta_value != ''
-                    AND pm_loc.meta_value IS NOT NULL
-                    AND pm_exp.meta_value >= %s
-                    ORDER BY pm_loc.meta_value ASC",
-                    $expiration_date
-                );
-            } else {
-                $locations_query = "SELECT DISTINCT pm_loc.meta_value as location
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_loc ON p.ID = pm_loc.post_id AND pm_loc.meta_key = 'location'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_loc.meta_value != ''
-                    AND pm_loc.meta_value IS NOT NULL
-                    ORDER BY pm_loc.meta_value ASC";
-            }
-
-            $location_results = $wpdb->get_col($locations_query);
-            $locations = array_filter(array_map('trim', $location_results));
-
-            // Get unique companies
-            if (!empty($expiration_date)) {
-                $companies_query = $wpdb->prepare(
-                    "SELECT DISTINCT pm_comp.meta_value as company
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
-                    LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_comp.meta_value != ''
-                    AND pm_comp.meta_value IS NOT NULL
-                    AND pm_exp.meta_value >= %s
-                    ORDER BY pm_comp.meta_value ASC",
-                    $expiration_date
-                );
-            } else {
-                $companies_query = "SELECT DISTINCT pm_comp.meta_value as company
-                    FROM {$wpdb->posts} p
-                    INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
-                    WHERE p.post_type = 'job_posting'
-                    AND p.post_status = 'publish'
-                    AND pm_comp.meta_value != ''
-                    AND pm_comp.meta_value IS NOT NULL
-                    ORDER BY pm_comp.meta_value ASC";
-            }
-
-            $company_results = $wpdb->get_col($companies_query);
-            $companies = array_filter(array_map('trim', $company_results));
-
-            // Cache for 1 hour
-            wp_cache_set($cache_key_locations, $locations, 'jpm_filters', HOUR_IN_SECONDS);
-            wp_cache_set($cache_key_companies, $companies, 'jpm_filters', HOUR_IN_SECONDS);
-        }
+        $companies_query = $wpdb->prepare(
+            "
+            SELECT DISTINCT pm_comp.meta_value as company
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
+            LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
+            WHERE p.post_type = 'job_posting'
+            AND p.post_status = 'publish'
+            AND pm_comp.meta_value != ''
+            AND pm_comp.meta_value IS NOT NULL
+            AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)
+            ORDER BY pm_comp.meta_value ASC",
+            $now_timestamp
+        );
+        $company_results = $wpdb->get_col($companies_query);
+        $companies = array_filter(array_map('trim', $company_results));
 
         ob_start();
         ?>
@@ -589,20 +685,20 @@ class JPM_Frontend
                 <form method="get" action="" class="jpm-filter-form">
                     <div class="jpm-filter-row">
                         <div class="jpm-filter-group">
-                            <label for="jpm_search"><?php _e('Search', 'job-posting-manager'); ?></label>
+                            <label for="jpm_search"><?php esc_html_e('Search', 'job-posting-manager'); ?></label>
                             <input type="text" id="jpm_search" name="jpm_search" class="jpm-filter-input jpm-search-input"
                                 value="<?php echo esc_attr($search); ?>"
                                 placeholder="<?php esc_attr_e('Search by job title...', 'job-posting-manager'); ?>"
                                 autocomplete="off">
                             <span class="jpm-search-indicator"
                                 style="display: none; font-size: 0.85em; color: #666; margin-top: 5px;">
-                                <?php _e('Type to search...', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Type to search...', 'job-posting-manager'); ?>
                             </span>
                         </div>
                         <div class="jpm-filter-group">
-                            <label for="jpm_location"><?php _e('Location', 'job-posting-manager'); ?></label>
+                            <label for="jpm_location"><?php esc_html_e('Location', 'job-posting-manager'); ?></label>
                             <select id="jpm_location" name="jpm_location" class="jpm-filter-select">
-                                <option value=""><?php _e('All Locations', 'job-posting-manager'); ?></option>
+                                <option value=""><?php esc_html_e('All Locations', 'job-posting-manager'); ?></option>
                                 <?php foreach ($locations as $loc): ?>
                                     <option value="<?php echo esc_attr($loc); ?>" <?php selected($location_filter, $loc); ?>>
                                         <?php echo esc_html($loc); ?>
@@ -611,9 +707,9 @@ class JPM_Frontend
                             </select>
                         </div>
                         <div class="jpm-filter-group">
-                            <label for="jpm_company"><?php _e('Company', 'job-posting-manager'); ?></label>
+                            <label for="jpm_company"><?php esc_html_e('Company', 'job-posting-manager'); ?></label>
                             <select id="jpm_company" name="jpm_company" class="jpm-filter-select">
-                                <option value=""><?php _e('All Companies', 'job-posting-manager'); ?></option>
+                                <option value=""><?php esc_html_e('All Companies', 'job-posting-manager'); ?></option>
                                 <?php foreach ($companies as $comp): ?>
                                     <option value="<?php echo esc_attr($comp); ?>" <?php selected($company_filter, $comp); ?>>
                                         <?php echo esc_html($comp); ?>
@@ -623,11 +719,11 @@ class JPM_Frontend
                         </div>
                         <div class="jpm-filter-group jpm-filter-actions">
                             <button type="submit"
-                                class="jpm-btn jpm-btn-filter"><?php _e('Filter', 'job-posting-manager'); ?></button>
+                                class="jpm-btn jpm-btn-filter"><?php esc_html_e('Filter', 'job-posting-manager'); ?></button>
                             <?php if (!empty($search) || !empty($location_filter) || !empty($company_filter)): ?>
                                 <a href="<?php echo esc_url(remove_query_arg(['jpm_search', 'jpm_location', 'jpm_company', 'jpm_page'])); ?>"
                                     class="jpm-btn jpm-btn-reset">
-                                    <?php _e('Reset', 'job-posting-manager'); ?>
+                                    <?php esc_html_e('Reset', 'job-posting-manager'); ?>
                                 </a>
                             <?php endif; ?>
                         </div>
@@ -643,14 +739,15 @@ class JPM_Frontend
                     $start = ($paged - 1) * $per_page + 1;
                     $end = min($paged * $per_page, $total);
                     if ($total > 0) {
+                        /* translators: 1: First result number, 2: last result number, 3: total number of jobs. */
                         printf(
-                            __('Showing %d-%d of %d jobs', 'job-posting-manager'),
-                            $start,
-                            $end,
-                            $total
+                            __('Showing %1$d-%2$d of %3$d jobs', 'job-posting-manager'),
+                            absint($start),
+                            absint($end),
+                            absint($total)
                         );
                     } else {
-                        _e('No jobs found.', 'job-posting-manager');
+                        esc_html_e('No jobs found.', 'job-posting-manager');
                     }
                     ?>
                 </p>
@@ -665,9 +762,7 @@ class JPM_Frontend
                     $job_ids[] = get_the_ID();
                 }
                 $jobs_query->rewind_posts();
-                if (!empty($job_ids)) {
-                    update_post_meta_cache($job_ids);
-                }
+                // Pre-fetching cache disabled
                 ?>
                 <div class="jpm-latest-jobs">
                     <?php while ($jobs_query->have_posts()):
@@ -690,7 +785,7 @@ class JPM_Frontend
                         $post_status = get_post_status($job_id);
                         $status_badge = '';
                         if ($post_status === 'publish') {
-                            $status_badge = '<span class="jpm-status-badge jpm-status-active">' . __('Active', 'job-posting-manager') . '</span>';
+                            $status_badge = '<span class="jpm-status-badge jpm-status-active">' . esc_html__('Active', 'job-posting-manager') . '</span>';
                         }
                         $time_remaining = $this->get_time_remaining($job_id);
                         ?>
@@ -707,7 +802,7 @@ class JPM_Frontend
                                         <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
                                     </h3>
                                     <?php if (!empty($status_badge)): ?>
-                                        <?php echo $status_badge; ?>
+                                        <?php echo wp_kses_post($status_badge); ?>
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($company_name)): ?>
@@ -720,7 +815,8 @@ class JPM_Frontend
                                                 class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($salary)): ?> <span class="jpm-job-info-item"> <i
-                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
+                                                class="dashicons dashicons-money-alt"></i>
+                                            <?php echo esc_html($this->format_salary($job_id, $salary)); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
@@ -740,9 +836,9 @@ class JPM_Frontend
                                 </div>
                                 <div class="jpm-job-card-actions">
                                     <button type="button" class="jpm-btn jpm-btn-quick-view"
-                                        data-job-id="<?php echo esc_attr($job_id); ?>"><?php _e('Quick View', 'job-posting-manager'); ?></button>
+                                        data-job-id="<?php echo esc_attr($job_id); ?>"><?php esc_html_e('Quick View', 'job-posting-manager'); ?></button>
                                     <a href="<?php echo esc_url($job_link); ?>"
-                                        class="jpm-btn jpm-btn-apply"><?php _e('Apply Now', 'job-posting-manager'); ?></a>
+                                        class="jpm-btn jpm-btn-apply"><?php esc_html_e('Apply Now', 'job-posting-manager'); ?></a>
                                 </div>
                             </div>
                         </div>
@@ -758,17 +854,18 @@ class JPM_Frontend
                     ?>
                     <div class="jpm-jobs-pagination">
                         <?php
-                        echo paginate_links([
+                        $pagination_links = paginate_links([
                             'base' => str_replace('%#%', '%#%', $base_url),
                             'format' => '',
                             'current' => $paged,
                             'total' => $total_pages,
-                            'prev_text' => __('&laquo; Previous', 'job-posting-manager'),
-                            'next_text' => __('Next &raquo;', 'job-posting-manager'),
+                            'prev_text' => esc_html__('« Previous', 'job-posting-manager'),
+                            'next_text' => esc_html__('Next »', 'job-posting-manager'),
                             'type' => 'list',
                             'end_size' => 2,
                             'mid_size' => 1
                         ]);
+                        echo wp_kses_post($pagination_links);
                         ?>
                     </div>
                 <?php endif; ?>
@@ -776,7 +873,7 @@ class JPM_Frontend
                 <?php wp_reset_postdata(); ?>
             <?php else: ?>
                 <div class="jpm-no-jobs">
-                    <p><?php _e('No jobs found matching your criteria.', 'job-posting-manager'); ?></p>
+                    <p><?php esc_html_e('No jobs found matching your criteria.', 'job-posting-manager'); ?></p>
                 </div>
             <?php endif; ?>
         </div>
@@ -791,7 +888,7 @@ class JPM_Frontend
                 <div class="jpm-modal-body">
                     <div class="jpm-modal-loading">
                         <span class="spinner is-active"></span>
-                        <p><?php _e('Loading job details...', 'job-posting-manager'); ?></p>
+                        <p><?php esc_html_e('Loading job details...', 'job-posting-manager'); ?></p>
                     </div>
                     <div class="jpm-modal-job-content" style="display: none;"></div>
                 </div>
@@ -897,15 +994,15 @@ class JPM_Frontend
     public function filter_jobs_ajax()
     {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $per_page = intval($_POST['per_page'] ?? 12);
-        $paged = max(1, intval($_POST['paged'] ?? 1));
-        $search = sanitize_text_field($_POST['search'] ?? '');
-        $location_filter = sanitize_text_field($_POST['location'] ?? '');
-        $company_filter = sanitize_text_field($_POST['company'] ?? '');
+        $per_page = isset($_POST['per_page']) ? absint(wp_unslash($_POST['per_page'])) : 12;
+        $paged = isset($_POST['paged']) ? max(1, absint(wp_unslash($_POST['paged']))) : 1;
+        $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
+        $location_filter = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
+        $company_filter = isset($_POST['company']) ? sanitize_text_field(wp_unslash($_POST['company'])) : '';
 
         $args = [
             'post_type' => 'job_posting',
@@ -920,10 +1017,14 @@ class JPM_Frontend
             $args['s'] = $search;
         }
 
-        $meta_query = [];
+        // Restrict results to non-expired jobs.
+        $unexpired_job_ids = $this->get_unexpired_job_ids();
+        if (empty($unexpired_job_ids)) {
+            wp_send_json_success(['html' => '<div class="jpm-no-jobs-container"><p class="jpm-no-jobs-message">' . esc_html__('No jobs found matching your criteria.', 'job-posting-manager') . '</p></div>']);
+        }
+        $args['post__in'] = $unexpired_job_ids;
 
-        // Add expiration filter (exclude expired jobs)
-        $meta_query[] = $this->get_expiration_filter();
+        $meta_query = [];
 
         if (!empty($location_filter)) {
             $meta_query[] = [
@@ -940,7 +1041,7 @@ class JPM_Frontend
             ];
         }
 
-        // Set relation to AND so all conditions must be met
+        // Set relation to AND so all conditions must be met.
         if (!empty($meta_query)) {
             if (count($meta_query) > 1) {
                 $args['meta_query'] = array_merge(
@@ -963,9 +1064,7 @@ class JPM_Frontend
                 $job_ids[] = get_the_ID();
             }
             $jobs_query->rewind_posts();
-            if (!empty($job_ids)) {
-                update_post_meta_cache($job_ids);
-            }
+            // Pre-fetching cache disabled
 
             while ($jobs_query->have_posts()):
                 $jobs_query->the_post();
@@ -1012,7 +1111,7 @@ class JPM_Frontend
                             <?php if (!empty($salary)): ?>
                                 <span class="jpm-job-info-item">
                                     <i class="dashicons dashicons-money-alt"></i>
-                                    <?php echo esc_html($salary); ?>
+                                    <?php echo esc_html($this->format_salary($job_id, $salary)); ?>
                                 </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?>
@@ -1035,9 +1134,9 @@ class JPM_Frontend
                         </div>
                         <div class="jpm-job-card-actions">
                             <button type="button" class="jpm-btn jpm-btn-quick-view"
-                                data-job-id="<?php echo esc_attr($job_id); ?>"><?php _e('Quick View', 'job-posting-manager'); ?></button>
+                                data-job-id="<?php echo esc_attr($job_id); ?>"><?php esc_html_e('Quick View', 'job-posting-manager'); ?></button>
                             <a href="<?php echo esc_url($job_link); ?>"
-                                class="jpm-btn jpm-btn-apply"><?php _e('Apply Now', 'job-posting-manager'); ?></a>
+                                class="jpm-btn jpm-btn-apply"><?php esc_html_e('Apply Now', 'job-posting-manager'); ?></a>
                         </div>
                     </div>
                 </div>
@@ -1088,24 +1187,24 @@ class JPM_Frontend
             <div class="jpm-tracker-header">
                 <h2><?php echo esc_html($atts['title']); ?></h2>
                 <p class="jpm-tracker-intro">
-                    <?php _e('We understand the importance of staying informed about your job application status. This page provides you with real-time updates on your application, ensuring transparency throughout the hiring process. You can easily track where your application stands and what to expect next.', 'job-posting-manager'); ?>
+                    <?php esc_html_e('We understand the importance of staying informed about your job application status. This page provides you with real-time updates on your application, ensuring transparency throughout the hiring process. You can easily track where your application stands and what to expect next.', 'job-posting-manager'); ?>
                 </p>
                 <p class="jpm-tracker-description">
-                    <?php _e('To track your job application, just enter your application number below:', 'job-posting-manager'); ?>
+                    <?php esc_html_e('To track your job application, just enter your application number below:', 'job-posting-manager'); ?>
                 </p>
             </div>
 
             <form class="jpm-tracker-form" id="jpm-tracker-form">
                 <div class="jpm-form-group">
                     <label for="application_number">
-                        <?php _e('Application Number', 'job-posting-manager'); ?>
+                        <?php esc_html_e('Application Number', 'job-posting-manager'); ?>
                     </label>
                     <input type="text" id="application_number" name="application_number" class="jpm-input"
                         placeholder="<?php esc_attr_e('Enter your application number (e.g., 25-BDO-792*****)', 'job-posting-manager'); ?>"
                         required>
                 </div>
                 <button type="submit" class="jpm-btn jpm-btn-primary"><span
-                        class="jpm-btn-text"><?php _e('Track Application', 'job-posting-manager'); ?></span> <span
+                        class="jpm-btn-text"><?php esc_html_e('Track Application', 'job-posting-manager'); ?></span> <span
                         class="jpm-btn-spinner" style="display: none;"> <span class="spinner is-active"></span> </span>
                 </button>
             </form>
@@ -1114,7 +1213,7 @@ class JPM_Frontend
             <div class="jpm-tracker-results" id="jpm-tracker-results" style="display: none;"></div>
 
             <div class="jpm-tracker-footer" id="jpm-tracker-footer">
-                <h3 class="jpm-tracker-footer-title"><?php _e('Application Status:', 'job-posting-manager'); ?></h3>
+                <h3 class="jpm-tracker-footer-title"><?php esc_html_e('Application Status:', 'job-posting-manager'); ?></h3>
                 <div class="jpm-tracker-accordion">
                     <?php
                     // Get all statuses from database
@@ -1126,14 +1225,17 @@ class JPM_Frontend
                             // Use past tense for completed actions, present for ongoing
                             $status_lower = strtolower($status_name);
                             if (in_array($status_lower, ['accepted', 'rejected', 'reviewed'])) {
+                                /* translators: %s: Lowercase application status label. */
                                 $status_title = sprintf(__('Your application has been %s', 'job-posting-manager'), $status_lower);
                             } else {
+                                /* translators: %s: Lowercase application status label. */
                                 $status_title = sprintf(__('Your application is %s', 'job-posting-manager'), $status_lower);
                             }
 
                             // Get description, allow HTML for links
                             $status_description = isset($status['description']) && !empty($status['description'])
                                 ? $status['description']
+                                /* translators: %s: Lowercase application status label. */
                                 : sprintf(__('This means that your application status is %s.', 'job-posting-manager'), strtolower($status_name));
 
                             $accordion_id = 'jpm-status-accordion-' . $index;
@@ -1162,6 +1264,7 @@ class JPM_Frontend
                 <div class="jpm-tracker-footer-links">
                     <p class="jpm-tracker-footer-text">
                         <?php
+                        /* translators: %s: Link to the job listings page. */
                         printf(
                             __('No Application Number? Please proceed to the %s and start your job application.', 'job-posting-manager'),
                             '<a href="' . esc_url($jobs_listing_url) . '">' . __('Job Listings page', 'job-posting-manager') . '</a>'
@@ -1180,6 +1283,7 @@ class JPM_Frontend
                                     break;
                                 }
                             }
+                            /* translators: %s: Link to the login page. */
                             printf(
                                 __('Have an existing account? %s to login.', 'job-posting-manager'),
                                 '<a href="' . esc_url($login_url) . '">' . __('Click here', 'job-posting-manager') . '</a>'
@@ -1200,11 +1304,11 @@ class JPM_Frontend
     public function track_application_ajax()
     {
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'jpm_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
         }
 
-        $application_number_input = isset($_POST['application_number']) ? sanitize_text_field($_POST['application_number']) : '';
+        $application_number_input = isset($_POST['application_number']) ? sanitize_text_field(wp_unslash($_POST['application_number'])) : '';
 
         if (empty($application_number_input)) {
             wp_send_json_error(['message' => __('Please enter a valid application number.', 'job-posting-manager')]);
@@ -1228,21 +1332,23 @@ class JPM_Frontend
     private function get_application_by_number($application_number_input)
     {
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
+        $normalized_number = sanitize_text_field($application_number_input);
+        // No object cache
 
         // Search for application by application number in notes field
-        $search_term = '%' . $wpdb->esc_like($application_number_input) . '%';
+        $search_term = '%' . $wpdb->esc_like($normalized_number) . '%';
 
         // First try exact match with common field names
         $applications = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table WHERE notes LIKE %s",
-            '%"application_number":"' . $wpdb->esc_like($application_number_input) . '"%'
+            "SELECT * FROM {$table} WHERE notes LIKE %s",
+            '%"application_number":"' . $wpdb->esc_like($normalized_number) . '"%'
         ));
 
         // If not found, try other field name variations
         if (empty($applications)) {
             $applications = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM $table WHERE notes LIKE %s",
+                "SELECT * FROM {$table} WHERE notes LIKE %s",
                 $search_term
             ));
         }
@@ -1261,7 +1367,7 @@ class JPM_Frontend
                 if (isset($form_data[$field_name]) && !empty($form_data[$field_name])) {
                     $stored_app_number = sanitize_text_field($form_data[$field_name]);
                     // Case-insensitive comparison
-                    if (strcasecmp(trim($stored_app_number), trim($application_number_input)) === 0) {
+                    if (strcasecmp(trim($stored_app_number), trim($normalized_number)) === 0) {
                         return $app;
                     }
                 }
@@ -1362,29 +1468,29 @@ class JPM_Frontend
         ob_start();
         ?>
         <div class="jpm-tracker-section">
-            <h3><?php _e('Application Information', 'job-posting-manager'); ?></h3>
+            <h3><?php esc_html_e('Application Information', 'job-posting-manager'); ?></h3>
             <div class="jpm-tracker-info-grid">
                 <div class="jpm-tracker-info-row">
-                    <span class="jpm-tracker-label"><?php _e('Application ID', 'job-posting-manager'); ?>:</span>
+                    <span class="jpm-tracker-label"><?php esc_html_e('Application ID', 'job-posting-manager'); ?>:</span>
                     <span class="jpm-tracker-value">#<?php echo esc_html($application->id); ?></span>
                 </div>
 
                 <?php if (!empty($application_number)): ?>
                     <div class="jpm-tracker-info-row">
-                        <span class="jpm-tracker-label"><?php _e('Application Number', 'job-posting-manager'); ?>:</span>
+                        <span class="jpm-tracker-label"><?php esc_html_e('Application Number', 'job-posting-manager'); ?>:</span>
                         <span class="jpm-tracker-value"><?php echo esc_html($application_number); ?></span>
                     </div>
                 <?php endif; ?>
 
                 <div class="jpm-tracker-info-row">
-                    <span class="jpm-tracker-label"><?php _e('Application Date', 'job-posting-manager'); ?>:</span>
+                    <span class="jpm-tracker-label"><?php esc_html_e('Application Date', 'job-posting-manager'); ?>:</span>
                     <span class="jpm-tracker-value">
                         <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?>
                     </span>
                 </div>
 
                 <div class="jpm-tracker-info-row">
-                    <span class="jpm-tracker-label"><?php _e('Status', 'job-posting-manager'); ?>:</span>
+                    <span class="jpm-tracker-label"><?php esc_html_e('Status', 'job-posting-manager'); ?>:</span>
                     <span class="jpm-tracker-value">
                         <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>"
                             style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
@@ -1396,22 +1502,22 @@ class JPM_Frontend
         </div>
 
         <div class="jpm-tracker-section">
-            <h3><?php _e('Job Information', 'job-posting-manager'); ?></h3>
+            <h3><?php esc_html_e('Job Information', 'job-posting-manager'); ?></h3>
             <div class="jpm-tracker-info-grid">
                 <div class="jpm-tracker-info-row">
-                    <span class="jpm-tracker-label"><?php _e('Job Title', 'job-posting-manager'); ?>:</span>
+                    <span class="jpm-tracker-label"><?php esc_html_e('Job Title', 'job-posting-manager'); ?>:</span>
                     <span class="jpm-tracker-value">
                         <?php if ($job): ?>
                             <a href="<?php echo esc_url(get_permalink($job->ID)); ?>" target="_blank">
                                 <?php echo esc_html($job->post_title); ?>
                             </a>
                         <?php else: ?>
-                            <?php _e('Job Deleted', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Job Deleted', 'job-posting-manager'); ?>
                         <?php endif; ?>
                     </span>
                 </div>
                 <div class="jpm-tracker-info-row">
-                    <span class="jpm-tracker-label"><?php _e('Job ID', 'job-posting-manager'); ?>:</span>
+                    <span class="jpm-tracker-label"><?php esc_html_e('Job ID', 'job-posting-manager'); ?>:</span>
                     <span class="jpm-tracker-value">#<?php echo esc_html($application->job_id); ?></span>
                 </div>
             </div>
@@ -1419,25 +1525,25 @@ class JPM_Frontend
 
         <?php if (!empty($full_name) || !empty($email)): ?>
             <div class="jpm-tracker-section">
-                <h3><?php _e('Applicant Information', 'job-posting-manager'); ?></h3>
+                <h3><?php esc_html_e('Applicant Information', 'job-posting-manager'); ?></h3>
                 <div class="jpm-tracker-info-grid">
                     <?php if (!empty($full_name)): ?>
                         <div class="jpm-tracker-info-row">
-                            <span class="jpm-tracker-label"><?php _e('Full Name', 'job-posting-manager'); ?>:</span>
+                            <span class="jpm-tracker-label"><?php esc_html_e('Full Name', 'job-posting-manager'); ?>:</span>
                             <span class="jpm-tracker-value"><?php echo esc_html($full_name); ?></span>
                         </div>
                     <?php endif; ?>
 
                     <?php if (!empty($email)): ?>
                         <div class="jpm-tracker-info-row">
-                            <span class="jpm-tracker-label"><?php _e('Email', 'job-posting-manager'); ?>:</span>
+                            <span class="jpm-tracker-label"><?php esc_html_e('Email', 'job-posting-manager'); ?>:</span>
                             <span class="jpm-tracker-value"><?php echo esc_html($email); ?></span>
                         </div>
                     <?php endif; ?>
 
                     <?php if (!empty($date_of_registration)): ?>
                         <div class="jpm-tracker-info-row">
-                            <span class="jpm-tracker-label"><?php _e('Date of Registration', 'job-posting-manager'); ?>:</span>
+                            <span class="jpm-tracker-label"><?php esc_html_e('Date of Registration', 'job-posting-manager'); ?>:</span>
                             <span class="jpm-tracker-value"><?php echo esc_html($date_of_registration); ?></span>
                         </div>
                     <?php endif; ?>
@@ -1457,7 +1563,8 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
-            return '<div class="jpm-register-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to create a new account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            /* translators: 1: Current user's display name, 2: logout URL. */
+            return '<div class="jpm-register-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to create a new account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         $atts = shortcode_atts([
@@ -1487,29 +1594,30 @@ class JPM_Frontend
                         <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
                         <div class="jpm-form-field">
                             <label for="jpm-register-email" class="jpm-input-label">
-                                <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                                <?php esc_html_e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper">
                                 <input type="email" id="jpm-register-email" name="email" required class="jpm-input"
                                     placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
                             </div>
                             <p class="jpm-field-description">
-                                <?php _e('We will send a verification code to this email address.', 'job-posting-manager'); ?>
+                                <?php esc_html_e('We will send a verification code to this email address.', 'job-posting-manager'); ?>
                             </p>
                         </div>
 
                         <div class="jpm-form-field">
                             <button type="submit" id="jpm-send-otp-btn"
                                 class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                                <span class="jpm-btn-text"><?php _e('Send Verification Code', 'job-posting-manager'); ?></span>
+                                <span
+                                    class="jpm-btn-text"><?php esc_html_e('Send Verification Code', 'job-posting-manager'); ?></span>
                             </button>
                         </div>
 
                         <div class="jpm-register-footer">
                             <p class="jpm-register-footer-text">
-                                <?php _e('Already have an account?', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Already have an account?', 'job-posting-manager'); ?>
                                 <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-register-login-link">
-                                    <?php _e('Sign in', 'job-posting-manager'); ?>
+                                    <?php esc_html_e('Sign in', 'job-posting-manager'); ?>
                                 </a>
                             </p>
                         </div>
@@ -1522,7 +1630,7 @@ class JPM_Frontend
                         <?php wp_nonce_field('jpm_register', 'jpm_register_nonce'); ?>
                         <div class="jpm-form-field">
                             <label for="jpm-register-email-display" class="jpm-input-label">
-                                <?php _e('Email Address', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Email Address', 'job-posting-manager'); ?>
                             </label>
                             <div class="jpm-input-wrapper">
                                 <input type="email" id="jpm-register-email-display" class="jpm-input" readonly
@@ -1532,7 +1640,7 @@ class JPM_Frontend
 
                         <div class="jpm-form-field">
                             <label for="jpm-register-otp" class="jpm-input-label">
-                                <?php _e('Verification Code', 'job-posting-manager'); ?> <span class="required">*</span>
+                                <?php esc_html_e('Verification Code', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper">
                                 <input type="text" id="jpm-register-otp" name="otp" required class="jpm-input" maxlength="6"
@@ -1540,28 +1648,28 @@ class JPM_Frontend
                                     placeholder="<?php esc_attr_e('Enter 6-digit code', 'job-posting-manager'); ?>" />
                             </div>
                             <p class="jpm-field-description">
-                                <?php _e('Enter the 6-digit code sent to your email.', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Enter the 6-digit code sent to your email.', 'job-posting-manager'); ?>
                             </p>
                         </div>
 
                         <div class="jpm-form-field">
                             <button type="submit" id="jpm-verify-otp-btn"
                                 class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                                <span class="jpm-btn-text"><?php _e('Verify Code', 'job-posting-manager'); ?></span>
+                                <span class="jpm-btn-text"><?php esc_html_e('Verify Code', 'job-posting-manager'); ?></span>
                             </button>
                         </div>
 
                         <div class="jpm-form-field" style="text-align: center; margin-top: 15px;">
                             <button type="button" id="jpm-resend-otp-btn" class="jpm-btn-link">
-                                <?php _e('Resend Code', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Resend Code', 'job-posting-manager'); ?>
                             </button>
                         </div>
 
                         <div class="jpm-register-footer">
                             <p class="jpm-register-footer-text">
-                                <?php _e('Already have an account?', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Already have an account?', 'job-posting-manager'); ?>
                                 <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-register-login-link">
-                                    <?php _e('Sign in', 'job-posting-manager'); ?>
+                                    <?php esc_html_e('Sign in', 'job-posting-manager'); ?>
                                 </a>
                             </p>
                         </div>
@@ -1577,7 +1685,7 @@ class JPM_Frontend
                     <div class="jpm-form-row">
                         <div class="jpm-form-field jpm-form-field-half" style="margin-bottom: 0;">
                             <label for="jpm-register-first-name" class="jpm-input-label">
-                                <?php _e('First Name', 'job-posting-manager'); ?> <span class="required">*</span>
+                                <?php esc_html_e('First Name', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper">
                                 <input type="text" id="jpm-register-first-name" name="first_name" required class="jpm-input"
@@ -1587,7 +1695,7 @@ class JPM_Frontend
 
                         <div class="jpm-form-field jpm-form-field-half" style="margin-bottom: 0;">
                             <label for="jpm-register-last-name" class="jpm-input-label">
-                                <?php _e('Last Name', 'job-posting-manager'); ?> <span class="required">*</span>
+                                <?php esc_html_e('Last Name', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper">
                                 <input type="text" id="jpm-register-last-name" name="last_name" required class="jpm-input"
@@ -1598,7 +1706,7 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-register-password" class="jpm-input-label">
-                            <?php _e('Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php esc_html_e('Password', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper jpm-password-wrapper">
                             <input type="password" id="jpm-register-password" name="password" required class="jpm-input"
@@ -1630,7 +1738,7 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-register-password-confirm" class="jpm-input-label">
-                            <?php _e('Confirm Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php esc_html_e('Confirm Password', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper jpm-password-wrapper">
                             <input type="password" id="jpm-register-password-confirm" name="password_confirm" required
@@ -1658,15 +1766,15 @@ class JPM_Frontend
                     <div class="jpm-form-field">
                         <button type="submit" id="jpm-register-submit"
                             class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                            <span class="jpm-btn-text"><?php _e('Create Account', 'job-posting-manager'); ?></span>
+                            <span class="jpm-btn-text"><?php esc_html_e('Create Account', 'job-posting-manager'); ?></span>
                         </button>
                     </div>
 
                     <div class="jpm-register-footer">
                         <p class="jpm-register-footer-text">
-                            <?php _e('Already have an account?', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Already have an account?', 'job-posting-manager'); ?>
                             <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-register-login-link">
-                                <?php _e('Sign in', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Sign in', 'job-posting-manager'); ?>
                             </a>
                         </p>
                     </div>
@@ -2203,9 +2311,9 @@ class JPM_Frontend
                     }
 
                     if (password === confirmPassword) {
-                        $matchIndicator.html('✓ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
+                        $matchIndicator.html('&#10003; <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
                     } else {
-                        $matchIndicator.html('✗ <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
+                        $matchIndicator.html('&#10007; <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
                     }
                 });
 
@@ -2232,7 +2340,7 @@ class JPM_Frontend
 
                     // Send AJAX request
                     $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_send_otp',
@@ -2287,7 +2395,7 @@ class JPM_Frontend
 
                     // Send AJAX request
                     $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_verify_otp',
@@ -2366,7 +2474,7 @@ class JPM_Frontend
 
                     // Send AJAX request
                     $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_register',
@@ -2414,7 +2522,7 @@ class JPM_Frontend
     public function handle_send_otp()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_register', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2422,15 +2530,16 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('otp_send');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next OTP request is allowed. */
                 'message' => sprintf(__('Too many OTP requests. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
         }
 
         // Validate and sanitize email
-        $email = JPM_Security::validate_email($_POST['email'] ?? '');
+        $email = JPM_Security::validate_email(isset($_POST['email']) ? wp_unslash($_POST['email']) : '');
         if (!$email) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
             return;
@@ -2468,7 +2577,7 @@ class JPM_Frontend
                     wp_send_json_error(['message' => __('Failed to send OTP email. Please try again.', 'job-posting-manager')]);
                 }
             } catch (Exception $e) {
-                error_log('JPM: Failed to send OTP email - ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM: Failed to send OTP email - ' . $e->getMessage());
                 wp_send_json_error(['message' => __('Failed to send OTP email. Please try again.', 'job-posting-manager')]);
             }
         } else {
@@ -2482,7 +2591,7 @@ class JPM_Frontend
     public function handle_verify_otp()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_register', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2490,15 +2599,16 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('otp_verify');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next OTP verification attempt is allowed. */
                 'message' => sprintf(__('Too many OTP verification attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
         }
 
         // Validate and sanitize email
-        $email = JPM_Security::validate_email($_POST['email'] ?? '');
+        $email = JPM_Security::validate_email(isset($_POST['email']) ? wp_unslash($_POST['email']) : '');
         if (!$email) {
             wp_send_json_error(['message' => __('Please enter a valid email address.', 'job-posting-manager')]);
             return;
@@ -2508,7 +2618,7 @@ class JPM_Frontend
         $email = strtolower(trim($email));
 
         // Validate OTP
-        $otp = sanitize_text_field($_POST['otp'] ?? '');
+        $otp = isset($_POST['otp']) ? sanitize_text_field(wp_unslash($_POST['otp'])) : '';
         $otp = preg_replace('/[^0-9]/', '', $otp); // Remove non-numeric characters
 
         if (empty($otp) || strlen($otp) !== 6 || !is_numeric($otp)) {
@@ -2552,7 +2662,7 @@ class JPM_Frontend
     public function handle_registration()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_register', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_register', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -2560,8 +2670,9 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('register');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('H:i', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('H:i', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time when registration can be attempted again. */
                 'message' => sprintf(__('Too many registration attempts. Please try again after %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -2574,11 +2685,11 @@ class JPM_Frontend
         }
 
         // Validate and sanitize inputs
-        $first_name = JPM_Security::validate_text($_POST['first_name'] ?? '', 50);
-        $last_name = JPM_Security::validate_text($_POST['last_name'] ?? '', 50);
-        $email = JPM_Security::validate_email($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $redirect_url = JPM_Security::validate_url($_POST['redirect_url'] ?? '');
+        $first_name = JPM_Security::validate_text(isset($_POST['first_name']) ? wp_unslash($_POST['first_name']) : '', 50);
+        $last_name = JPM_Security::validate_text(isset($_POST['last_name']) ? wp_unslash($_POST['last_name']) : '', 50);
+        $email = JPM_Security::validate_email(isset($_POST['email']) ? wp_unslash($_POST['email']) : '');
+        $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+        $redirect_url = JPM_Security::validate_url(isset($_POST['redirect_url']) ? wp_unslash($_POST['redirect_url']) : '');
 
         // Validate required fields
         if (empty($first_name)) {
@@ -2670,18 +2781,17 @@ class JPM_Frontend
             try {
                 JPM_Emails::send_account_creation_notification($user_id, $email, $password, $first_name, $last_name);
             } catch (Exception $e) {
-                error_log('JPM: Failed to send account creation email - ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM: Failed to send account creation email - ' . $e->getMessage());
             }
         }
 
         // Send new customer notification to admin
         if (class_exists('JPM_Emails')) {
             try {
-                $email_settings = get_option('jpm_email_settings', []);
-                $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+                $admin_email = JPM_Emails::get_admin_notification_email();
                 JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email);
             } catch (Exception $e) {
-                error_log('JPM: Failed to send new customer notification - ' . $e->getMessage());
+                do_action('jpm_log_error', 'JPM: Failed to send new customer notification - ' . $e->getMessage());
             }
         }
 
@@ -2711,7 +2821,8 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
-            return '<div class="jpm-login-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to login as a different user.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            /* translators: 1: Current user's display name, 2: logout URL. */
+            return '<div class="jpm-login-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to login as a different user.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         $atts = shortcode_atts([
@@ -2741,7 +2852,8 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-login-email" class="jpm-input-label">
-                            <?php _e('Username or Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php esc_html_e('Username or Email Address', 'job-posting-manager'); ?> <span
+                                class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper">
                             <input type="text" id="jpm-login-email" name="email" required class="jpm-input"
@@ -2751,7 +2863,7 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-login-password" class="jpm-input-label">
-                            <?php _e('Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php esc_html_e('Password', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper jpm-password-wrapper">
                             <input type="password" id="jpm-login-password" name="password" required class="jpm-input"
@@ -2777,24 +2889,24 @@ class JPM_Frontend
                     <div class="jpm-form-field jpm-login-options">
                         <label class="jpm-checkbox-label">
                             <input type="checkbox" id="jpm-login-remember" name="remember" value="1" />
-                            <span><?php _e('Remember me', 'job-posting-manager'); ?></span>
+                            <span><?php esc_html_e('Remember me', 'job-posting-manager'); ?></span>
                         </label>
                         <a href="<?php echo esc_url(home_url('/forgot-password/')); ?>" class="jpm-forgot-password-link">
-                            <?php _e('Forgot Password?', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Forgot Password?', 'job-posting-manager'); ?>
                         </a>
                     </div>
 
                     <div class="jpm-form-field">
                         <button type="submit" id="jpm-login-submit" class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                            <span class="jpm-btn-text"><?php _e('Sign In', 'job-posting-manager'); ?></span>
+                            <span class="jpm-btn-text"><?php esc_html_e('Sign In', 'job-posting-manager'); ?></span>
                         </button>
                     </div>
 
                     <div class="jpm-login-footer">
                         <p class="jpm-login-footer-text">
-                            <?php _e('Don\'t have an account?', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Don\'t have an account?', 'job-posting-manager'); ?>
                             <a href="<?php echo esc_url(home_url('/sign-up/')); ?>" class="jpm-login-register-link">
-                                <?php _e('Create Account', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Create Account', 'job-posting-manager'); ?>
                             </a>
                         </p>
                     </div>
@@ -3120,12 +3232,12 @@ class JPM_Frontend
                         $input.attr('type', 'text');
                         $eyeIcon.hide();
                         $eyeOffIcon.show();
-                        $button.attr('aria-label', '<?php echo $hide_password; ?>');
+                        $button.attr('aria-label', '<?php echo esc_js($hide_password); ?>');
                     } else {
                         $input.attr('type', 'password');
                         $eyeIcon.show();
                         $eyeOffIcon.hide();
-                        $button.attr('aria-label', '<?php echo $show_password; ?>');
+                        $button.attr('aria-label', '<?php echo esc_js($show_password); ?>');
                     }
                 });
 
@@ -3150,11 +3262,11 @@ class JPM_Frontend
                     var $btnText = $button.find('.jpm-btn-text');
 
                     $button.prop('disabled', true);
-                    $btnText.text('<?php echo $signing_in; ?>');
+                    $btnText.text('<?php echo esc_js($signing_in); ?>');
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
+                        url: '<?php echo esc_url($ajax_url); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_login',
@@ -3166,7 +3278,7 @@ class JPM_Frontend
                         },
                         success: function (response) {
                             if (response.success) {
-                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo $login_success; ?>') + '</p></div>').show();
+                                $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js($login_success); ?>') + '</p></div>').show();
                                 setTimeout(function () {
                                     // Clear any query parameters from URL before redirecting
                                     var redirectUrl = response.data.redirect_url || window.location.pathname;
@@ -3175,15 +3287,15 @@ class JPM_Frontend
                                     window.location.href = redirectUrl;
                                 }, 1000);
                             } else {
-                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo $invalid_creds; ?>') + '</p></div>').show();
+                                $message.html('<div class="notice notice-error"><p>' + (response.data.message || '<?php echo esc_js($invalid_creds); ?>') + '</p></div>').show();
                                 $button.prop('disabled', false);
-                                $btnText.text('<?php echo $sign_in; ?>');
+                                $btnText.text('<?php echo esc_js($sign_in); ?>');
                             }
                         },
                         error: function () {
-                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $sign_in; ?>');
+                            $btnText.text('<?php echo esc_js($sign_in); ?>');
                         }
                     });
 
@@ -3204,14 +3316,15 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
-            return '<div class="jpm-forgot-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            /* translators: 1: Current user's display name, 2: logout URL. */
+            return '<div class="jpm-forgot-password-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         $atts = shortcode_atts([
             'title' => __('Reset Password', 'job-posting-manager'),
         ], $atts);
 
-        $ajax_url = admin_url('admin-ajax.php');
+        $ajax_url = esc_url(admin_url('admin-ajax.php'));
         $sending = esc_js(__('Sending...', 'job-posting-manager'));
         $send_link = esc_js(__('Send Reset Link', 'job-posting-manager'));
         $error_occurred = esc_js(__('An error occurred. Please try again.', 'job-posting-manager'));
@@ -3237,29 +3350,31 @@ class JPM_Frontend
 
                     <div class="jpm-form-field">
                         <label for="jpm-forgot-password-email" class="jpm-input-label">
-                            <?php _e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
+                            <?php esc_html_e('Email Address', 'job-posting-manager'); ?> <span class="required">*</span>
                         </label>
                         <div class="jpm-input-wrapper">
                             <input type="email" id="jpm-forgot-password-email" name="email" required class="jpm-input"
                                 placeholder="<?php esc_attr_e('your.email@example.com', 'job-posting-manager'); ?>" />
                         </div>
                         <p class="jpm-forgot-password-description">
-                            <?php _e('Enter your email address and we\'ll send you a secure link to reset your password. Click the link in the email to set a new password.', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Enter your email address and we\'ll send you a secure link to reset your password. Click the link in the email to set a new password.', 'job-posting-manager'); ?>
                         </p>
                     </div>
+
+                    <br />
 
                     <div class="jpm-form-field">
                         <button type="submit" id="jpm-forgot-password-submit"
                             class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                            <span class="jpm-btn-text"><?php _e('Send Reset Link', 'job-posting-manager'); ?></span>
+                            <span class="jpm-btn-text"><?php esc_html_e('Send Reset Link', 'job-posting-manager'); ?></span>
                         </button>
                     </div>
 
                     <div class="jpm-forgot-password-footer">
                         <p class="jpm-forgot-password-footer-text">
-                            <?php _e('Remember your password?', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Remember your password?', 'job-posting-manager'); ?>
                             <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-forgot-password-login-link">
-                                <?php _e('Sign In', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Sign In', 'job-posting-manager'); ?>
                             </a>
                         </p>
                     </div>
@@ -3505,11 +3620,11 @@ class JPM_Frontend
                     var $btnText = $button.find('.jpm-btn-text');
 
                     $button.prop('disabled', true);
-                    $btnText.text('<?php echo $sending; ?>');
+                    $btnText.text('<?php echo esc_js($sending); ?>');
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
+                        url: '<?php echo esc_url($ajax_url); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_forgot_password',
@@ -3519,7 +3634,7 @@ class JPM_Frontend
                         success: function (response) {
                             // Reset button to normal state for any response
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $send_link; ?>');
+                            $btnText.text('<?php echo esc_js($send_link); ?>');
                             if (response.success) {
                                 var successMessage = response.data.message || '<?php echo esc_js(__('If an account exists with this email address, a password reset link has been sent. Please check your email and click the link to reset your password.', 'job-posting-manager')); ?>';
                                 $message.html('<div class="notice notice-success"><p>' + successMessage + '</p></div>').show();
@@ -3529,9 +3644,9 @@ class JPM_Frontend
                             }
                         },
                         error: function () {
-                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $send_link; ?>');
+                            $btnText.text('<?php echo esc_js($send_link); ?>');
                         }
                     });
                 });
@@ -3550,12 +3665,13 @@ class JPM_Frontend
         // If user is already logged in, show message
         if (is_user_logged_in()) {
             $current_user = wp_get_current_user();
-            return '<div class="jpm-reset-password-message"><p>' . sprintf(__('You are already logged in as %s. <a href="%s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
+            /* translators: 1: Current user's display name, 2: logout URL. */
+            return '<div class="jpm-reset-password-message"><p>' . sprintf(__('You are already logged in as %1$s. <a href="%2$s">Logout</a> to reset password for a different account.', 'job-posting-manager'), esc_html($current_user->display_name), wp_logout_url(home_url())) . '</p></div>';
         }
 
         // Get reset key and login from URL
-        $key = isset($_GET['key']) ? sanitize_text_field($_GET['key']) : '';
-        $login = isset($_GET['login']) ? sanitize_user($_GET['login']) : '';
+        $key = isset($_GET['key']) ? sanitize_text_field(wp_unslash($_GET['key'])) : '';
+        $login = isset($_GET['login']) ? sanitize_user(wp_unslash($_GET['login'])) : '';
 
         // Validate reset key
         $user = null;
@@ -3582,7 +3698,7 @@ class JPM_Frontend
             'title' => __('Set New Password', 'job-posting-manager'),
         ], $atts);
 
-        $ajax_url = admin_url('admin-ajax.php');
+        $ajax_url = esc_url(admin_url('admin-ajax.php'));
         $resetting = esc_js(__('Resetting...', 'job-posting-manager'));
         $reset_password = esc_js(__('Reset Password', 'job-posting-manager'));
         $error_occurred = esc_js(__('An error occurred. Please try again.', 'job-posting-manager'));
@@ -3612,7 +3728,7 @@ class JPM_Frontend
                     <div class="jpm-reset-password-footer">
                         <p class="jpm-reset-password-footer-text">
                             <a href="<?php echo esc_url(home_url('/forgot-password/')); ?>" class="jpm-reset-password-forgot-link">
-                                <?php _e('Request a new password reset link', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Request a new password reset link', 'job-posting-manager'); ?>
                             </a>
                         </p>
                     </div>
@@ -3624,7 +3740,7 @@ class JPM_Frontend
 
                         <div class="jpm-form-field">
                             <label for="jpm-reset-password-new" class="jpm-input-label">
-                                <?php _e('New Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                                <?php esc_html_e('New Password', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper jpm-password-wrapper">
                                 <input type="password" id="jpm-reset-password-new" name="password" required class="jpm-input"
@@ -3656,7 +3772,7 @@ class JPM_Frontend
 
                         <div class="jpm-form-field">
                             <label for="jpm-reset-password-confirm" class="jpm-input-label">
-                                <?php _e('Confirm New Password', 'job-posting-manager'); ?> <span class="required">*</span>
+                                <?php esc_html_e('Confirm New Password', 'job-posting-manager'); ?> <span class="required">*</span>
                             </label>
                             <div class="jpm-input-wrapper jpm-password-wrapper">
                                 <input type="password" id="jpm-reset-password-confirm" name="password_confirm" required
@@ -3684,15 +3800,15 @@ class JPM_Frontend
                         <div class="jpm-form-field jpm-reset-password-button-wrapper">
                             <button type="submit" id="jpm-reset-password-submit"
                                 class="jpm-btn jpm-btn-primary jpm-btn-block jpm-btn-large">
-                                <span class="jpm-btn-text"><?php _e('Reset Password', 'job-posting-manager'); ?></span>
+                                <span class="jpm-btn-text"><?php esc_html_e('Reset Password', 'job-posting-manager'); ?></span>
                             </button>
                         </div>
 
                         <div class="jpm-reset-password-footer">
                             <p class="jpm-reset-password-footer-text">
-                                <?php _e('Remember your password?', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Remember your password?', 'job-posting-manager'); ?>
                                 <a href="<?php echo esc_url(home_url('/sign-in/')); ?>" class="jpm-reset-password-login-link">
-                                    <?php _e('Sign In', 'job-posting-manager'); ?>
+                                    <?php esc_html_e('Sign In', 'job-posting-manager'); ?>
                                 </a>
                             </p>
                         </div>
@@ -4181,9 +4297,9 @@ class JPM_Frontend
                     }
 
                     if (password === confirmPassword) {
-                        $matchIndicator.html('✓ <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
+                        $matchIndicator.html('&#10003; <?php echo esc_js(__('Passwords match', 'job-posting-manager')); ?>').removeClass('no-match').addClass('match').show();
                     } else {
-                        $matchIndicator.html('✗ <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
+                        $matchIndicator.html('&#10007; <?php echo esc_js(__('Passwords do not match', 'job-posting-manager')); ?>').removeClass('match').addClass('no-match').show();
                     }
                 });
 
@@ -4213,11 +4329,11 @@ class JPM_Frontend
                     }
 
                     $button.prop('disabled', true);
-                    $btnText.text('<?php echo $resetting; ?>');
+                    $btnText.text('<?php echo esc_js($resetting); ?>');
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo $ajax_url; ?>',
+                        url: '<?php echo esc_url($ajax_url); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_reset_password',
@@ -4229,7 +4345,7 @@ class JPM_Frontend
                         success: function (response) {
                             // Reset button to normal state for any response
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $reset_password; ?>');
+                            $btnText.text('<?php echo esc_js($reset_password); ?>');
 
                             if (response.success) {
                                 $message.html('<div class="notice notice-success"><p>' + (response.data.message || '<?php echo esc_js(__('Password has been reset successfully! Redirecting to login...', 'job-posting-manager')); ?>') + '</p></div>').show();
@@ -4247,9 +4363,9 @@ class JPM_Frontend
                             }
                         },
                         error: function () {
-                            $message.html('<div class="notice notice-error"><p><?php echo $error_occurred; ?></p></div>').show();
+                            $message.html('<div class="notice notice-error"><p><?php echo esc_js($error_occurred); ?></p></div>').show();
                             $button.prop('disabled', false);
-                            $btnText.text('<?php echo $reset_password; ?>');
+                            $btnText.text('<?php echo esc_js($reset_password); ?>');
                         }
                     });
                 });
@@ -4267,6 +4383,7 @@ class JPM_Frontend
     {
         // Check if user is logged in
         if (!is_user_logged_in()) {
+            /* translators: %s: Login URL. */
             return '<div class="jpm-user-profile-message"><p>' . sprintf(__('Please <a href="%s">login</a> to view your profile.', 'job-posting-manager'), esc_url(home_url('/sign-in/'))) . '</p></div>';
         }
 
@@ -4275,10 +4392,10 @@ class JPM_Frontend
 
         // Get user applications
         global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
+        $table = $this->get_validated_applications_table();
         $applications = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table WHERE user_id = %d ORDER BY application_date DESC",
-            $user_id
+            "SELECT * FROM {$table} WHERE user_id = %d ORDER BY application_date DESC",
+            absint($user_id)
         ));
 
         // Get all jobs for dashboard stats
@@ -4318,7 +4435,7 @@ class JPM_Frontend
                                 <rect x="14" y="14" width="7" height="7"></rect>
                                 <rect x="3" y="14" width="7" height="7"></rect>
                             </svg>
-                            <span><?php _e('Dashboard', 'job-posting-manager'); ?></span>
+                            <span><?php esc_html_e('Dashboard', 'job-posting-manager'); ?></span>
                         </a>
                         <a href="#" class="jpm-profile-nav-item" data-tab="applications">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4328,7 +4445,7 @@ class JPM_Frontend
                                 <line x1="16" y1="17" x2="8" y2="17"></line>
                                 <polyline points="10 9 9 9 8 9"></polyline>
                             </svg>
-                            <span><?php _e('Jobs Applied', 'job-posting-manager'); ?></span>
+                            <span><?php esc_html_e('Jobs Applied', 'job-posting-manager'); ?></span>
                             <?php if (count($applications) > 0): ?>
                                 <span class="jpm-nav-badge"><?php echo count($applications); ?></span>
                             <?php endif; ?>
@@ -4338,7 +4455,7 @@ class JPM_Frontend
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="12" cy="7" r="4"></circle>
                             </svg>
-                            <span><?php _e('Information', 'job-posting-manager'); ?></span>
+                            <span><?php esc_html_e('Information', 'job-posting-manager'); ?></span>
                         </a>
                     </nav>
                 </aside>
@@ -4349,7 +4466,7 @@ class JPM_Frontend
                     <!-- Dashboard Tab -->
                     <div class="jpm-profile-tab-content active" id="jpm-tab-dashboard">
                         <div class="jpm-profile-tab-header">
-                            <h2 class="jpm-profile-tab-title"><?php _e('Dashboard', 'job-posting-manager'); ?></h2>
+                            <h2 class="jpm-profile-tab-title"><?php esc_html_e('Dashboard', 'job-posting-manager'); ?></h2>
                         </div>
 
                         <div class="jpm-dashboard-stats">
@@ -4363,7 +4480,9 @@ class JPM_Frontend
                                 </div>
                                 <div class="jpm-stat-content">
                                     <div class="jpm-stat-value"><?php echo count($applications); ?></div>
-                                    <div class="jpm-stat-label"><?php _e('Total Applications', 'job-posting-manager'); ?></div>
+                                    <div class="jpm-stat-label">
+                                        <?php esc_html_e('Total Applications', 'job-posting-manager'); ?>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4377,7 +4496,8 @@ class JPM_Frontend
                                 </div>
                                 <div class="jpm-stat-content">
                                     <div class="jpm-stat-value"><?php echo count($all_jobs); ?></div>
-                                    <div class="jpm-stat-label"><?php _e('Available Jobs', 'job-posting-manager'); ?></div>
+                                    <div class="jpm-stat-label"><?php esc_html_e('Available Jobs', 'job-posting-manager'); ?>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4404,7 +4524,8 @@ class JPM_Frontend
                                     </div>
                                     <div class="jpm-stat-content">
                                         <div class="jpm-stat-value"><?php echo count($status_counts); ?></div>
-                                        <div class="jpm-stat-label"><?php _e('Status Types', 'job-posting-manager'); ?></div>
+                                        <div class="jpm-stat-label"><?php esc_html_e('Status Types', 'job-posting-manager'); ?>
+                                        </div>
                                     </div>
                                 </div>
                             <?php endif; ?>
@@ -4413,7 +4534,7 @@ class JPM_Frontend
                         <?php if (!empty($status_counts)): ?>
                             <div class="jpm-dashboard-status-breakdown">
                                 <h3 class="jpm-dashboard-section-title">
-                                    <?php _e('Applications by Status', 'job-posting-manager'); ?>
+                                    <?php esc_html_e('Applications by Status', 'job-posting-manager'); ?>
                                 </h3>
                                 <div class="jpm-status-breakdown-list">
                                     <?php foreach ($status_counts as $status_slug => $count):
@@ -4442,12 +4563,12 @@ class JPM_Frontend
                                                     style="background-color: <?php echo esc_attr($status_color); ?>; color: <?php echo esc_attr($status_text_color); ?>;">
                                                     <?php echo esc_html($status_name); ?>
                                                 </span>
-                                                <span class="jpm-status-breakdown-count"><?php echo $count; ?>
-                                                    <?php echo _n('application', 'applications', $count, 'job-posting-manager'); ?></span>
+                                                <span class="jpm-status-breakdown-count"><?php echo esc_html(absint($count)); ?>
+                                                    <?php echo esc_html(_n('application', 'applications', absint($count), 'job-posting-manager')); ?></span>
                                             </div>
                                             <div class="jpm-status-breakdown-bar">
                                                 <div class="jpm-status-breakdown-fill"
-                                                    style="width: <?php echo count($applications) > 0 ? round(($count / count($applications)) * 100) : 0; ?>%; background-color: <?php echo esc_attr($status_color); ?>;">
+                                                    style="width: <?php echo esc_attr(count($applications) > 0 ? absint(round(($count / count($applications)) * 100)) : 0); ?>%; background-color: <?php echo esc_attr($status_color); ?>;">
                                                 </div>
                                             </div>
                                         </div>
@@ -4460,10 +4581,10 @@ class JPM_Frontend
                             <div class="jpm-dashboard-recent">
                                 <div class="jpm-dashboard-section-header">
                                     <h3 class="jpm-dashboard-section-title">
-                                        <?php _e('Recent Applications', 'job-posting-manager'); ?>
+                                        <?php esc_html_e('Recent Applications', 'job-posting-manager'); ?>
                                     </h3>
                                     <a href="#" class="jpm-view-all-link"
-                                        data-tab="applications"><?php _e('View All', 'job-posting-manager'); ?></a>
+                                        data-tab="applications"><?php esc_html_e('View All', 'job-posting-manager'); ?></a>
                                 </div>
                                 <div class="jpm-applications-list">
                                     <?php
@@ -4510,7 +4631,7 @@ class JPM_Frontend
                                                     <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
                                                     </h4>
                                                     <?php if ($application_number): ?>
-                                                        <span
+                                                        <span <?php /* translators: %s: Application number. */ ?>
                                                             class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
                                                     <?php endif; ?>
                                                 </div>
@@ -4523,7 +4644,7 @@ class JPM_Frontend
                                             <div class="jpm-application-details">
                                                 <div class="jpm-application-detail-item">
                                                     <span
-                                                        class="jpm-detail-label"><?php _e('Applied Date:', 'job-posting-manager'); ?></span>
+                                                        class="jpm-detail-label"><?php esc_html_e('Applied Date:', 'job-posting-manager'); ?></span>
                                                     <span
                                                         class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
                                                 </div>
@@ -4533,9 +4654,9 @@ class JPM_Frontend
                                 </div>
                             <?php else: ?>
                                 <div class="jpm-no-applications">
-                                    <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
+                                    <p><?php esc_html_e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
                                     <a href="<?php echo esc_url(home_url('/job-postings/')); ?>" class="jpm-btn jpm-btn-primary">
-                                        <?php _e('Browse Jobs', 'job-posting-manager'); ?>
+                                        <?php esc_html_e('Browse Jobs', 'job-posting-manager'); ?>
                                     </a>
                                 </div>
                             <?php endif; ?>
@@ -4546,16 +4667,16 @@ class JPM_Frontend
                     <div class="jpm-profile-tab-content" id="jpm-tab-applications">
                         <div class="jpm-profile-tab-header">
                             <h2 class="jpm-profile-tab-title">
-                                <?php _e('Jobs Applied', 'job-posting-manager'); ?>
+                                <?php esc_html_e('Jobs Applied', 'job-posting-manager'); ?>
                                 <span class="jpm-applications-count">(<?php echo count($applications); ?>)</span>
                             </h2>
                         </div>
 
                         <?php if (empty($applications)): ?>
                             <div class="jpm-no-applications">
-                                <p><?php _e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
+                                <p><?php esc_html_e('You haven\'t applied to any jobs yet.', 'job-posting-manager'); ?></p>
                                 <a href="<?php echo esc_url(home_url('/job-postings/')); ?>" class="jpm-btn jpm-btn-primary">
-                                    <?php _e('Browse Jobs', 'job-posting-manager'); ?>
+                                    <?php esc_html_e('Browse Jobs', 'job-posting-manager'); ?>
                                 </a>
                             </div>
                         <?php else: ?>
@@ -4663,7 +4784,7 @@ class JPM_Frontend
                                                 <h4><?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
                                                 </h4>
                                                 <?php if ($application_number): ?>
-                                                    <span
+                                                    <span <?php /* translators: %s: Application number. */ ?>
                                                         class="jpm-application-number"><?php printf(__('Application #%s', 'job-posting-manager'), esc_html($application_number)); ?></span>
                                                 <?php endif; ?>
                                             </div>
@@ -4676,7 +4797,7 @@ class JPM_Frontend
                                         <div class="jpm-application-details">
                                             <div class="jpm-application-detail-item">
                                                 <span
-                                                    class="jpm-detail-label"><?php _e('Applied Date:', 'job-posting-manager'); ?></span>
+                                                    class="jpm-detail-label"><?php esc_html_e('Applied Date:', 'job-posting-manager'); ?></span>
                                                 <span
                                                     class="jpm-detail-value"><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></span>
                                             </div>
@@ -4815,8 +4936,8 @@ class JPM_Frontend
                                                 <button type="button" class="jpm-toggle-details"
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
-                                                        class="jpm-toggle-text"><?php _e('View Application Details', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">▼</span>
+                                                        class="jpm-toggle-text"><?php esc_html_e('View Application Details', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-details-content"
                                                     id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
@@ -4824,7 +4945,7 @@ class JPM_Frontend
                                                     <?php if (!empty($personal_fields)): ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Personal Information', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('Personal Information', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($personal_fields as $key => $value):
@@ -4836,7 +4957,7 @@ class JPM_Frontend
                                                                                 class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
                                                                             <span class="jpm-form-data-value">
                                                                                 <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                                    rel="noopener"><?php esc_html_e('View File', 'job-posting-manager'); ?></a>
                                                                             </span>
                                                                         </div>
                                                                         <?php
@@ -4898,20 +5019,20 @@ class JPM_Frontend
                                                         ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Education', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('Education', 'job-posting-manager'); ?>
                                                             </h4>
 
                                                             <!-- Primary Education -->
                                                             <?php if (!empty($form_data['edu_primary_school_name']) || !empty($form_data['edu_primary_school_address'])): ?>
                                                                 <div class="jpm-form-data-subsection">
                                                                     <h5 class="jpm-form-data-subsection-title">
-                                                                        <?php _e('Primary Education', 'job-posting-manager'); ?>
+                                                                        <?php esc_html_e('Primary Education', 'job-posting-manager'); ?>
                                                                     </h5>
                                                                     <div class="jpm-form-data-grid">
                                                                         <?php if (!empty($form_data['edu_primary_school_name'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('School Name', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('School Name', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_school_name']); ?></span>
                                                                             </div>
@@ -4919,7 +5040,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_primary_school_address'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('School Address', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_school_address']); ?></span>
                                                                             </div>
@@ -4927,7 +5048,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_primary_start_year'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Start Year', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_start_year']); ?></span>
                                                                             </div>
@@ -4935,7 +5056,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_primary_end_year'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('End Year', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_end_year']); ?></span>
                                                                             </div>
@@ -4943,7 +5064,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_primary_completed'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Completed', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Completed', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_primary_completed']); ?></span>
                                                                             </div>
@@ -4956,13 +5077,13 @@ class JPM_Frontend
                                                             <?php if (!empty($form_data['edu_secondary_school_name']) || !empty($form_data['edu_secondary_school_address'])): ?>
                                                                 <div class="jpm-form-data-subsection">
                                                                     <h5 class="jpm-form-data-subsection-title">
-                                                                        <?php _e('Secondary Education', 'job-posting-manager'); ?>
+                                                                        <?php esc_html_e('Secondary Education', 'job-posting-manager'); ?>
                                                                     </h5>
                                                                     <div class="jpm-form-data-grid">
                                                                         <?php if (!empty($form_data['edu_secondary_school_name'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('School Name', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('School Name', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_school_name']); ?></span>
                                                                             </div>
@@ -4970,7 +5091,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_secondary_school_address'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('School Address', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_school_address']); ?></span>
                                                                             </div>
@@ -4978,7 +5099,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_secondary_school_type'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('School Type', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('School Type', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_school_type']); ?></span>
                                                                             </div>
@@ -4986,7 +5107,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_secondary_start_year'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Start Year', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_start_year']); ?></span>
                                                                             </div>
@@ -4994,7 +5115,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_secondary_end_year'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('End Year', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_end_year']); ?></span>
                                                                             </div>
@@ -5002,7 +5123,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_secondary_completed'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Completed', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Completed', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_secondary_completed']); ?></span>
                                                                             </div>
@@ -5015,13 +5136,13 @@ class JPM_Frontend
                                                             <?php if (!empty($form_data['edu_tertiary_institution_name']) || !empty($form_data['edu_tertiary_school_address'])): ?>
                                                                 <div class="jpm-form-data-subsection">
                                                                     <h5 class="jpm-form-data-subsection-title">
-                                                                        <?php _e('Tertiary Education', 'job-posting-manager'); ?>
+                                                                        <?php esc_html_e('Tertiary Education', 'job-posting-manager'); ?>
                                                                     </h5>
                                                                     <div class="jpm-form-data-grid">
                                                                         <?php if (!empty($form_data['edu_tertiary_institution_name'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Institution Name', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Institution Name', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_institution_name']); ?></span>
                                                                             </div>
@@ -5029,7 +5150,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_tertiary_school_address'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('School Address', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('School Address', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_school_address']); ?></span>
                                                                             </div>
@@ -5037,7 +5158,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_tertiary_program'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Program / Course', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Program / Course', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_program']); ?></span>
                                                                             </div>
@@ -5045,7 +5166,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_tertiary_degree_level'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Degree Level', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Degree Level', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_degree_level']); ?></span>
                                                                             </div>
@@ -5053,7 +5174,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_tertiary_start_year'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Start Year', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Start Year', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_start_year']); ?></span>
                                                                             </div>
@@ -5061,7 +5182,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_tertiary_end_year'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('End Year', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('End Year', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_end_year']); ?></span>
                                                                             </div>
@@ -5069,7 +5190,7 @@ class JPM_Frontend
                                                                         <?php if (!empty($form_data['edu_tertiary_status'])): ?>
                                                                             <div class="jpm-form-data-item">
                                                                                 <span
-                                                                                    class="jpm-form-data-label"><?php _e('Status', 'job-posting-manager'); ?>:</span>
+                                                                                    class="jpm-form-data-label"><?php esc_html_e('Status', 'job-posting-manager'); ?>:</span>
                                                                                 <span
                                                                                     class="jpm-form-data-value"><?php echo esc_html($form_data['edu_tertiary_status']); ?></span>
                                                                             </div>
@@ -5082,7 +5203,7 @@ class JPM_Frontend
                                                         <!-- Fallback: Show generic education fields if no structured fields -->
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Education', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('Education', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($generic_education_fields as $key => $value):
@@ -5094,7 +5215,7 @@ class JPM_Frontend
                                                                                 class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
                                                                             <span class="jpm-form-data-value">
                                                                                 <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                                    rel="noopener"><?php esc_html_e('View File', 'job-posting-manager'); ?></a>
                                                                             </span>
                                                                         </div>
                                                                         <?php
@@ -5158,19 +5279,20 @@ class JPM_Frontend
                                                         ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Employment History', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('Employment History', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <?php if (!empty($employment_entries)): ?>
                                                                 <?php foreach ($employment_entries as $index => $entry): ?>
                                                                     <div class="jpm-form-data-subsection">
                                                                         <h5 class="jpm-form-data-subsection-title">
-                                                                            <?php printf(__('Employment #%d', 'job-posting-manager'), $index + 1); ?>
+                                                                            <?php /* translators: %d: Employment entry number. */ ?>
+                                                                            <?php printf(__('Employment #%d', 'job-posting-manager'), absint($index + 1)); ?>
                                                                         </h5>
                                                                         <div class="jpm-form-data-grid">
                                                                             <?php if (!empty($entry['company_name'])): ?>
                                                                                 <div class="jpm-form-data-item">
                                                                                     <span
-                                                                                        class="jpm-form-data-label"><?php _e('Company Name', 'job-posting-manager'); ?>:</span>
+                                                                                        class="jpm-form-data-label"><?php esc_html_e('Company Name', 'job-posting-manager'); ?>:</span>
                                                                                     <span
                                                                                         class="jpm-form-data-value"><?php echo esc_html($entry['company_name']); ?></span>
                                                                                 </div>
@@ -5178,7 +5300,7 @@ class JPM_Frontend
                                                                             <?php if (!empty($entry['position'])): ?>
                                                                                 <div class="jpm-form-data-item">
                                                                                     <span
-                                                                                        class="jpm-form-data-label"><?php _e('Position', 'job-posting-manager'); ?>:</span>
+                                                                                        class="jpm-form-data-label"><?php esc_html_e('Position', 'job-posting-manager'); ?>:</span>
                                                                                     <span
                                                                                         class="jpm-form-data-value"><?php echo esc_html($entry['position']); ?></span>
                                                                                 </div>
@@ -5186,7 +5308,7 @@ class JPM_Frontend
                                                                             <?php if (!empty($entry['years'])): ?>
                                                                                 <div class="jpm-form-data-item">
                                                                                     <span
-                                                                                        class="jpm-form-data-label"><?php _e('Years', 'job-posting-manager'); ?>:</span>
+                                                                                        class="jpm-form-data-label"><?php esc_html_e('Years', 'job-posting-manager'); ?>:</span>
                                                                                     <span
                                                                                         class="jpm-form-data-value"><?php echo esc_html($entry['years']); ?></span>
                                                                                 </div>
@@ -5200,7 +5322,7 @@ class JPM_Frontend
                                                         <!-- Fallback: Show generic employment fields if no structured fields -->
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Employment', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('Employment', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($generic_employment_fields as $key => $value):
@@ -5212,7 +5334,7 @@ class JPM_Frontend
                                                                                 class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
                                                                             <span class="jpm-form-data-value">
                                                                                 <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                                    rel="noopener"><?php esc_html_e('View File', 'job-posting-manager'); ?></a>
                                                                             </span>
                                                                         </div>
                                                                         <?php
@@ -5234,7 +5356,7 @@ class JPM_Frontend
                                                     <?php if (!empty($additional_fields)): ?>
                                                         <div class="jpm-form-data-section">
                                                             <h4 class="jpm-form-data-section-title">
-                                                                <?php _e('Additional Information', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('Additional Information', 'job-posting-manager'); ?>
                                                             </h4>
                                                             <div class="jpm-form-data-grid">
                                                                 <?php foreach ($additional_fields as $key => $value):
@@ -5246,7 +5368,7 @@ class JPM_Frontend
                                                                                 class="jpm-form-data-label"><?php echo esc_html($field_label); ?>:</span>
                                                                             <span class="jpm-form-data-value">
                                                                                 <a href="<?php echo esc_url($value); ?>" target="_blank"
-                                                                                    rel="noopener"><?php _e('View File', 'job-posting-manager'); ?></a>
+                                                                                    rel="noopener"><?php esc_html_e('View File', 'job-posting-manager'); ?></a>
                                                                             </span>
                                                                         </div>
                                                                         <?php
@@ -5274,20 +5396,20 @@ class JPM_Frontend
                                                 <button type="button" class="jpm-toggle-requirements"
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
-                                                        class="jpm-toggle-text"><?php _e('View Requirements', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">▼</span>
+                                                        class="jpm-toggle-text"><?php esc_html_e('View Requirements', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-requirements-content"
                                                     id="jpm-requirements-<?php echo esc_attr($application->id); ?>" style="display: none;">
                                                     <div class="jpm-form-data-section">
                                                         <h4 class="jpm-form-data-section-title">
-                                                            <?php _e('Medical Requirements', 'job-posting-manager'); ?>
+                                                            <?php esc_html_e('Medical Requirements', 'job-posting-manager'); ?>
                                                         </h4>
                                                         <div class="jpm-form-data-grid">
                                                             <?php if ($medical_details && !empty($medical_details['requirements'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Requirements:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Requirements:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo wp_kses_post(nl2br(esc_html($medical_details['requirements']))); ?></span>
                                                                 </div>
@@ -5295,7 +5417,7 @@ class JPM_Frontend
                                                             <?php if ($medical_details && !empty($medical_details['address'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Address:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Address:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo esc_html($medical_details['address']); ?></span>
                                                                 </div>
@@ -5303,14 +5425,14 @@ class JPM_Frontend
                                                             <?php if ($medical_details && !empty($medical_details['date'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Date:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Date:', 'job-posting-manager'); ?></span>
                                                                     <span class="jpm-form-data-value">
                                                                         <?php
                                                                         // Format date to "January 13, 2003" format
                                                                         $date_value = $medical_details['date'];
                                                                         $timestamp = strtotime($date_value);
                                                                         if ($timestamp !== false) {
-                                                                            echo esc_html(date('F j, Y', $timestamp));
+                                                                            echo esc_html(gmdate('F j, Y', $timestamp));
                                                                         } else {
                                                                             echo esc_html($date_value);
                                                                         }
@@ -5321,7 +5443,7 @@ class JPM_Frontend
                                                             <?php if ($medical_details && !empty($medical_details['time'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Time:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Time:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo esc_html($medical_details['time']); ?></span>
                                                                 </div>
@@ -5329,7 +5451,7 @@ class JPM_Frontend
                                                             <?php if (!$medical_details || (empty($medical_details['requirements']) && empty($medical_details['address']) && empty($medical_details['date']) && empty($medical_details['time']))): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-value"><?php _e('Requirements details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-value"><?php esc_html_e('Requirements details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
                                                                 </div>
                                                             <?php endif; ?>
                                                         </div>
@@ -5344,20 +5466,20 @@ class JPM_Frontend
                                                 <button type="button" class="jpm-toggle-requirements"
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
-                                                        class="jpm-toggle-text"><?php _e('View Interview Requirements', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">▼</span>
+                                                        class="jpm-toggle-text"><?php esc_html_e('View Interview Requirements', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-requirements-content"
                                                     id="jpm-requirements-<?php echo esc_attr($application->id); ?>" style="display: none;">
                                                     <div class="jpm-form-data-section">
                                                         <h4 class="jpm-form-data-section-title">
-                                                            <?php _e('Interview Requirements & Schedule', 'job-posting-manager'); ?>
+                                                            <?php esc_html_e('Interview Requirements & Schedule', 'job-posting-manager'); ?>
                                                         </h4>
                                                         <div class="jpm-form-data-grid">
                                                             <?php if ($interview_details && !empty($interview_details['requirements'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Requirements:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Requirements:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo wp_kses_post(nl2br(esc_html($interview_details['requirements']))); ?></span>
                                                                 </div>
@@ -5365,7 +5487,7 @@ class JPM_Frontend
                                                             <?php if ($interview_details && !empty($interview_details['address'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Address:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Address:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo esc_html($interview_details['address']); ?></span>
                                                                 </div>
@@ -5373,14 +5495,14 @@ class JPM_Frontend
                                                             <?php if ($interview_details && !empty($interview_details['date'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Date:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Date:', 'job-posting-manager'); ?></span>
                                                                     <span class="jpm-form-data-value">
                                                                         <?php
                                                                         // Format date to "January 13, 2003" format
                                                                         $date_value = $interview_details['date'];
                                                                         $timestamp = strtotime($date_value);
                                                                         if ($timestamp !== false) {
-                                                                            echo esc_html(date('F j, Y', $timestamp));
+                                                                            echo esc_html(gmdate('F j, Y', $timestamp));
                                                                         } else {
                                                                             echo esc_html($date_value);
                                                                         }
@@ -5391,7 +5513,7 @@ class JPM_Frontend
                                                             <?php if ($interview_details && !empty($interview_details['time'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Time:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Time:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo esc_html($interview_details['time']); ?></span>
                                                                 </div>
@@ -5399,7 +5521,7 @@ class JPM_Frontend
                                                             <?php if (!$interview_details || (empty($interview_details['requirements']) && empty($interview_details['address']) && empty($interview_details['date']) && empty($interview_details['time']))): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-value"><?php _e('Interview details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-value"><?php esc_html_e('Interview details are not available yet. Please check your email for instructions.', 'job-posting-manager'); ?></span>
                                                                 </div>
                                                             <?php endif; ?>
                                                         </div>
@@ -5414,20 +5536,20 @@ class JPM_Frontend
                                                 <button type="button" class="jpm-toggle-rejection"
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
-                                                        class="jpm-toggle-text"><?php _e('View Rejection Details', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">▼</span>
+                                                        class="jpm-toggle-text"><?php esc_html_e('View Rejection Details', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-rejection-content"
                                                     id="jpm-rejection-<?php echo esc_attr($application->id); ?>" style="display: none;">
                                                     <div class="jpm-form-data-section">
                                                         <h4 class="jpm-form-data-section-title">
-                                                            <?php _e('Rejection Details', 'job-posting-manager'); ?>
+                                                            <?php esc_html_e('Rejection Details', 'job-posting-manager'); ?>
                                                         </h4>
                                                         <div class="jpm-form-data-grid">
                                                             <?php if (!empty($rejection_details['problem_area_label'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('The problem is in the:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('The problem is in the:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo esc_html($rejection_details['problem_area_label']); ?></span>
                                                                 </div>
@@ -5435,7 +5557,7 @@ class JPM_Frontend
                                                             <?php if (!empty($rejection_details['notes'])): ?>
                                                                 <div class="jpm-form-data-item">
                                                                     <span
-                                                                        class="jpm-form-data-label"><?php _e('Notes:', 'job-posting-manager'); ?></span>
+                                                                        class="jpm-form-data-label"><?php esc_html_e('Notes:', 'job-posting-manager'); ?></span>
                                                                     <span
                                                                         class="jpm-form-data-value"><?php echo wp_kses_post(nl2br(esc_html($rejection_details['notes']))); ?></span>
                                                                 </div>
@@ -5444,7 +5566,7 @@ class JPM_Frontend
                                                         <div class="jpm-rejection-message"
                                                             style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px;">
                                                             <p style="margin: 0; font-size: 14px; color: #856404; font-weight: 500;">
-                                                                <?php _e('You need to re-apply to this job. Please fix the issues in your application that caused the rejection before submitting a new application.', 'job-posting-manager'); ?>
+                                                                <?php esc_html_e('You need to re-apply to this job. Please fix the issues in your application that caused the rejection before submitting a new application.', 'job-posting-manager'); ?>
                                                             </p>
                                                         </div>
                                                     </div>
@@ -5460,14 +5582,15 @@ class JPM_Frontend
                     <!-- Information Tab -->
                     <div class="jpm-profile-tab-content" id="jpm-tab-information">
                         <div class="jpm-profile-tab-header">
-                            <h2 class="jpm-profile-tab-title"><?php _e('Account Information', 'job-posting-manager'); ?></h2>
+                            <h2 class="jpm-profile-tab-title"><?php esc_html_e('Account Information', 'job-posting-manager'); ?>
+                            </h2>
                         </div>
 
                         <div class="jpm-information-content">
                             <div class="jpm-info-section">
                                 <div class="jpm-info-section-header">
                                     <h3 class="jpm-info-section-title">
-                                        <?php _e('Personal Information', 'job-posting-manager'); ?>
+                                        <?php esc_html_e('Personal Information', 'job-posting-manager'); ?>
                                     </h3>
                                     <div class="jpm-edit-buttons">
                                         <button type="button" class="jpm-edit-info-btn" id="jpm-edit-personal-info">
@@ -5476,7 +5599,7 @@ class JPM_Frontend
                                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                             </svg>
-                                            <span><?php _e('Edit', 'job-posting-manager'); ?></span>
+                                            <span><?php esc_html_e('Edit', 'job-posting-manager'); ?></span>
                                         </button>
                                         <button type="button" class="jpm-edit-info-btn" id="jpm-save-personal-info"
                                             style="display: none;">
@@ -5484,11 +5607,11 @@ class JPM_Frontend
                                                 stroke-width="2">
                                                 <polyline points="20 6 9 17 4 12"></polyline>
                                             </svg>
-                                            <span><?php _e('Save', 'job-posting-manager'); ?></span>
+                                            <span><?php esc_html_e('Save', 'job-posting-manager'); ?></span>
                                         </button>
                                         <button type="button" class="jpm-btn jpm-btn-secondary" id="jpm-cancel-edit-info"
                                             style="display: none;">
-                                            <?php _e('Cancel', 'job-posting-manager'); ?>
+                                            <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
                                         </button>
                                     </div>
                                 </div>
@@ -5498,7 +5621,7 @@ class JPM_Frontend
                                     <div class="jpm-info-grid" id="jpm-info-display">
                                         <div class="jpm-info-item">
                                             <span
-                                                class="jpm-info-label"><?php _e('Display Name:', 'job-posting-manager'); ?></span>
+                                                class="jpm-info-label"><?php esc_html_e('Display Name:', 'job-posting-manager'); ?></span>
                                             <span class="jpm-info-value jpm-editable-value" id="jpm-display-name-value"
                                                 data-field="display_name"><?php echo esc_html($current_user->display_name); ?></span>
                                             <input type="text" id="jpm-edit-display-name" name="display_name"
@@ -5508,13 +5631,13 @@ class JPM_Frontend
                                         </div>
                                         <div class="jpm-info-item">
                                             <span
-                                                class="jpm-info-label"><?php _e('Email Address:', 'job-posting-manager'); ?></span>
+                                                class="jpm-info-label"><?php esc_html_e('Email Address:', 'job-posting-manager'); ?></span>
                                             <span
                                                 class="jpm-info-value"><?php echo esc_html($current_user->user_email); ?></span>
                                         </div>
                                         <div class="jpm-info-item">
                                             <span
-                                                class="jpm-info-label"><?php _e('First Name:', 'job-posting-manager'); ?></span>
+                                                class="jpm-info-label"><?php esc_html_e('First Name:', 'job-posting-manager'); ?></span>
                                             <span class="jpm-info-value jpm-editable-value" id="jpm-first-name-value"
                                                 data-field="first_name"><?php echo esc_html($current_user->first_name ? $current_user->first_name : ''); ?></span>
                                             <input type="text" id="jpm-edit-first-name" name="first_name" class="jpm-edit-input"
@@ -5523,7 +5646,7 @@ class JPM_Frontend
                                         </div>
                                         <div class="jpm-info-item">
                                             <span
-                                                class="jpm-info-label"><?php _e('Last Name:', 'job-posting-manager'); ?></span>
+                                                class="jpm-info-label"><?php esc_html_e('Last Name:', 'job-posting-manager'); ?></span>
                                             <span class="jpm-info-value jpm-editable-value" id="jpm-last-name-value"
                                                 data-field="last_name"><?php echo esc_html($current_user->last_name ? $current_user->last_name : ''); ?></span>
                                             <input type="text" id="jpm-edit-last-name" name="last_name" class="jpm-edit-input"
@@ -5533,7 +5656,7 @@ class JPM_Frontend
                                         <?php if (!empty($current_user->user_registered)): ?>
                                             <div class="jpm-info-item">
                                                 <span
-                                                    class="jpm-info-label"><?php _e('Member Since:', 'job-posting-manager'); ?></span>
+                                                    class="jpm-info-label"><?php esc_html_e('Member Since:', 'job-posting-manager'); ?></span>
                                                 <span
                                                     class="jpm-info-value"><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($current_user->user_registered))); ?></span>
                                             </div>
@@ -6159,8 +6282,16 @@ class JPM_Frontend
 
 
             .jpm-toggle-icon {
-                font-size: 10px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                line-height: 0;
                 transition: transform 0.2s ease;
+            }
+
+            .jpm-toggle-icon svg {
+                display: block;
             }
 
             .jpm-toggle-details.active .jpm-toggle-icon {
@@ -6186,11 +6317,6 @@ class JPM_Frontend
                 gap: 6px;
                 transition: color 0.15s ease;
                 margin-top: 8px;
-            }
-
-            .jpm-toggle-requirements .jpm-toggle-icon {
-                font-size: 10px;
-                transition: transform 0.2s ease;
             }
 
             .jpm-toggle-requirements.active .jpm-toggle-icon {
@@ -6219,11 +6345,6 @@ class JPM_Frontend
             .jpm-toggle-rejection:hover {
                 color: #b91c1c;
                 text-decoration: underline;
-            }
-
-            .jpm-toggle-rejection .jpm-toggle-icon {
-                font-size: 10px;
-                transition: transform 0.2s ease;
             }
 
             .jpm-toggle-rejection.active .jpm-toggle-icon {
@@ -6789,7 +6910,7 @@ class JPM_Frontend
                     $message.hide();
 
                     $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                         type: 'POST',
                         data: {
                             action: 'jpm_update_personal_info',
@@ -6857,7 +6978,7 @@ class JPM_Frontend
     public function handle_login()
     {
         // Verify nonce
-        if (!JPM_Security::verify_nonce($_POST['nonce'] ?? '', 'jpm_login', 'ajax')) {
+        if (!JPM_Security::verify_nonce(isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '', 'jpm_login', 'ajax')) {
             wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
             return;
         }
@@ -6865,8 +6986,9 @@ class JPM_Frontend
         // Check rate limit
         $rate_limit = JPM_Security::check_rate_limit('login');
         if (!$rate_limit['allowed']) {
-            $reset_time = date('i:s', $rate_limit['reset_time'] - time());
+            $reset_time = gmdate('i:s', $rate_limit['reset_time'] - time());
             wp_send_json_error([
+                /* translators: %s: Time remaining before next login attempt is allowed. */
                 'message' => sprintf(__('Too many login attempts. Please try again in %s.', 'job-posting-manager'), $reset_time)
             ]);
             return;
@@ -6879,10 +7001,10 @@ class JPM_Frontend
         }
 
         // Validate and sanitize inputs
-        $login = JPM_Security::validate_text($_POST['email'] ?? '', 100);
-        $password = $_POST['password'] ?? '';
-        $remember = isset($_POST['remember']) && JPM_Security::validate_int($_POST['remember'], 0, 1) === 1;
-        $redirect_url = JPM_Security::validate_url($_POST['redirect_url'] ?? '');
+        $login = JPM_Security::validate_text(isset($_POST['email']) ? wp_unslash($_POST['email']) : '', 100);
+        $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+        $remember = isset($_POST['remember']) && JPM_Security::validate_int(wp_unslash($_POST['remember']), 0, 1) === 1;
+        $redirect_url = JPM_Security::validate_url(isset($_POST['redirect_url']) ? wp_unslash($_POST['redirect_url']) : '');
 
         // Validate required fields
         if (empty($login)) {
@@ -6970,7 +7092,7 @@ class JPM_Frontend
         }
 
         // Get redirect URL
-        $redirect_url = esc_url_raw($_POST['redirect_url'] ?? home_url('/sign-in/'));
+        $redirect_url = isset($_POST['redirect_url']) ? esc_url_raw(wp_unslash($_POST['redirect_url'])) : home_url('/sign-in/');
 
         // Logout user
         wp_logout();
@@ -7020,17 +7142,17 @@ class JPM_Frontend
                         <line x1="21" y1="12" x2="9" y2="12"></line>
                     </svg>
                 </div>
-                <h3 class="jpm-logout-modal-title"><?php _e('Confirm Logout', 'job-posting-manager'); ?></h3>
+                <h3 class="jpm-logout-modal-title"><?php esc_html_e('Confirm Logout', 'job-posting-manager'); ?></h3>
                 <p class="jpm-logout-modal-message">
-                    <?php _e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?>
+                    <?php esc_html_e('Are you sure you want to logout? You will need to sign in again to access your account.', 'job-posting-manager'); ?>
                 </p>
                 <div class="jpm-logout-modal-actions">
                     <button type="button"
-                        class="jpm-logout-modal-cancel"><?php _e('No, stay logged in', 'job-posting-manager'); ?></button>
+                        class="jpm-logout-modal-cancel"><?php esc_html_e('No, stay logged in', 'job-posting-manager'); ?></button>
                     <button type="button" class="jpm-logout-modal-confirm">
-                        <span class="jpm-logout-confirm-text"><?php _e('Yes, log out', 'job-posting-manager'); ?></span>
+                        <span class="jpm-logout-confirm-text"><?php esc_html_e('Yes, log out', 'job-posting-manager'); ?></span>
                         <span class="jpm-logout-loading-text"
-                            style="display: none;"><?php _e('Logging out...', 'job-posting-manager'); ?></span>
+                            style="display: none;"><?php esc_html_e('Logging out...', 'job-posting-manager'); ?></span>
                     </button>
                 </div>
             </div>
@@ -7266,7 +7388,7 @@ class JPM_Frontend
                         formData.append('nonce', nonce);
                         formData.append('redirect_url', redirectUrl);
 
-                        fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                        fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
                             method: 'POST',
                             body: formData
                         })
@@ -7333,7 +7455,7 @@ class JPM_Frontend
         }
 
         // Get form data
-        $email = sanitize_email($_POST['email'] ?? '');
+        $email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
 
         // Validate required fields
         if (empty($email) || !is_email($email)) {
@@ -7375,10 +7497,10 @@ class JPM_Frontend
         }
 
         // Get form data
-        $key = sanitize_text_field($_POST['key'] ?? '');
-        $login = sanitize_user($_POST['login'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $password_confirm = $_POST['password_confirm'] ?? '';
+        $key = isset($_POST['key']) ? sanitize_text_field(wp_unslash($_POST['key'])) : '';
+        $login = isset($_POST['login']) ? sanitize_user(wp_unslash($_POST['login'])) : '';
+        $password = isset($_POST['password']) ? wp_unslash($_POST['password']) : '';
+        $password_confirm = isset($_POST['password_confirm']) ? wp_unslash($_POST['password_confirm']) : '';
 
         // Validate required fields
         if (empty($key) || empty($login)) {
@@ -7443,9 +7565,9 @@ class JPM_Frontend
         }
 
         // Get and sanitize form data
-        $display_name = sanitize_text_field($_POST['display_name'] ?? '');
-        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
-        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
+        $display_name = isset($_POST['display_name']) ? sanitize_text_field(wp_unslash($_POST['display_name'])) : '';
+        $first_name = isset($_POST['first_name']) ? sanitize_text_field(wp_unslash($_POST['first_name'])) : '';
+        $last_name = isset($_POST['last_name']) ? sanitize_text_field(wp_unslash($_POST['last_name'])) : '';
 
         // Validate required fields
         if (empty($display_name)) {

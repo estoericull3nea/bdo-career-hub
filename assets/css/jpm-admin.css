@@ -40,6 +40,15 @@
   margin-top: 20px;
 }
 
+.jpm-form-builder-section-title {
+  margin: 0 0 12px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2327;
+  line-height: 1.4;
+}
+
 .jpm-form-rows {
   display: flex;
   flex-direction: column;
@@ -844,4 +853,149 @@ body.jpm-dragging * {
 
 #expiration_unit {
   min-width: 120px;
+}
+
+/* -------------------------------------------------------------------------
+   Dashboard (admin.php?page=jpm-dashboard) — responsive tables & layout
+   ------------------------------------------------------------------------- */
+
+.jpm-dashboard-page .jpm-dashboard-chart-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-left: -4px;
+  margin-right: -4px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.jpm-dashboard-page .jpm-dashboard-chart-bars {
+  min-width: 520px;
+}
+
+/* Horizontal scroll for wide admin tables (dashboard, job listings, tablet & mobile) */
+.jpm-table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  box-sizing: border-box;
+}
+
+.jpm-table-responsive table.widefat {
+  table-layout: auto;
+  width: 100%;
+  margin: 0;
+}
+
+.jpm-dashboard-page .jpm-table-responsive table.jpm-dashboard-table--top-jobs.widefat {
+  min-width: 520px;
+}
+
+.jpm-dashboard-page .jpm-table-responsive table.jpm-dashboard-table--jobs.widefat {
+  min-width: 880px;
+}
+
+.jpm-job-listings-page .jpm-table-responsive table.jpm-job-listings-table.widefat {
+  min-width: 980px;
+}
+
+.jpm-applications-page .jpm-table-responsive table.jpm-applications-table.widefat {
+  min-width: 1020px;
+}
+
+
+.jpm-dashboard-page .jpm-dashboard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.jpm-dashboard-page .jpm-dashboard-toolbar .button {
+  text-align: center;
+}
+
+@media screen and (max-width: 782px) {
+  .jpm-dashboard-page .jpm-analytics-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .jpm-dashboard-page .jpm-dashboard-status-cards > div {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .jpm-dashboard-page .jpm-dashboard-filter-row {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .jpm-dashboard-page .jpm-dashboard-filter-field,
+  .jpm-dashboard-page .jpm-dashboard-filter-row > div {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .jpm-dashboard-page .jpm-dashboard-search-input.regular-text {
+    width: 100% !important;
+  }
+
+  .jpm-dashboard-page .jpm-dashboard-filters .button {
+    width: 100%;
+    margin-top: 8px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .jpm-dashboard-page .jpm-dashboard-filters .button ~ .button {
+    margin-left: 0;
+  }
+
+  .jpm-dashboard-page .jpm-chart-filters {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .jpm-dashboard-page .jpm-chart-filters label,
+  .jpm-dashboard-page .jpm-chart-filters select,
+  .jpm-dashboard-page .jpm-chart-filters .button {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .jpm-dashboard-page #jpm-chart-custom-dates {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .jpm-dashboard-page .jpm-dashboard-chart-bars .jpm-chart-bar {
+    max-width: 28px !important;
+  }
+}
+
+/* Applications admin — same analytics card hover/feel as dashboard */
+.jpm-applications-page .jpm-applications-analytics .jpm-analytics-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.jpm-applications-page .jpm-applications-analytics .jpm-analytics-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .jpm-applications-page .jpm-applications-analytics .jpm-analytics-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .jpm-applications-page .jpm-applications-analytics .jpm-dashboard-status-cards > div {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }

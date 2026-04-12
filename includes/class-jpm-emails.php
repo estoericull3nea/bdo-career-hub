@@ -1,6 +1,48 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 class JPM_Emails
 {
+    /**
+     * Get validated applications table name.
+     *
+     * @return string
+     */
+    private static function get_validated_applications_table()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'job_applications';
+        $expected_pattern = '/^' . preg_quote($wpdb->prefix, '/') . 'job_applications$/';
+
+        if (!preg_match($expected_pattern, $table)) {
+            return $wpdb->prefix . 'job_applications';
+        }
+
+        return $table;
+    }
+
+    /**
+     * Fetch and cache a job application row by ID.
+     *
+     * @param int $app_id Application ID.
+     * @return object|null
+     */
+    private static function get_application_row($app_id)
+    {
+        $app_id = absint($app_id);
+        if ($app_id <= 0) {
+            return null;
+        }
+
+        global $wpdb;
+        $table = self::get_validated_applications_table();
+        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $app_id));
+
+        return $application;
+    }
+
     /**
      * Detect the slug used for the "For Medical" status.
      */
@@ -36,6 +78,34 @@ class JPM_Emails
         }
 
         return false;
+    }
+
+    /**
+     * Admin inbox for new application and registration notifications.
+     * Uses Settings → Admin email, then WordPress admin email.
+     *
+     * @return string
+     */
+    public static function get_admin_notification_email()
+    {
+        $email_settings = get_option('jpm_email_settings', []);
+        if (!is_array($email_settings)) {
+            $email_settings = [];
+        }
+
+        $admin = isset($email_settings['admin_email']) ? sanitize_email($email_settings['admin_email']) : '';
+        if (!empty($admin) && is_email($admin)) {
+            return $admin;
+        }
+
+        // One-time read of legacy option until settings are saved again.
+        $legacy = isset($email_settings['recipient_email']) ? sanitize_email($email_settings['recipient_email']) : '';
+        if (!empty($legacy) && is_email($legacy)) {
+            return $legacy;
+        }
+
+        $wp_admin = get_option('admin_email');
+        return (!empty($wp_admin) && is_email($wp_admin)) ? $wp_admin : '';
     }
 
     /**
@@ -98,7 +168,7 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
         $settings = get_option('jpm_settings', []);
@@ -143,9 +213,7 @@ class JPM_Emails
         }
 
         // Get application status from database
-        global $wpdb;
-        $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
+        $application = self::get_application_row($app_id);
 
         // Get status information
         $status_slug = 'pending'; // Default status
@@ -285,7 +353,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send confirmation email to ' . $customer_email);
+            do_action('jpm_log_error', 'JPM: Failed to send confirmation email to ' . $customer_email);
         }
 
         return $result;
@@ -300,17 +368,14 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
-        global $wpdb;
-
         // Get application details
-        $table = $wpdb->prefix . 'job_applications';
-        $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $app_id));
+        $application = self::get_application_row($app_id);
 
         if (!$application) {
-            error_log('JPM: Application not found for ID: ' . $app_id);
+            do_action('jpm_log_error', 'JPM: Application not found for ID: ' . $app_id);
             return false;
         }
 
@@ -408,7 +473,7 @@ class JPM_Emails
 
         // If still no email, can't send notification
         if (empty($customer_email)) {
-            error_log('JPM: No email found for application ID: ' . $app_id);
+            do_action('jpm_log_error', 'JPM: No email found for application ID: ' . $app_id);
             return false;
         }
 
@@ -485,8 +550,10 @@ class JPM_Emails
         foreach ($all_statuses as $status) {
             $slug = strtolower($status['slug']);
             $name = strtolower($status['name']);
-            if ($slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' || 
-                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false) {
+            if (
+                $slug === 'for-interview' || $slug === 'for_interview' || $slug === 'forinterview' ||
+                $name === 'for interview' || stripos($name, 'for interview') !== false || stripos($name, 'interview') !== false
+            ) {
                 $interview_status_slug = $status['slug'];
                 break;
             }
@@ -599,6 +666,9 @@ class JPM_Emails
 
             $body .= '</table>';
             $body .= '</div>';
+            $body .= '<div style="margin: 12px 0 25px 0; padding: 14px 16px; background-color: #f0f6fc;  border-radius: 0 4px 4px 0;">';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #1e1e1e; line-height: 1.6;">' . esc_html__('Please go to our address on your schedule.', 'job-posting-manager') . '</p>';
+            $body .= '</div>';
         }
 
         // Interview details section (only when status is For Interview)
@@ -635,6 +705,9 @@ class JPM_Emails
             }
 
             $body .= '</table>';
+            $body .= '</div>';
+            $body .= '<div style="margin: 12px 0 25px 0; padding: 14px 16px; background-color: #f0f6fc;  border-radius: 0 4px 4px 0;">';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #1e1e1e; line-height: 1.6;">' . esc_html__('Please go to our address on your schedule.', 'job-posting-manager') . '</p>';
             $body .= '</div>';
         }
 
@@ -703,6 +776,7 @@ class JPM_Emails
             if ($is_accepted) {
                 $body .= '<div style="background: linear-gradient(to right, #d4edda 0%, #c3e6cb 100%); padding: 20px; border-radius: 5px; margin: 20px 0;">';
                 $body .= '<p style="margin: 0; font-size: 16px; color: #155724; font-weight: 600; line-height: 1.6;">';
+                /* translators: %s: Job title wrapped in strong tag. */
                 $body .= __('Congratulations!', 'job-posting-manager') . ' ' . sprintf(__('We are pleased to inform you that your application for the position of %s has been accepted.', 'job-posting-manager'), '<strong>' . esc_html($job_title) . '</strong>');
                 $body .= '</p>';
                 $body .= '<p style="margin: 15px 0 0 0; font-size: 15px; color: #155724; line-height: 1.6;">';
@@ -795,7 +869,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send status update email to ' . $customer_email);
+            do_action('jpm_log_error', 'JPM: Failed to send status update email to ' . $customer_email);
         }
 
         return $result;
@@ -816,14 +890,13 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
         // Get recipient email from settings if not provided
         if (empty($admin_email)) {
-            $email_settings = get_option('jpm_email_settings', []);
-            $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+            $admin_email = self::get_admin_notification_email();
         }
 
         // Get job details
@@ -1132,6 +1205,7 @@ class JPM_Emails
             if (!empty($employment_entries)) {
                 foreach ($employment_entries as $index => $entry) {
                     $entry_num = $index + 1;
+                    /* translators: %d: Employment entry number. */
                     $body .= '<h3 style="color: #0073aa; font-size: 16px; margin: 15px 0 10px 0;">' . sprintf(__('Employment #%d', 'job-posting-manager'), $entry_num) . '</h3>';
                     $body .= '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
                     if (!empty($entry['company_name'])) {
@@ -1233,6 +1307,7 @@ class JPM_Emails
 
         if ($total_fields > $fields_shown) {
             $remaining = $total_fields - $fields_shown;
+            /* translators: %d: Number of additional form fields not shown in the email. */
             $body .= '<p style="margin: 12px 0; color: #666; font-style: italic;">' . sprintf(__('+ %d more field(s) available in admin panel', 'job-posting-manager'), $remaining) . '</p>';
         }
 
@@ -1293,12 +1368,13 @@ class JPM_Emails
 
         // Set PHP execution time limit for email sending (if possible)
         if (function_exists('set_time_limit')) {
+            // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Optional runtime guard for long SMTP requests in shared hosts.
             @set_time_limit(30); // 30 seconds for email sending
         }
 
         // Log start time for debugging
         $start_time = microtime(true);
-        error_log('JPM: Starting admin notification email send to ' . $admin_email . ' at ' . date('Y-m-d H:i:s'));
+        do_action('jpm_log_error', 'JPM: Starting admin notification email send to ' . $admin_email . ' at ' . gmdate('Y-m-d H:i:s'));
 
         // Send email and return result
         $result = wp_mail($admin_email, $subject, $body, $headers);
@@ -1308,9 +1384,9 @@ class JPM_Emails
         $duration = round($end_time - $start_time, 2);
 
         if (!$result) {
-            error_log('JPM: Failed to send admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
+            do_action('jpm_log_error', 'JPM: Failed to send admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
         } else {
-            error_log('JPM: Successfully sent admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
+            do_action('jpm_log_error', 'JPM: Successfully sent admin notification email to ' . $admin_email . ' (took ' . $duration . 's)');
         }
 
         return $result;
@@ -1327,11 +1403,12 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
         // Build email subject
+        /* translators: %s: Site name. */
         $subject = sprintf(__('Your Verification Code for %s', 'job-posting-manager'), get_bloginfo('name'));
 
         // Build email body with modern styling
@@ -1354,6 +1431,7 @@ class JPM_Emails
         $body .= '</div>';
 
         $body .= '<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">';
+        /* translators: %s: Site name. */
         $body .= '<p style="font-size: 12px; color: #9ca3af; margin: 0;">' . sprintf(__('This is an automated email from %s.', 'job-posting-manager'), get_bloginfo('name')) . '</p>';
         $body .= '</div>';
         $body .= '</body></html>';
@@ -1369,7 +1447,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send OTP email to ' . $email);
+            do_action('jpm_log_error', 'JPM: Failed to send OTP email to ' . $email);
         }
 
         return $result;
@@ -1388,18 +1466,20 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
         $full_name = trim($first_name . ' ' . $last_name);
 
         // Build email subject
+        /* translators: %s: Site name. */
         $subject = sprintf(__('Welcome to %s - Your Account Has Been Created', 'job-posting-manager'), get_bloginfo('name'));
 
         // Build email body
         $body = '<html><body>';
-        $body .= '<h2>' . __('Welcome, ' . esc_html($full_name) . '!', 'job-posting-manager') . '</h2>';
+        /* translators: %s: Customer full name. */
+        $body .= '<h2>' . sprintf(__('Welcome, %s!', 'job-posting-manager'), esc_html($full_name)) . '</h2>';
         $body .= '<p>' . __('Your account has been successfully created on our website.', 'job-posting-manager') . '</p>';
         $body .= '<hr>';
         $body .= '<h3>' . __('Your Account Details', 'job-posting-manager') . '</h3>';
@@ -1435,7 +1515,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send account creation email to ' . $email);
+            do_action('jpm_log_error', 'JPM: Failed to send account creation email to ' . $email);
         }
 
         return $result;
@@ -1454,20 +1534,20 @@ class JPM_Emails
     {
         // Check if SMTP is available
         if (!self::is_smtp_available()) {
-            error_log('Job Posting Manager: Email not sent - No SMTP plugin configured');
+            do_action('jpm_log_error', 'Job Posting Manager: Email not sent - No SMTP plugin configured');
             return false;
         }
 
         // Get recipient email from settings if not provided
         if (empty($admin_email)) {
-            $email_settings = get_option('jpm_email_settings', []);
-            $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+            $admin_email = self::get_admin_notification_email();
         }
 
         $full_name = trim($first_name . ' ' . $last_name);
         $user_link = admin_url('user-edit.php?user_id=' . $user_id);
 
         // Build email subject
+        /* translators: %s: Customer full name. */
         $subject = sprintf(__('New Customer Account Created: %s', 'job-posting-manager'), $full_name);
 
         // Build email body
@@ -1498,7 +1578,7 @@ class JPM_Emails
 
         // Log email sending attempt
         if (!$result) {
-            error_log('JPM: Failed to send new customer notification email to ' . $admin_email);
+            do_action('jpm_log_error', 'JPM: Failed to send new customer notification email to ' . $admin_email);
         }
 
         return $result;

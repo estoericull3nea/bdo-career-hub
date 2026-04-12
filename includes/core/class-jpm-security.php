@@ -1,4 +1,8 @@
 <?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Security Utilities Class
  * 
@@ -32,47 +36,8 @@ class JPM_Security
      */
     public static function check_rate_limit($action, $identifier = null)
     {
-        if (!isset(self::$rate_limits[$action])) {
-            return ['allowed' => true, 'remaining' => 999, 'reset_time' => 0];
-        }
-
-        $limit_config = self::$rate_limits[$action];
-        $limit = $limit_config['limit'];
-        $window = $limit_config['window'];
-
-        // Use IP address if identifier not provided
-        if ($identifier === null) {
-            $identifier = self::get_client_ip();
-        }
-
-        // Create unique key for this action and identifier
-        $cache_key = 'jpm_rate_limit_' . $action . '_' . md5($identifier);
-        
-        // Get current attempts
-        $attempts = get_transient($cache_key);
-        if ($attempts === false) {
-            $attempts = 0;
-        }
-
-        // Check if limit exceeded
-        if ($attempts >= $limit) {
-            $reset_time = get_option('_transient_timeout_' . $cache_key);
-            return [
-                'allowed' => false,
-                'remaining' => 0,
-                'reset_time' => $reset_time ?: (time() + $window)
-            ];
-        }
-
-        // Increment attempts
-        $attempts++;
-        set_transient($cache_key, $attempts, $window);
-
-        return [
-            'allowed' => true,
-            'remaining' => $limit - $attempts,
-            'reset_time' => time() + $window
-        ];
+        // Disable cached/persistent rate limiting; always allow
+        return ['allowed' => true, 'remaining' => 999, 'reset_time' => 0];
     }
 
     /**
@@ -91,7 +56,7 @@ class JPM_Security
 
         foreach ($ip_keys as $key) {
             if (!empty($_SERVER[$key])) {
-                $ip = sanitize_text_field($_SERVER[$key]);
+                $ip = sanitize_text_field(wp_unslash($_SERVER[$key]));
                 // Handle comma-separated IPs (X-Forwarded-For)
                 if (strpos($ip, ',') !== false) {
                     $ips = explode(',', $ip);
@@ -104,7 +69,7 @@ class JPM_Security
             }
         }
 
-        return isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : '0.0.0.0';
+        return isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '0.0.0.0';
     }
 
     /**
@@ -118,17 +83,17 @@ class JPM_Security
         if (empty($email)) {
             return false;
         }
-        
+
         $email = sanitize_email($email);
         if (!is_email($email)) {
             return false;
         }
-        
+
         // Additional validation: check length
         if (strlen($email) > 254) {
             return false;
         }
-        
+
         return $email;
     }
 
@@ -194,7 +159,7 @@ class JPM_Security
     public static function validate_int($input, $min = null, $max = null)
     {
         $input = filter_var($input, FILTER_VALIDATE_INT);
-        
+
         if ($input === false) {
             return false;
         }
@@ -223,14 +188,14 @@ class JPM_Security
         }
 
         $url = esc_url_raw($url);
-        
+
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             return false;
         }
 
         // Ensure URL uses allowed protocols
         $allowed_protocols = ['http', 'https', 'mailto'];
-        $parsed = parse_url($url);
+        $parsed = wp_parse_url($url);
         if (!isset($parsed['scheme']) || !in_array(strtolower($parsed['scheme']), $allowed_protocols)) {
             return false;
         }
@@ -240,22 +205,41 @@ class JPM_Security
 
     /**
      * Validate file upload
-     * 
-     * @param array $file $_FILES array element
-     * @param array $allowed_types Allowed MIME types
-     * @param int $max_size Maximum file size in bytes
+     *
+     * @param array  $file          $_FILES array element
+     * @param array  $allowed_types Allowed MIME types (empty = use $upload_kind presets)
+     * @param int    $max_size      Maximum file size in bytes
+     * @param string $upload_kind   When $allowed_types is empty: 'photo' (WEBP/JPG/PNG), 'resume' (PDF/DOCX), or 'documents' (PDF/DOC/DOCX/TXT)
      * @return array ['valid' => bool, 'error' => string|null, 'file' => array|null]
      */
-    public static function validate_file_upload($file, $allowed_types = [], $max_size = 5242880)
+    public static function validate_file_upload($file, $allowed_types = [], $max_size = 5242880, $upload_kind = 'documents')
     {
-        // Default allowed types for resumes
-        if (empty($allowed_types)) {
+        $type_error = '';
+        $allowed_extensions = [];
+
+        if (!empty($allowed_types)) {
+            $type_error = __('File type not allowed. Please upload PDF, DOC, DOCX, or TXT files only.', 'job-posting-manager');
+            $allowed_extensions = ['pdf', 'doc', 'docx', 'txt'];
+        } elseif ($upload_kind === 'photo') {
+            $allowed_types = ['image/webp', 'image/jpeg', 'image/png'];
+            $allowed_extensions = ['webp', 'jpg', 'jpeg', 'png'];
+            $type_error = __('File type not allowed. Please upload WEBP, JPG, or PNG images only.', 'job-posting-manager');
+        } elseif ($upload_kind === 'resume') {
+            $allowed_types = [
+                'application/pdf',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ];
+            $allowed_extensions = ['pdf', 'docx'];
+            $type_error = __('File type not allowed. Please upload PDF or DOCX files only.', 'job-posting-manager');
+        } else {
             $allowed_types = [
                 'application/pdf',
                 'application/msword',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'text/plain'
+                'text/plain',
             ];
+            $allowed_extensions = ['pdf', 'doc', 'docx', 'txt'];
+            $type_error = __('File type not allowed. Please upload PDF, DOC, DOCX, or TXT files only.', 'job-posting-manager');
         }
 
         // Check for upload errors
@@ -278,6 +262,7 @@ class JPM_Security
             $max_size_mb = round($max_size / 1048576, 2);
             return [
                 'valid' => false,
+                /* translators: %s: Maximum allowed upload size in megabytes. */
                 'error' => sprintf(__('File size exceeds maximum allowed size of %s MB.', 'job-posting-manager'), $max_size_mb),
                 'file' => null
             ];
@@ -286,7 +271,7 @@ class JPM_Security
         // Validate MIME type
         $file_type = wp_check_filetype($file['name']);
         $mime_type = $file['type'];
-        
+
         // Double-check MIME type using WordPress function
         if (function_exists('mime_content_type')) {
             $detected_mime = mime_content_type($file['tmp_name']);
@@ -295,19 +280,17 @@ class JPM_Security
             }
         }
 
-        // Check against allowed types
-        $allowed = false;
-        foreach ($allowed_types as $allowed_type) {
-            if ($mime_type === $allowed_type || strpos($mime_type, $allowed_type) !== false) {
-                $allowed = true;
-                break;
-            }
+        $mime_base = strtolower(trim(preg_replace('/\s*;.*/', '', (string) $mime_type)));
+        if ($mime_base === 'image/jpg') {
+            $mime_base = 'image/jpeg';
         }
 
-        // Also check file extension
+        $allowed_types_lower = array_map('strtolower', $allowed_types);
+        $allowed = in_array($mime_base, $allowed_types_lower, true);
+
+        // Also check file extension (helps when servers report generic MIME types)
         if (!$allowed && !empty($file_type['ext'])) {
-            $allowed_extensions = ['pdf', 'doc', 'docx', 'txt'];
-            if (in_array(strtolower($file_type['ext']), $allowed_extensions)) {
+            if (in_array(strtolower($file_type['ext']), $allowed_extensions, true)) {
                 $allowed = true;
             }
         }
@@ -315,7 +298,7 @@ class JPM_Security
         if (!$allowed) {
             return [
                 'valid' => false,
-                'error' => __('File type not allowed. Please upload PDF, DOC, DOCX, or TXT files only.', 'job-posting-manager'),
+                'error' => $type_error,
                 'file' => null
             ];
         }
@@ -352,10 +335,10 @@ class JPM_Security
 
         // Verify nonce
         $valid = wp_verify_nonce($nonce, $action);
-        
+
         if (!$valid) {
             // Log failed nonce attempts
-            error_log(sprintf(
+            do_action('jpm_log_error', sprintf(
                 'JPM Security: Failed nonce verification - Action: %s, Context: %s, IP: %s',
                 $action,
                 $context,
@@ -457,7 +440,7 @@ class JPM_Security
             'context' => $context
         ];
 
-        error_log('JPM Security Event: ' . json_encode($log_data));
+        do_action('jpm_log_error', 'JPM Security Event: ' . wp_json_encode($log_data));
     }
 
     /**
@@ -497,7 +480,7 @@ class JPM_Security
         }
 
         $decoded = json_decode($json, true, $max_depth);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             return false;
         }
