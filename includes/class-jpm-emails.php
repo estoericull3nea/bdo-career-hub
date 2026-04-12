@@ -638,6 +638,9 @@ class JPM_Emails
 
             $body .= '</table>';
             $body .= '</div>';
+            $body .= '<div style="margin: 12px 0 25px 0; padding: 14px 16px; background-color: #f0f6fc;  border-radius: 0 4px 4px 0;">';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #1e1e1e; line-height: 1.6;">' . esc_html__('Please go to our address on your schedule.', 'job-posting-manager') . '</p>';
+            $body .= '</div>';
         }
 
         // Interview details section (only when status is For Interview)
@@ -674,6 +677,9 @@ class JPM_Emails
             }
 
             $body .= '</table>';
+            $body .= '</div>';
+            $body .= '<div style="margin: 12px 0 25px 0; padding: 14px 16px; background-color: #f0f6fc;  border-radius: 0 4px 4px 0;">';
+            $body .= '<p style="margin: 0; font-size: 15px; color: #1e1e1e; line-height: 1.6;">' . esc_html__('Please go to our address on your schedule.', 'job-posting-manager') . '</p>';
             $body .= '</div>';
         }
 
