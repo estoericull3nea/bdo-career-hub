@@ -6357,21 +6357,24 @@ class JPM_Admin
             return;
         }
 
-        if (
-            !isset($_GET['jpm_print_nonce']) ||
-            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_print_nonce'])), 'jpm_print_application')
-        ) {
-            wp_die(__('Security check failed.', 'job-posting-manager'));
-        }
-
         // Prevent WordPress admin from loading - must be defined before admin template loads
         if (!defined('IFRAME_REQUEST')) {
             define('IFRAME_REQUEST', true);
         }
 
-        // Check user capabilities
+        // Capability first: print view shows applicant PII; only staff who can review applications.
         if (!current_user_can('edit_posts')) {
             wp_die(__('You do not have permission to view this page.', 'job-posting-manager'));
+        }
+
+        // Nonce is optional so email/bookmark links work. Notifications are built while the applicant
+        // request may be logged out, so wp_nonce_url in mail would not verify for the admin user.
+        // If a nonce is present (e.g. from the applications list), it must be valid.
+        if (
+            isset($_GET['jpm_print_nonce']) &&
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_print_nonce'])), 'jpm_print_application')
+        ) {
+            wp_die(__('Security check failed.', 'job-posting-manager'));
         }
 
         $application_id = isset($_GET['application_id']) ? absint(wp_unslash($_GET['application_id'])) : 0;
