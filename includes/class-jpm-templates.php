@@ -251,6 +251,18 @@ class JPM_Templates {
                     if ($has_old_fields) {
                         $templates[$index]['fields'] = $this->get_default_template_fields();
                         update_option('jpm_form_templates', $templates);
+                        update_option('jpm_default_template_fields_version', 2);
+                    } else {
+                        $fields_version = (int) get_option('jpm_default_template_fields_version', 1);
+                        if ($fields_version < 2) {
+                            $templates[$index]['fields'] = $this->ensure_default_top_upload_fields(
+                                isset($templates[$index]['fields']) && is_array($templates[$index]['fields'])
+                                    ? $templates[$index]['fields']
+                                    : []
+                            );
+                            update_option('jpm_form_templates', $templates);
+                            update_option('jpm_default_template_fields_version', 2);
+                        }
                     }
                     break;
                 }
@@ -286,8 +298,55 @@ class JPM_Templates {
         
         $templates = [$default_template];
         update_option('jpm_form_templates', $templates);
-        
+        update_option('jpm_default_template_fields_version', 2);
+
         return $default_template;
+    }
+
+    /**
+     * Photo + resume rows always shown first on the default application form.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function get_default_template_top_upload_fields() {
+        return [
+            [
+                'type' => 'file',
+                'label' => '2x2 Picture',
+                'name' => 'applicant_photo_2x2',
+                'required' => true,
+                'placeholder' => '',
+                'options' => '',
+                'description' => '',
+                'column_width' => '6',
+            ],
+            [
+                'type' => 'file',
+                'label' => 'Upload Resume',
+                'name' => 'resume_upload',
+                'required' => true,
+                'placeholder' => '',
+                'options' => '',
+                'description' => '',
+                'column_width' => '6',
+            ],
+        ];
+    }
+
+    /**
+     * Put photo + resume at the top; drop duplicate entries elsewhere by field name.
+     *
+     * @param array<int, array<string, mixed>> $fields
+     * @return array<int, array<string, mixed>>
+     */
+    private function ensure_default_top_upload_fields(array $fields) {
+        $skip_names = ['applicant_photo_2x2', 'resume_upload'];
+        $rest = array_values(array_filter($fields, function ($f) use ($skip_names) {
+            $n = isset($f['name']) ? (string) $f['name'] : '';
+            return !in_array($n, $skip_names, true);
+        }));
+
+        return array_merge($this->get_default_template_top_upload_fields(), $rest);
     }
 
     /**
@@ -296,8 +355,10 @@ class JPM_Templates {
     private function get_default_template_fields() {
         // Position choice fields will be populated dynamically from available jobs
         // So we don't need to set options here - they'll be loaded when the form is rendered
-        
-        return [
+
+        return array_merge(
+            $this->get_default_template_top_upload_fields(),
+            [
             // POSITION APPLIED section
             [
                 'type' => 'select',
@@ -541,7 +602,8 @@ class JPM_Templates {
                 'description' => '',
                 'column_width' => '4'
             ],
-        ];
+            ]
+        );
     }
 
     /**

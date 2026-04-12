@@ -204,6 +204,22 @@ class JPM_Form_Builder
 
 
     /**
+     * Default template upload fields must stay type "file" (legacy saves or JSON may omit/wrong type).
+     *
+     * @param array $field
+     * @return array
+     */
+    private function normalize_upload_field_type(array $field)
+    {
+        $name = isset($field['name']) ? (string) $field['name'] : '';
+        if (in_array($name, ['applicant_photo_2x2', 'resume_upload'], true)) {
+            $field['type'] = 'file';
+        }
+
+        return $field;
+    }
+
+    /**
      * Render field editor
      */
     private function render_field_editor($field, $index)
@@ -218,6 +234,7 @@ class JPM_Form_Builder
             'description' => '',
             'column_width' => '12', // Default full width (12 columns)
         ]);
+        $field = $this->normalize_upload_field_type($field);
         ?>
         <div class="jpm-field-editor" data-index="<?php echo esc_attr($index); ?>">
             <div class="jpm-field-header">
@@ -390,6 +407,7 @@ class JPM_Form_Builder
                 // Sanitize form fields
                 $sanitized_fields = [];
                 foreach ($form_fields as $field) {
+                    $field = $this->normalize_upload_field_type(is_array($field) ? $field : []);
                     $sanitized_fields[] = [
                         'type' => sanitize_text_field($field['type'] ?? 'text'),
                         'label' => sanitize_text_field($field['label'] ?? ''),
@@ -1473,6 +1491,7 @@ class JPM_Form_Builder
      */
     private function render_form_field($field, $index)
     {
+        $field = $this->normalize_upload_field_type(is_array($field) ? $field : []);
         $field_id = 'jpm_field_' . $index;
         $field_name = 'jpm_fields[' . esc_attr($field['name']) . ']';
         $required = !empty($field['required']) ? 'required' : '';
@@ -1710,6 +1729,7 @@ class JPM_Form_Builder
         $jpm_fields = isset($_POST['jpm_fields']) && is_array($_POST['jpm_fields']) ? wp_unslash($_POST['jpm_fields']) : [];
 
         foreach ($form_fields as $field) {
+            $field = $this->normalize_upload_field_type(is_array($field) ? $field : []);
             if (!empty($field['required'])) {
                 $field_name = $field['name'];
                 $value = '';
@@ -1823,6 +1843,7 @@ class JPM_Form_Builder
         }
 
         foreach ($form_fields as $field) {
+            $field = $this->normalize_upload_field_type(is_array($field) ? $field : []);
             $field_name = $field['name'];
 
             if ($field['type'] === 'file') {
