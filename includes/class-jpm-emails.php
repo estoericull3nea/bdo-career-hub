@@ -82,7 +82,7 @@ class JPM_Emails
 
     /**
      * Admin inbox for new application and registration notifications.
-     * Uses Settings → Admin email, then legacy recipient email, then WordPress admin email.
+     * Uses Settings → Admin email, then WordPress admin email.
      *
      * @return string
      */
@@ -98,9 +98,10 @@ class JPM_Emails
             return $admin;
         }
 
-        $recipient = isset($email_settings['recipient_email']) ? sanitize_email($email_settings['recipient_email']) : '';
-        if (!empty($recipient) && is_email($recipient)) {
-            return $recipient;
+        // One-time read of legacy option until settings are saved again.
+        $legacy = isset($email_settings['recipient_email']) ? sanitize_email($email_settings['recipient_email']) : '';
+        if (!empty($legacy) && is_email($legacy)) {
+            return $legacy;
         }
 
         $wp_admin = get_option('admin_email');
