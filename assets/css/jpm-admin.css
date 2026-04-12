@@ -40,6 +40,15 @@
   margin-top: 20px;
 }
 
+.jpm-form-builder-section-title {
+  margin: 0 0 12px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2327;
+  line-height: 1.4;
+}
+
 .jpm-form-rows {
   display: flex;
   flex-direction: column;

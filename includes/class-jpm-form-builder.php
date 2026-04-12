@@ -120,6 +120,7 @@ class JPM_Form_Builder
             </div>
 
             <div id="jpm-form-fields-container" class="jpm-form-fields-container">
+                <h4 class="jpm-form-builder-section-title"><?php esc_html_e('Personal Information', 'job-posting-manager'); ?></h4>
                 <div class="jpm-form-rows">
                     <?php if (!empty($form_fields)): ?>
                         <?php
