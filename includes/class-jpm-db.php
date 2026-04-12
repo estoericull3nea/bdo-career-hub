@@ -1625,7 +1625,8 @@ class JPM_Admin
                     </div>
                 </div>
             <?php else: ?>
-                <table class="widefat fixed striped">
+                <div class="jpm-table-responsive">
+                <table class="widefat striped jpm-applications-table">
                     <thead>
                         <tr>
                             <th><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
@@ -1734,6 +1735,7 @@ class JPM_Admin
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                </div>
             <?php endif; ?>
         </div>
 

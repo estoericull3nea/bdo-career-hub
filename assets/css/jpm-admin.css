@@ -902,6 +902,10 @@ body.jpm-dragging * {
   min-width: 980px;
 }
 
+.jpm-applications-page .jpm-table-responsive table.jpm-applications-table.widefat {
+  min-width: 1020px;
+}
+
 
 .jpm-dashboard-page .jpm-dashboard-toolbar {
   display: flex;
