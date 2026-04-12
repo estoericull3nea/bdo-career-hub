@@ -2786,8 +2786,7 @@ class JPM_Frontend
         // Send new customer notification to admin
         if (class_exists('JPM_Emails')) {
             try {
-                $email_settings = get_option('jpm_email_settings', []);
-                $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+                $admin_email = JPM_Emails::get_admin_notification_email();
                 JPM_Emails::send_new_customer_notification($user_id, $email, $first_name, $last_name, $admin_email);
             } catch (Exception $e) {
                 do_action('jpm_log_error', 'JPM: Failed to send new customer notification - ' . $e->getMessage());

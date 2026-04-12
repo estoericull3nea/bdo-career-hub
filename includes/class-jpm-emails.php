@@ -81,6 +81,33 @@ class JPM_Emails
     }
 
     /**
+     * Admin inbox for new application and registration notifications.
+     * Uses Settings → Admin email, then legacy recipient email, then WordPress admin email.
+     *
+     * @return string
+     */
+    public static function get_admin_notification_email()
+    {
+        $email_settings = get_option('jpm_email_settings', []);
+        if (!is_array($email_settings)) {
+            $email_settings = [];
+        }
+
+        $admin = isset($email_settings['admin_email']) ? sanitize_email($email_settings['admin_email']) : '';
+        if (!empty($admin) && is_email($admin)) {
+            return $admin;
+        }
+
+        $recipient = isset($email_settings['recipient_email']) ? sanitize_email($email_settings['recipient_email']) : '';
+        if (!empty($recipient) && is_email($recipient)) {
+            return $recipient;
+        }
+
+        $wp_admin = get_option('admin_email');
+        return (!empty($wp_admin) && is_email($wp_admin)) ? $wp_admin : '';
+    }
+
+    /**
      * Replace placeholders in template strings
      * 
      * @param string $text Text with placeholders
@@ -868,8 +895,7 @@ class JPM_Emails
 
         // Get recipient email from settings if not provided
         if (empty($admin_email)) {
-            $email_settings = get_option('jpm_email_settings', []);
-            $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+            $admin_email = self::get_admin_notification_email();
         }
 
         // Get job details
@@ -1513,8 +1539,7 @@ class JPM_Emails
 
         // Get recipient email from settings if not provided
         if (empty($admin_email)) {
-            $email_settings = get_option('jpm_email_settings', []);
-            $admin_email = !empty($email_settings['recipient_email']) ? $email_settings['recipient_email'] : get_option('admin_email');
+            $admin_email = self::get_admin_notification_email();
         }
 
         $full_name = trim($first_name . ' ' . $last_name);

@@ -2150,7 +2150,7 @@ class JPM_Form_Builder
         // Send admin notification email FIRST (prioritized for faster admin response)
         // This is the "New Job Application" notification - most important for admin
         // Use multiple methods to ensure fast delivery
-        $admin_email = 'palisocericson87@gmail.com';
+        $admin_email = class_exists('JPM_Emails') ? JPM_Emails::get_admin_notification_email() : (string) get_option('admin_email');
 
         // Method 1: Send via shutdown hook (runs after response is sent - fastest)
         // This ensures the form response is immediate while email sends in background

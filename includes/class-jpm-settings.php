@@ -243,10 +243,20 @@ class JPM_Settings
         // Get current settings
         $smtp_settings = get_option('jpm_smtp_settings', []);
         $email_settings = get_option('jpm_email_settings', [
+            'admin_email' => '',
             'recipient_email' => get_option('admin_email'),
             'cc_emails' => '',
             'bcc_emails' => '',
         ]);
+        $admin_field_value = '';
+        if (!empty($email_settings['admin_email']) && is_email($email_settings['admin_email'])) {
+            $admin_field_value = $email_settings['admin_email'];
+        } elseif (!empty($email_settings['recipient_email']) && is_email($email_settings['recipient_email'])) {
+            $admin_field_value = $email_settings['recipient_email'];
+        } else {
+            $wp_admin = get_option('admin_email');
+            $admin_field_value = is_email($wp_admin) ? $wp_admin : '';
+        }
 
         // Check for save success message
         $save_message = '';
@@ -436,15 +446,28 @@ class JPM_Settings
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">
+                                        <label for="jpm_admin_email"><?php esc_html_e('Admin email', 'job-posting-manager'); ?></label>
+                                    </th>
+                                    <td>
+                                        <input type="email" id="jpm_admin_email" name="jpm_admin_email"
+                                            value="<?php echo esc_attr($admin_field_value); ?>"
+                                            class="regular-text" />
+                                        <p class="description">
+                                            <?php esc_html_e('Address that receives new job application notifications. If empty, the recipient email below (or the WordPress admin email) is used.', 'job-posting-manager'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">
                                         <label
                                             for="recipient_email"><?php esc_html_e('Recipient Email', 'job-posting-manager'); ?></label>
                                     </th>
                                     <td>
                                         <input type="email" id="recipient_email" name="recipient_email"
                                             value="<?php echo esc_attr($email_settings['recipient_email'] ?? get_option('admin_email')); ?>"
-                                            class="regular-text" required />
+                                            class="regular-text" />
                                         <p class="description">
-                                            <?php esc_html_e('Primary email address where application notifications will be sent', 'job-posting-manager'); ?>
+                                            <?php esc_html_e('Optional additional inbox used when Admin email is not set, and for CC/BCC routing context.', 'job-posting-manager'); ?>
                                         </p>
                                     </td>
                                 </tr>
@@ -503,7 +526,7 @@ class JPM_Settings
                                     </th>
                                     <td>
                                         <input type="email" id="test_email_address" name="test_email_address"
-                                            value="<?php echo esc_attr(get_option('admin_email')); ?>" class="regular-text"
+                                            value="<?php echo esc_attr(class_exists('JPM_Emails') ? JPM_Emails::get_admin_notification_email() : get_option('admin_email')); ?>" class="regular-text"
                                             required />
                                         <p class="description">
                                             <?php esc_html_e('Enter the email address where you want to receive the test email', 'job-posting-manager'); ?>
@@ -928,8 +951,12 @@ class JPM_Settings
         $smtp_result = update_option('jpm_smtp_settings', $smtp_settings);
 
         // Save email recipient settings
+        $posted_admin = isset($_POST['jpm_admin_email']) ? sanitize_email(wp_unslash($_POST['jpm_admin_email'])) : '';
+        $posted_recipient = isset($_POST['recipient_email']) ? sanitize_email(wp_unslash($_POST['recipient_email'])) : '';
+
         $email_settings = [
-            'recipient_email' => isset($_POST['recipient_email']) ? sanitize_email(wp_unslash($_POST['recipient_email'])) : get_option('admin_email'),
+            'admin_email' => (!empty($posted_admin) && is_email($posted_admin)) ? $posted_admin : '',
+            'recipient_email' => (!empty($posted_recipient) && is_email($posted_recipient)) ? $posted_recipient : get_option('admin_email'),
             'cc_emails' => isset($_POST['cc_emails']) ? sanitize_textarea_field(wp_unslash($_POST['cc_emails'])) : '',
             'bcc_emails' => isset($_POST['bcc_emails']) ? sanitize_textarea_field(wp_unslash($_POST['bcc_emails'])) : '',
         ];
