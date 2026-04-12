@@ -1849,10 +1849,25 @@ class JPM_Admin
                 $interview_status_slug = $status['slug'];
             }
         }
-        $status_labels = self::get_status_options(); ?>
+        $status_labels = self::get_status_options();
+        $status_styles_for_js = [];
+        foreach ($all_statuses as $status) {
+            if (empty($status['slug'])) {
+                continue;
+            }
+            $slug = $status['slug'];
+            $bg = isset($status['color']) ? sanitize_hex_color($status['color']) : '';
+            $fg = isset($status['text_color']) ? sanitize_hex_color($status['text_color']) : '';
+            $status_styles_for_js[$slug] = [
+                'color' => $bg ? $bg : '#ffc107',
+                'text_color' => $fg ? $fg : '#000000',
+            ];
+        }
+        ?>
         <script>
             jQuery(function ($) {
                 const statusLabels = <?php echo wp_json_encode($status_labels); ?>;
+                const statusStyles = <?php echo wp_json_encode($status_styles_for_js); ?>;
                 const medicalStatusSlug = '<?php echo esc_js($medical_status_slug); ?>';
                 const rejectedStatusSlug = '<?php echo esc_js($rejected_status_slug); ?>';
                 const interviewStatusSlug = '<?php echo esc_js($interview_status_slug); ?>';
@@ -1879,6 +1894,21 @@ class JPM_Admin
                     const cleanedClass = ($badge.attr('class') || '').replace(/\bjpm-status-[^\s]+/g, '').trim();
                     $badge.attr('class', `${cleanedClass} jpm-status-badge jpm-status-${statusSlug}`);
                     $badge.text(label);
+
+                    let st = statusStyles[statusSlug];
+                    if (!st && statusSlug) {
+                        const lower = String(statusSlug).toLowerCase();
+                        const keys = Object.keys(statusStyles);
+                        for (let i = 0; i < keys.length; i++) {
+                            if (String(keys[i]).toLowerCase() === lower) {
+                                st = statusStyles[keys[i]];
+                                break;
+                            }
+                        }
+                    }
+                    const bg = st && st.color ? st.color : '#ffc107';
+                    const fg = st && st.text_color ? st.text_color : '#000000';
+                    $badge.attr('style', 'background-color: ' + bg + '; color: ' + fg + ';');
                 }
 
                 function showSuccess($select) {
