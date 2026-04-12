@@ -395,7 +395,8 @@ class JPM_Frontend
                                         class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
-                                        class="dashicons dashicons-money-alt"></i> <?php echo esc_html($this->format_salary($job->ID, $salary)); ?> </span>
+                                        class="dashicons dashicons-money-alt"></i>
+                                    <?php echo esc_html($this->format_salary($job->ID, $salary)); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
@@ -814,7 +815,8 @@ class JPM_Frontend
                                                 class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($salary)): ?> <span class="jpm-job-info-item"> <i
-                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($this->format_salary($job_id, $salary)); ?> </span>
+                                                class="dashicons dashicons-money-alt"></i>
+                                            <?php echo esc_html($this->format_salary($job_id, $salary)); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
@@ -3358,6 +3360,8 @@ class JPM_Frontend
                             <?php esc_html_e('Enter your email address and we\'ll send you a secure link to reset your password. Click the link in the email to set a new password.', 'job-posting-manager'); ?>
                         </p>
                     </div>
+
+                    <br />
 
                     <div class="jpm-form-field">
                         <button type="submit" id="jpm-forgot-password-submit"
