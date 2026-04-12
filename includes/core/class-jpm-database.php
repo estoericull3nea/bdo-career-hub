@@ -82,6 +82,25 @@ class JPM_Database
     }
 
     /**
+     * Whether stored status means the user may submit a new application for the same job (re-apply).
+     *
+     * @param string $status_slug Value from job_applications.status
+     * @return bool
+     */
+    private static function is_rejected_application_status($status_slug)
+    {
+        $status_slug = (string) $status_slug;
+        if ($status_slug === '') {
+            return false;
+        }
+        if (class_exists('JPM_Status_Manager') && JPM_Status_Manager::is_rejected_status($status_slug)) {
+            return true;
+        }
+
+        return strtolower($status_slug) === 'rejected';
+    }
+
+    /**
      * Insert a new application
      * 
      * @param int $user_id User ID
@@ -97,17 +116,41 @@ class JPM_Database
         $user_id = absint($user_id);
         $job_id = absint($job_id);
 
-        // Check for duplicate (only for logged-in users)
+        // Check for duplicate (only for logged-in users). Rejected applications may re-apply (same DB row updated).
         if ($user_id > 0) {
-            $existing = $wpdb->get_var(
+            $existing_row = $wpdb->get_row(
                 $wpdb->prepare(
-                    "SELECT id FROM {$table} WHERE user_id = %d AND job_id = %d",
+                    "SELECT id, status FROM {$table} WHERE user_id = %d AND job_id = %d LIMIT 1",
                     $user_id,
                     $job_id
                 )
             );
-            if ($existing) {
-                return new WP_Error('duplicate', __('You have already applied for this job.', 'job-posting-manager'));
+            if ($existing_row) {
+                if (!self::is_rejected_application_status($existing_row->status)) {
+                    return new WP_Error('duplicate', __('You have already applied for this job.', 'job-posting-manager'));
+                }
+
+                $existing_id = (int) $existing_row->id;
+                $updated = $wpdb->update(
+                    $table,
+                    [
+                        'resume_file_path' => $resume_path,
+                        'notes' => sanitize_textarea_field($notes),
+                        'status' => 'pending',
+                        'application_date' => current_time('mysql'),
+                    ],
+                    ['id' => $existing_id],
+                    ['%s', '%s', '%s', '%s'],
+                    ['%d']
+                );
+
+                if ($updated === false) {
+                    return new WP_Error('db_error', __('Failed to update application.', 'job-posting-manager'));
+                }
+
+                delete_option('jpm_application_rejection_details_' . $existing_id);
+
+                return $existing_id;
             }
         }
 

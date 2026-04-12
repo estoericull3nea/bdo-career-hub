@@ -2136,9 +2136,8 @@ class JPM_Form_Builder
             wp_send_json_error(['message' => $result->get_error_message()]);
         }
 
-        // Get application ID from database insert
-        global $wpdb;
-        $application_id = $wpdb->insert_id;
+        // insert_application returns ID for both new inserts and re-applies after rejection
+        $application_id = (int) $result;
 
         // Save form data to user profile for future auto-fill (if user is logged in)
         if ($user_id > 0) {
