@@ -1883,7 +1883,7 @@ class JPM_Admin
 
                 function showSuccess($select) {
                     $select.next('.jpm-status-update-success').remove();
-                    $select.after('<span class="jpm-status-update-success">âœ“ Updated</span>');
+                    $select.after('<span class="jpm-status-update-success">&#10003; <?php echo esc_js(__('Updated', 'job-posting-manager')); ?></span>');
                     setTimeout(function () {
                         $select.siblings('.jpm-status-update-success').fadeOut(function () {
                             $(this).remove();
