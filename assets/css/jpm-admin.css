@@ -975,77 +975,23 @@ body.jpm-dragging * {
   }
 }
 
-/* Applications admin — summary statistics */
-.jpm-applications-page .jpm-applications-stats {
-  margin: 16px 0 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  align-items: stretch;
+/* Applications admin — same analytics card hover/feel as dashboard */
+.jpm-applications-page .jpm-applications-analytics .jpm-analytics-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.jpm-applications-page .jpm-applications-stats-card {
-  background: #fff;
-  border: 1px solid #c3c4c7;
-  border-radius: 4px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+.jpm-applications-page .jpm-applications-analytics .jpm-analytics-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.jpm-applications-page .jpm-applications-stats-card--highlight {
-  border-color: #2271b1;
-  box-shadow: 0 0 0 1px #2271b1;
-}
+@media (max-width: 768px) {
+  .jpm-applications-page .jpm-applications-analytics .jpm-analytics-cards {
+    grid-template-columns: 1fr !important;
+  }
 
-.jpm-applications-page .jpm-applications-stats-card .jpm-stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: #1d2327;
-}
-
-.jpm-applications-page .jpm-applications-stats-card .jpm-stat-label {
-  font-size: 12px;
-  color: #646970;
-  margin-top: 6px;
-  line-height: 1.35;
-}
-
-.jpm-applications-page .jpm-applications-stats-statuses {
-  grid-column: 1 / -1;
-  background: #fff;
-  border: 1px solid #c3c4c7;
-  border-radius: 4px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
-.jpm-applications-page .jpm-applications-stats-heading {
-  margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1d2327;
-}
-
-.jpm-applications-page .jpm-applications-stats-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.jpm-applications-page .jpm-applications-stats-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.jpm-applications-page .jpm-applications-stats-pill strong {
-  font-weight: 700;
-  opacity: 0.95;
+  .jpm-applications-page .jpm-applications-analytics .jpm-dashboard-status-cards > div {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }

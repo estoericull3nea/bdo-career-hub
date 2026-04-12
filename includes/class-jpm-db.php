@@ -1374,72 +1374,135 @@ class JPM_Admin
                 </div>
             <?php endif; ?>
 
-            <div class="jpm-applications-stats" role="region"
-                aria-label="<?php esc_attr_e('Application statistics', 'job-posting-manager'); ?>">
-                <div class="jpm-applications-stats-card">
-                    <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($applications_total)); ?></div>
-                    <div class="jpm-stat-label"><?php esc_html_e('Total applications', 'job-posting-manager'); ?></div>
+            <div class="jpm-analytics-section jpm-applications-analytics" role="region"
+                aria-label="<?php esc_attr_e('Application statistics', 'job-posting-manager'); ?>"
+                style="margin: 20px 0;">
+                <h2 style="margin: 0 0 4px;"><?php esc_html_e('Application overview', 'job-posting-manager'); ?></h2>
+                <p class="description" style="margin-top: 0; margin-bottom: 16px;">
+                    <?php esc_html_e('Summary of all applications and how they break down.', 'job-posting-manager'); ?>
+                </p>
+
+                <div class="jpm-analytics-cards"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php esc_html_e('Total applications', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-clipboard" style="font-size: 24px; color: #28a745;" aria-hidden="true"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #28a745; margin-bottom: 10px;">
+                            <?php echo esc_html(number_format_i18n($applications_total)); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <?php esc_html_e('All records in the database', 'job-posting-manager'); ?>
+                        </div>
+                    </div>
+
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php esc_html_e('Registered users', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-groups" style="font-size: 24px; color: #0073aa;" aria-hidden="true"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #0073aa; margin-bottom: 10px;">
+                            <?php echo esc_html(number_format_i18n($applications_registered)); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <?php esc_html_e('Submitted while logged in', 'job-posting-manager'); ?>
+                        </div>
+                    </div>
+
+                    <div class="jpm-analytics-card"
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                <?php esc_html_e('Guest applications', 'job-posting-manager'); ?>
+                            </h3>
+                            <span class="dashicons dashicons-admin-users" style="font-size: 24px; color: #ffc107;" aria-hidden="true"></span>
+                        </div>
+                        <div style="font-size: 32px; font-weight: bold; color: #ffc107; margin-bottom: 10px;">
+                            <?php echo esc_html(number_format_i18n($applications_guest)); ?>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            <?php esc_html_e('No WordPress account linked', 'job-posting-manager'); ?>
+                        </div>
+                    </div>
+
+                    <?php if ($has_active_filters): ?>
+                        <div class="jpm-analytics-card jpm-applications-filter-match-card"
+                            style="background: #fff; border: 1px solid #2271b1; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <h3 style="margin: 0; font-size: 14px; color: #666; font-weight: 600;">
+                                    <?php esc_html_e('Matching filters', 'job-posting-manager'); ?>
+                                </h3>
+                                <span class="dashicons dashicons-filter" style="font-size: 24px; color: #2271b1;" aria-hidden="true"></span>
+                            </div>
+                            <div style="font-size: 32px; font-weight: bold; color: #2271b1; margin-bottom: 10px;">
+                                <?php echo esc_html(number_format_i18n($filtered_count)); ?>
+                            </div>
+                            <div style="font-size: 12px; color: #666;">
+                                <?php esc_html_e('Rows shown in the table below', 'job-posting-manager'); ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
-                <div class="jpm-applications-stats-card">
-                    <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($applications_registered)); ?></div>
-                    <div class="jpm-stat-label"><?php esc_html_e('Registered users', 'job-posting-manager'); ?></div>
-                </div>
-                <div class="jpm-applications-stats-card">
-                    <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($applications_guest)); ?></div>
-                    <div class="jpm-stat-label"><?php esc_html_e('Guest applications', 'job-posting-manager'); ?></div>
-                </div>
-                <?php if ($has_active_filters): ?>
-                    <div class="jpm-applications-stats-card jpm-applications-stats-card--highlight">
-                        <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($filtered_count)); ?></div>
-                        <div class="jpm-stat-label"><?php esc_html_e('Matching current filters', 'job-posting-manager'); ?></div>
+
+                <?php if (!empty($all_statuses) || !empty($status_counts)): ?>
+                    <div
+                        style="background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 20px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0;"><?php esc_html_e('Applications by status', 'job-posting-manager'); ?></h3>
+                        <div class="jpm-dashboard-status-cards" style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            <?php
+                            $status_slugs_shown = [];
+                            foreach ($all_statuses as $st) {
+                                if (empty($st['slug'])) {
+                                    continue;
+                                }
+                                $slug = $st['slug'];
+                                $status_slugs_shown[$slug] = true;
+                                $cnt = isset($status_counts[$slug]) ? $status_counts[$slug] : 0;
+                                $status_info = self::get_status_by_slug($slug);
+                                $bg_color = $status_info ? sanitize_hex_color($status_info['color']) : '';
+                                if (!$bg_color) {
+                                    $bg_color = '#ffc107';
+                                }
+                                $name = isset($st['name']) ? $st['name'] : $slug;
+                                ?>
+                                <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px;">
+                                    <div
+                                        style="font-size: 24px; font-weight: bold; color: <?php echo esc_attr($bg_color); ?>; margin-bottom: 5px;">
+                                        <?php echo esc_html(number_format_i18n($cnt)); ?>
+                                    </div>
+                                    <div style="font-size: 14px; color: #666;">
+                                        <?php echo esc_html($name); ?>
+                                    </div>
+                                </div>
+                                <?php
+                            }
+                            foreach ($status_counts as $orphan_slug => $cnt) {
+                                if (isset($status_slugs_shown[$orphan_slug])) {
+                                    continue;
+                                }
+                                ?>
+                                <div style="flex: 1; min-width: 150px; padding: 15px; background: #f9f9f9; border-radius: 4px;"
+                                    title="<?php echo esc_attr(__('Status exists on records but is not in Status Management', 'job-posting-manager')); ?>">
+                                    <div style="font-size: 24px; font-weight: bold; color: #6c757d; margin-bottom: 5px;">
+                                        <?php echo esc_html(number_format_i18n($cnt)); ?>
+                                    </div>
+                                    <div style="font-size: 14px; color: #666;">
+                                        <?php echo esc_html($orphan_slug); ?>
+                                    </div>
+                                </div>
+                                <?php
+                            }
+                            ?>
+                        </div>
                     </div>
                 <?php endif; ?>
-                <div class="jpm-applications-stats-statuses">
-                    <h2 class="jpm-applications-stats-heading"><?php esc_html_e('By status', 'job-posting-manager'); ?></h2>
-                    <div class="jpm-applications-stats-badges">
-                        <?php
-                        $status_slugs_shown = [];
-                        foreach ($all_statuses as $st) {
-                            if (empty($st['slug'])) {
-                                continue;
-                            }
-                            $slug = $st['slug'];
-                            $status_slugs_shown[$slug] = true;
-                            $cnt = isset($status_counts[$slug]) ? $status_counts[$slug] : 0;
-                            $bg = isset($st['color']) ? sanitize_hex_color($st['color']) : '';
-                            $fg = isset($st['text_color']) ? sanitize_hex_color($st['text_color']) : '';
-                            if (!$bg) {
-                                $bg = '#ffc107';
-                            }
-                            if (!$fg) {
-                                $fg = '#000000';
-                            }
-                            $name = isset($st['name']) ? $st['name'] : $slug;
-                            ?>
-                            <span class="jpm-applications-stats-pill"
-                                style="<?php echo esc_attr('background-color:' . $bg . ';color:' . $fg . ';'); ?>"
-                                title="<?php echo esc_attr($name); ?>">
-                                <?php echo esc_html($name); ?>
-                                <strong><?php echo esc_html(number_format_i18n($cnt)); ?></strong>
-                            </span>
-                            <?php
-                        }
-                        foreach ($status_counts as $orphan_slug => $cnt) {
-                            if (isset($status_slugs_shown[$orphan_slug])) {
-                                continue;
-                            }
-                            ?>
-                            <span class="jpm-applications-stats-pill jpm-applications-stats-pill--orphan"
-                                style="background-color:#6c757d;color:#fff;"
-                                title="<?php echo esc_attr(__('Status exists on records but is not in Status Management', 'job-posting-manager')); ?>">
-                                <?php echo esc_html($orphan_slug); ?>
-                                <strong><?php echo esc_html(number_format_i18n($cnt)); ?></strong>
-                            </span>
-                            <?php
-                        }
-                        ?>
-                    </div>
-                </div>
             </div>
 
             <?php if ($has_applications): ?>
