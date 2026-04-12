@@ -1339,8 +1339,28 @@ class JPM_Admin
             }
         }
 
+        global $wpdb;
+        $apps_table = $this->get_validated_applications_table();
+        $applications_total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$apps_table}");
+        $applications_guest = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$apps_table} WHERE user_id = %d", 0));
+        $applications_registered = max(0, $applications_total - $applications_guest);
+        $status_count_rows = $wpdb->get_results(
+            "SELECT status, COUNT(*) AS c FROM {$apps_table} GROUP BY status",
+            ARRAY_A
+        );
+        $status_counts = [];
+        if (is_array($status_count_rows)) {
+            foreach ($status_count_rows as $row) {
+                if (isset($row['status'])) {
+                    $status_counts[(string) $row['status']] = isset($row['c']) ? (int) $row['c'] : 0;
+                }
+            }
+        }
+        $filtered_count = is_array($applications) ? count($applications) : 0;
+        $has_active_filters = ($filters['search'] !== '' || $filters['job_id'] > 0 || $filters['status'] !== '');
+
         ?>
-        <div class="wrap">
+        <div class="wrap jpm-applications-page">
             <h1><?php esc_html_e('Applications', 'job-posting-manager'); ?></h1>
 
             <?php if (!empty($_GET['application_deleted'])): ?>
@@ -1353,6 +1373,74 @@ class JPM_Admin
                     <p><?php esc_html_e('Could not delete that application.', 'job-posting-manager'); ?></p>
                 </div>
             <?php endif; ?>
+
+            <div class="jpm-applications-stats" role="region"
+                aria-label="<?php esc_attr_e('Application statistics', 'job-posting-manager'); ?>">
+                <div class="jpm-applications-stats-card">
+                    <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($applications_total)); ?></div>
+                    <div class="jpm-stat-label"><?php esc_html_e('Total applications', 'job-posting-manager'); ?></div>
+                </div>
+                <div class="jpm-applications-stats-card">
+                    <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($applications_registered)); ?></div>
+                    <div class="jpm-stat-label"><?php esc_html_e('Registered users', 'job-posting-manager'); ?></div>
+                </div>
+                <div class="jpm-applications-stats-card">
+                    <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($applications_guest)); ?></div>
+                    <div class="jpm-stat-label"><?php esc_html_e('Guest applications', 'job-posting-manager'); ?></div>
+                </div>
+                <?php if ($has_active_filters): ?>
+                    <div class="jpm-applications-stats-card jpm-applications-stats-card--highlight">
+                        <div class="jpm-stat-value"><?php echo esc_html(number_format_i18n($filtered_count)); ?></div>
+                        <div class="jpm-stat-label"><?php esc_html_e('Matching current filters', 'job-posting-manager'); ?></div>
+                    </div>
+                <?php endif; ?>
+                <div class="jpm-applications-stats-statuses">
+                    <h2 class="jpm-applications-stats-heading"><?php esc_html_e('By status', 'job-posting-manager'); ?></h2>
+                    <div class="jpm-applications-stats-badges">
+                        <?php
+                        $status_slugs_shown = [];
+                        foreach ($all_statuses as $st) {
+                            if (empty($st['slug'])) {
+                                continue;
+                            }
+                            $slug = $st['slug'];
+                            $status_slugs_shown[$slug] = true;
+                            $cnt = isset($status_counts[$slug]) ? $status_counts[$slug] : 0;
+                            $bg = isset($st['color']) ? sanitize_hex_color($st['color']) : '';
+                            $fg = isset($st['text_color']) ? sanitize_hex_color($st['text_color']) : '';
+                            if (!$bg) {
+                                $bg = '#ffc107';
+                            }
+                            if (!$fg) {
+                                $fg = '#000000';
+                            }
+                            $name = isset($st['name']) ? $st['name'] : $slug;
+                            ?>
+                            <span class="jpm-applications-stats-pill"
+                                style="<?php echo esc_attr('background-color:' . $bg . ';color:' . $fg . ';'); ?>"
+                                title="<?php echo esc_attr($name); ?>">
+                                <?php echo esc_html($name); ?>
+                                <strong><?php echo esc_html(number_format_i18n($cnt)); ?></strong>
+                            </span>
+                            <?php
+                        }
+                        foreach ($status_counts as $orphan_slug => $cnt) {
+                            if (isset($status_slugs_shown[$orphan_slug])) {
+                                continue;
+                            }
+                            ?>
+                            <span class="jpm-applications-stats-pill jpm-applications-stats-pill--orphan"
+                                style="background-color:#6c757d;color:#fff;"
+                                title="<?php echo esc_attr(__('Status exists on records but is not in Status Management', 'job-posting-manager')); ?>">
+                                <?php echo esc_html($orphan_slug); ?>
+                                <strong><?php echo esc_html(number_format_i18n($cnt)); ?></strong>
+                            </span>
+                            <?php
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
 
             <?php if ($has_applications): ?>
                 <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
