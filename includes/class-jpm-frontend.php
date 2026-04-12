@@ -4937,7 +4937,7 @@ class JPM_Frontend
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
                                                         class="jpm-toggle-text"><?php esc_html_e('View Application Details', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">â–¼</span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-details-content"
                                                     id="jpm-details-<?php echo esc_attr($application->id); ?>" style="display: none;">
@@ -5397,7 +5397,7 @@ class JPM_Frontend
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
                                                         class="jpm-toggle-text"><?php esc_html_e('View Requirements', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">â–¼</span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-requirements-content"
                                                     id="jpm-requirements-<?php echo esc_attr($application->id); ?>" style="display: none;">
@@ -5467,7 +5467,7 @@ class JPM_Frontend
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
                                                         class="jpm-toggle-text"><?php esc_html_e('View Interview Requirements', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">â–¼</span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-requirements-content"
                                                     id="jpm-requirements-<?php echo esc_attr($application->id); ?>" style="display: none;">
@@ -5537,7 +5537,7 @@ class JPM_Frontend
                                                     data-application-id="<?php echo esc_attr($application->id); ?>">
                                                     <span
                                                         class="jpm-toggle-text"><?php esc_html_e('View Rejection Details', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-toggle-icon">â–¼</span>
+                                                    <span class="jpm-toggle-icon" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span>
                                                 </button>
                                                 <div class="jpm-application-rejection-content"
                                                     id="jpm-rejection-<?php echo esc_attr($application->id); ?>" style="display: none;">
@@ -6282,8 +6282,16 @@ class JPM_Frontend
 
 
             .jpm-toggle-icon {
-                font-size: 10px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                line-height: 0;
                 transition: transform 0.2s ease;
+            }
+
+            .jpm-toggle-icon svg {
+                display: block;
             }
 
             .jpm-toggle-details.active .jpm-toggle-icon {
@@ -6309,11 +6317,6 @@ class JPM_Frontend
                 gap: 6px;
                 transition: color 0.15s ease;
                 margin-top: 8px;
-            }
-
-            .jpm-toggle-requirements .jpm-toggle-icon {
-                font-size: 10px;
-                transition: transform 0.2s ease;
             }
 
             .jpm-toggle-requirements.active .jpm-toggle-icon {
@@ -6342,11 +6345,6 @@ class JPM_Frontend
             .jpm-toggle-rejection:hover {
                 color: #b91c1c;
                 text-decoration: underline;
-            }
-
-            .jpm-toggle-rejection .jpm-toggle-icon {
-                font-size: 10px;
-                transition: transform 0.2s ease;
             }
 
             .jpm-toggle-rejection.active .jpm-toggle-icon {
