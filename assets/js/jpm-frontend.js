@@ -29,9 +29,13 @@ jQuery(document).ready(function ($) {
       currentStep = 1;
     }
 
-    // Function to go to a specific step (step 0 is always visible)
-    function goToStep(stepIndex) {
+    // Function to go to a specific step (step 0 is always visible).
+    // shouldScroll: pass false on first paint so the page does not jump to the form (job content stays in view).
+    function goToStep(stepIndex, shouldScroll) {
       if (stepIndex < 1 || stepIndex >= totalSteps) return;
+      if (typeof shouldScroll === "undefined") {
+        shouldScroll = true;
+      }
 
       // Hide all form steps (but keep step 0 visible)
       $steps.not('[data-step="0"]').removeClass("active").hide();
@@ -81,13 +85,14 @@ jQuery(document).ready(function ($) {
 
       currentStep = stepIndex;
 
-      // Scroll to top of form
-      $("html, body").animate(
-        {
-          scrollTop: $form.offset().top - 100,
-        },
-        300
-      );
+      if (shouldScroll) {
+        $("html, body").animate(
+          {
+            scrollTop: $form.offset().top - 100,
+          },
+          300
+        );
+      }
     }
 
     // Populate summary with form values
@@ -497,8 +502,8 @@ jQuery(document).ready(function ($) {
       return isValid;
     }
 
-    // Initialize stepper
-    goToStep(currentStep);
+    // Initialize stepper (do not scroll — user should read job details from the top first)
+    goToStep(currentStep, false);
   }
 
   // Initialize stepper on page load
