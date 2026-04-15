@@ -5478,6 +5478,32 @@ class JPM_Admin
         $output = fopen('php://output', 'w');
         fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
+        $rows = [];
+        $status_counts = [];
+        $job_counts = [];
+        $registered_count = 0;
+        $guest_count = 0;
+
+        foreach ($applications as $application) {
+            $row = $this->build_application_report_row($application);
+            $rows[] = $row;
+
+            $status_key = $row['status'];
+            $status_counts[$status_key] = isset($status_counts[$status_key]) ? $status_counts[$status_key] + 1 : 1;
+
+            $job_key = $row['job_title'];
+            $job_counts[$job_key] = isset($job_counts[$job_key]) ? $job_counts[$job_key] + 1 : 1;
+
+            if ($row['user_type'] === __('Registered', 'job-posting-manager')) {
+                $registered_count++;
+            } else {
+                $guest_count++;
+            }
+        }
+
+        arsort($status_counts);
+        arsort($job_counts);
+
         fputcsv($output, [__('Detailed Applications Report', 'job-posting-manager')]);
         fputcsv($output, [__('Generated At', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format'))]);
         fputcsv($output, [__('Date Range', 'job-posting-manager'), $context['range_label']]);
@@ -5486,7 +5512,32 @@ class JPM_Admin
         fputcsv($output, [__('Filter: Status', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager')]);
         fputcsv($output, [__('Filter: Job ID', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager')]);
         fputcsv($output, [__('Filter: Search', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager')]);
-        fputcsv($output, [__('Total Matching Applications', 'job-posting-manager'), count($applications)]);
+        fputcsv($output, [__('Total Matching Applications', 'job-posting-manager'), count($rows)]);
+        fputcsv($output, [__('Registered Users', 'job-posting-manager'), $registered_count]);
+        fputcsv($output, [__('Guest Applications', 'job-posting-manager'), $guest_count]);
+        fputcsv($output, [__('Unique Jobs Applied', 'job-posting-manager'), count($job_counts)]);
+        fputcsv($output, []);
+
+        fputcsv($output, [__('Applications by Status', 'job-posting-manager')]);
+        fputcsv($output, [__('Status', 'job-posting-manager'), __('Count', 'job-posting-manager')]);
+        if (empty($status_counts)) {
+            fputcsv($output, [__('No data available', 'job-posting-manager'), 0]);
+        } else {
+            foreach ($status_counts as $status_name => $count) {
+                fputcsv($output, [$status_name, $count]);
+            }
+        }
+        fputcsv($output, []);
+
+        fputcsv($output, [__('Top Jobs by Applications', 'job-posting-manager')]);
+        fputcsv($output, [__('Job Title', 'job-posting-manager'), __('Applications', 'job-posting-manager')]);
+        if (empty($job_counts)) {
+            fputcsv($output, [__('No data available', 'job-posting-manager'), 0]);
+        } else {
+            foreach ($job_counts as $job_title => $count) {
+                fputcsv($output, [$job_title, $count]);
+            }
+        }
         fputcsv($output, []);
 
         fputcsv($output, [
@@ -5516,11 +5567,35 @@ class JPM_Admin
             __('Work Experience', 'job-posting-manager'),
             __('Skills', 'job-posting-manager'),
             __('Cover Letter / Message', 'job-posting-manager'),
-            __('Raw Form Data (JSON)', 'job-posting-manager'),
+            __('Additional Form Data (Readable)', 'job-posting-manager'),
         ]);
 
-        foreach ($applications as $application) {
-            $row = $this->build_application_report_row($application);
+        foreach ($rows as $row) {
+            $readable_form_data = [];
+            if (!empty($row['form_data']) && is_array($row['form_data'])) {
+                foreach ($row['form_data'] as $field_key => $field_value) {
+                    $display_key = ucwords(str_replace(['_', '-'], ' ', (string) $field_key));
+                    if (is_array($field_value)) {
+                        $display_items = array_map(function ($item) {
+                            return is_scalar($item) ? sanitize_text_field((string) $item) : '';
+                        }, $field_value);
+                        $display_items = array_filter($display_items, function ($item) {
+                            return $item !== '';
+                        });
+                        $display_value = implode(', ', $display_items);
+                    } elseif (is_bool($field_value)) {
+                        $display_value = $field_value ? __('Yes', 'job-posting-manager') : __('No', 'job-posting-manager');
+                    } elseif (is_scalar($field_value)) {
+                        $display_value = sanitize_text_field((string) $field_value);
+                    } else {
+                        $display_value = '';
+                    }
+                    if ($display_key !== '' && $display_value !== '') {
+                        $readable_form_data[] = $display_key . ': ' . $display_value;
+                    }
+                }
+            }
+
             fputcsv($output, [
                 $row['id'],
                 $row['application_number'],
@@ -5548,7 +5623,7 @@ class JPM_Admin
                 $row['work_experience'],
                 $row['skills'],
                 $row['cover_letter'],
-                wp_json_encode($row['form_data']),
+                !empty($readable_form_data) ? implode(' | ', $readable_form_data) : __('No additional form data.', 'job-posting-manager'),
             ]);
         }
 
