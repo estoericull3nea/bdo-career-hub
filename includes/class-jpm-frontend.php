@@ -266,20 +266,13 @@ class JPM_Frontend
 
         $company_name = get_post_meta($job_id, 'company_name', true);
         $location = get_post_meta($job_id, 'location', true);
-        $requirements_source = trim((string) $job->post_excerpt);
-        if ($requirements_source === '') {
-            $requirements_source = wp_strip_all_tags((string) $job->post_content);
+        $job_description_raw = trim((string) $job->post_content);
+        if ($job_description_raw === '') {
+            $job_description_raw = trim((string) $job->post_excerpt);
         }
-        $requirements_lines = preg_split('/[\r\n]+|\.\s+/', $requirements_source);
-        if (!is_array($requirements_lines)) {
-            $requirements_lines = [];
-        }
-        $requirements_lines = array_values(array_filter(array_map(function ($line) {
-            return trim((string) $line);
-        }, $requirements_lines), function ($line) {
-            return $line !== '';
-        }));
-        $requirements_lines = array_slice($requirements_lines, 0, 5);
+        $job_description_html = $job_description_raw !== ''
+            ? wp_kses_post(wpautop($job_description_raw))
+            : '<p>' . esc_html__('No description available for this job yet.', 'job-posting-manager') . '</p>';
         ?>
         <div id="jpm-homepage-hiring-popup" class="jpm-homepage-hiring-popup" style="display:none;" aria-hidden="true">
             <div class="jpm-homepage-hiring-popup__overlay"></div>
@@ -309,19 +302,9 @@ class JPM_Frontend
                 </h2>
 
                 <div class="jpm-homepage-hiring-popup__requirements">
-                    <?php if (!empty($requirements_lines)): ?>
-                        <ul class="jpm-homepage-hiring-popup__requirements-list">
-                            <?php foreach ($requirements_lines as $line): ?>
-                                <li><?php echo esc_html($line); ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php else: ?>
-                        <ul class="jpm-homepage-hiring-popup__requirements-list">
-                            <li><?php esc_html_e('Relevant industry experience is preferred.', 'job-posting-manager'); ?></li>
-                            <li><?php esc_html_e('Strong communication and teamwork skills required.', 'job-posting-manager'); ?></li>
-                            <li><?php esc_html_e('Professional, reliable, and customer-focused attitude.', 'job-posting-manager'); ?></li>
-                        </ul>
-                    <?php endif; ?>
+                    <div class="jpm-homepage-hiring-popup__description-scroll">
+                        <?php echo $job_description_html; ?>
+                    </div>
                 </div>
 
                 <div class="jpm-homepage-hiring-popup__actions">
@@ -447,29 +430,24 @@ class JPM_Frontend
                 margin: 0 auto 16px;
                 max-width: 95%;
             }
-            .jpm-homepage-hiring-popup__requirements-list {
-                margin: 0;
-                padding-left: 22px;
-                list-style: none;
+            .jpm-homepage-hiring-popup__description-scroll {
+                max-height: 320px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-right: 6px;
             }
-            .jpm-homepage-hiring-popup__requirements-list li {
-                position: relative;
-                margin: 0 0 8px;
-                font-size: 21px;
+            .jpm-homepage-hiring-popup__description-scroll p,
+            .jpm-homepage-hiring-popup__description-scroll li {
+                margin: 0 0 10px;
+                font-size: 20px;
                 font-weight: 700;
                 line-height: 1.4;
                 color: #1f2430;
             }
-            .jpm-homepage-hiring-popup__requirements-list li::before {
-                content: "";
-                position: absolute;
-                left: -18px;
-                top: 10px;
-                width: 8px;
-                height: 8px;
-                border-top: 3px solid #2166db;
-                border-right: 3px solid #2166db;
-                transform: rotate(45deg);
+            .jpm-homepage-hiring-popup__description-scroll ul,
+            .jpm-homepage-hiring-popup__description-scroll ol {
+                margin: 0 0 10px;
+                padding-left: 22px;
             }
             .jpm-homepage-hiring-popup__actions {
                 display: flex;
@@ -495,7 +473,8 @@ class JPM_Frontend
                 .jpm-homepage-hiring-popup__title {
                     font-size: clamp(24px, 7vw, 42px);
                 }
-                .jpm-homepage-hiring-popup__requirements-list li {
+                .jpm-homepage-hiring-popup__description-scroll p,
+                .jpm-homepage-hiring-popup__description-scroll li {
                     font-size: 17px;
                 }
             }
