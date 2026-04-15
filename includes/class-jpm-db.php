@@ -1310,6 +1310,10 @@ class JPM_Admin
             'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
             'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
         ];
+        $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : '';
+        $report_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
+        $report_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
+        $report_format = isset($_GET['report_format']) ? sanitize_key(wp_unslash($_GET['report_format'])) : 'csv';
 
         $applications = JPM_DB::get_applications($filters);
         $has_applications = !empty($applications);
@@ -1361,7 +1365,12 @@ class JPM_Admin
 
         ?>
         <div class="wrap jpm-applications-page">
-            <h1><?php esc_html_e('Applications', 'job-posting-manager'); ?></h1>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <h1 style="margin:0;"><?php esc_html_e('Applications', 'job-posting-manager'); ?></h1>
+                <button type="button" class="button button-primary" id="jpm-open-report-modal">
+                    <?php esc_html_e('Generate Report', 'job-posting-manager'); ?>
+                </button>
+            </div>
 
             <?php if (!empty($_GET['application_deleted'])): ?>
                 <div class="notice notice-success is-dismissible">
@@ -1371,6 +1380,19 @@ class JPM_Admin
             <?php if (!empty($_GET['application_delete_error'])): ?>
                 <div class="notice notice-error is-dismissible">
                     <p><?php esc_html_e('Could not delete that application.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($report_range)): ?>
+                <div class="notice notice-info is-dismissible" style="margin-top: 12px;">
+                    <p>
+                        <?php
+                        if ($report_range === 'custom' && !empty($report_start) && !empty($report_end)) {
+                            echo esc_html(sprintf(__('Report range selected: %1$s to %2$s', 'job-posting-manager'), $report_start, $report_end));
+                        } else {
+                            echo esc_html(sprintf(__('Report range selected: %s', 'job-posting-manager'), ucfirst(str_replace('_', ' ', $report_range))));
+                        }
+                        ?>
+                    </p>
                 </div>
             <?php endif; ?>
 
@@ -1757,6 +1779,68 @@ class JPM_Admin
                         <?php esc_html_e('Close', 'job-posting-manager'); ?>
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <div id="jpm-report-modal" class="jpm-admin-modal" style="display:none;">
+            <div class="jpm-admin-modal__backdrop"></div>
+            <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="jpm-report-modal-title"
+                style="max-width: 520px;">
+                <button type="button" class="jpm-admin-modal__close"
+                    aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                <h2 id="jpm-report-modal-title"><?php esc_html_e('Generate Applications Report', 'job-posting-manager'); ?></h2>
+                <p class="description" style="margin-bottom: 16px;">
+                    <?php esc_html_e('Select a date range for your report.', 'job-posting-manager'); ?>
+                </p>
+                <form method="get" action="" id="jpm-report-form">
+                    <input type="hidden" name="page" value="jpm-applications">
+                    <input type="hidden" name="report_generate" value="1">
+                    <input type="hidden" name="status" value="<?php echo esc_attr($filters['status']); ?>">
+                    <input type="hidden" name="job_id" value="<?php echo esc_attr((string) $filters['job_id']); ?>">
+                    <input type="hidden" name="search" value="<?php echo esc_attr($filters['search']); ?>">
+                    <?php wp_nonce_field('jpm_generate_applications_report', 'jpm_report_nonce'); ?>
+
+                    <div class="jpm-admin-field">
+                        <label style="margin-bottom: 10px;"><?php esc_html_e('Date Range', 'job-posting-manager'); ?></label>
+                        <div style="display:grid;gap:8px;">
+                            <label><input type="radio" name="report_range" value="today" <?php checked($report_range === '' || $report_range === 'today'); ?>> <?php esc_html_e('Today', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_range" value="last_week" <?php checked($report_range, 'last_week'); ?>> <?php esc_html_e('Last Week', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_range" value="last_month" <?php checked($report_range, 'last_month'); ?>> <?php esc_html_e('Last Month', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_range" value="last_3_months" <?php checked($report_range, 'last_3_months'); ?>> <?php esc_html_e('Last 3 Months', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_range" value="last_6_months" <?php checked($report_range, 'last_6_months'); ?>> <?php esc_html_e('Last 6 Months', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_range" value="last_year" <?php checked($report_range, 'last_year'); ?>> <?php esc_html_e('Last Year', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_range" value="custom" <?php checked($report_range, 'custom'); ?>> <?php esc_html_e('Custom Range', 'job-posting-manager'); ?></label>
+                        </div>
+                    </div>
+
+                    <div id="jpm-report-custom-range" class="jpm-admin-field jpm-admin-field--inline" style="display:none;">
+                        <div>
+                            <label for="jpm-report-start"><?php esc_html_e('Start Date', 'job-posting-manager'); ?></label>
+                            <input type="date" id="jpm-report-start" name="report_start" value="<?php echo esc_attr($report_start); ?>">
+                        </div>
+                        <div>
+                            <label for="jpm-report-end"><?php esc_html_e('End Date', 'job-posting-manager'); ?></label>
+                            <input type="date" id="jpm-report-end" name="report_end" value="<?php echo esc_attr($report_end); ?>">
+                        </div>
+                    </div>
+
+                    <div class="jpm-admin-field">
+                        <label style="margin-bottom: 10px;"><?php esc_html_e('Report Format', 'job-posting-manager'); ?></label>
+                        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                            <label><input type="radio" name="report_format" value="pdf" <?php checked($report_format, 'pdf'); ?>> <?php esc_html_e('PDF', 'job-posting-manager'); ?></label>
+                            <label><input type="radio" name="report_format" value="csv" <?php checked($report_format !== 'pdf'); ?>> <?php esc_html_e('CSV', 'job-posting-manager'); ?></label>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button type="button" class="button jpm-report-cancel">
+                            <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="submit" class="button button-primary">
+                            <?php esc_html_e('Generate Report', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -2674,6 +2758,50 @@ class JPM_Admin
                 // Close View Requirements modal
                 $(document).on('click', '.jpm-view-requirements-close, #jpm-view-requirements-modal .jpm-admin-modal__close, #jpm-view-requirements-modal .jpm-admin-modal__backdrop', function () {
                     closeViewRequirementsModal();
+                });
+
+                function closeReportModal() {
+                    $('#jpm-report-modal').hide();
+                }
+
+                function toggleCustomReportRange() {
+                    const selectedRange = $('input[name="report_range"]:checked').val();
+                    const isCustom = selectedRange === 'custom';
+                    $('#jpm-report-custom-range').toggle(isCustom);
+                    $('#jpm-report-start, #jpm-report-end').prop('required', isCustom);
+                }
+
+                $('#jpm-open-report-modal').on('click', function () {
+                    $('#jpm-report-modal').show();
+                    toggleCustomReportRange();
+                });
+
+                $(document).on('change', 'input[name="report_range"]', function () {
+                    toggleCustomReportRange();
+                });
+
+                $('#jpm-report-form').on('submit', function (e) {
+                    const selectedRange = $('input[name="report_range"]:checked').val();
+                    if (selectedRange !== 'custom') {
+                        return;
+                    }
+
+                    const start = $('#jpm-report-start').val();
+                    const end = $('#jpm-report-end').val();
+                    if (!start || !end) {
+                        e.preventDefault();
+                        alert('<?php echo esc_js(__('Please select both start and end dates.', 'job-posting-manager')); ?>');
+                        return;
+                    }
+
+                    if (start > end) {
+                        e.preventDefault();
+                        alert('<?php echo esc_js(__('Start date cannot be later than end date.', 'job-posting-manager')); ?>');
+                    }
+                });
+
+                $(document).on('click', '.jpm-report-cancel, #jpm-report-modal .jpm-admin-modal__close, #jpm-report-modal .jpm-admin-modal__backdrop', function () {
+                    closeReportModal();
                 });
             });
         </script>
@@ -4987,12 +5115,17 @@ class JPM_Admin
     {
         global $wpdb;
 
-        if (!isset($_GET['page']) || !isset($_GET['export'])) {
+        if (!isset($_GET['page']) || (!isset($_GET['export']) && !isset($_GET['report_generate']))) {
             return;
         }
 
         $page = sanitize_text_field(wp_unslash($_GET['page']));
         $export_format = sanitize_text_field(wp_unslash($_GET['export'] ?? ''));
+
+        if ($page === 'jpm-applications' && isset($_GET['report_generate'])) {
+            $this->handle_applications_report_export();
+            exit;
+        }
 
         // Applications export (existing)
         if ($page === 'jpm-applications') {
@@ -5126,6 +5259,486 @@ class JPM_Admin
 
             exit;
         }
+    }
+
+    /**
+     * Handle detailed applications report export by date range.
+     */
+    private function handle_applications_report_export()
+    {
+        if (!current_user_can('edit_posts')) {
+            wp_die(__('You do not have permission to generate reports.', 'job-posting-manager'));
+        }
+
+        if (
+            !isset($_GET['jpm_report_nonce']) ||
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_report_nonce'])), 'jpm_generate_applications_report')
+        ) {
+            wp_die(__('Security check failed.', 'job-posting-manager'));
+        }
+
+        $report_format = isset($_GET['report_format']) ? sanitize_key(wp_unslash($_GET['report_format'])) : 'csv';
+        if (!in_array($report_format, ['csv', 'pdf'], true)) {
+            wp_die(__('Invalid report format.', 'job-posting-manager'));
+        }
+
+        $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : 'today';
+        $custom_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
+        $custom_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
+
+        $range = $this->resolve_report_date_range($report_range, $custom_start, $custom_end);
+        if (!$range) {
+            wp_die(__('Invalid date range.', 'job-posting-manager'));
+        }
+
+        $filters = [
+            'status' => isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '',
+            'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
+            'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+        ];
+
+        $applications = JPM_DB::get_applications($filters);
+        $from_ts = strtotime($range['start']);
+        $to_ts = strtotime($range['end']);
+
+        $applications = array_values(array_filter($applications, function ($app) use ($from_ts, $to_ts) {
+            $app_ts = strtotime((string) $app->application_date);
+            if (!$app_ts) {
+                return false;
+            }
+            return $app_ts >= $from_ts && $app_ts <= $to_ts;
+        }));
+
+        $report_context = [
+            'range_label' => $range['label'],
+            'range_start' => $range['start'],
+            'range_end' => $range['end'],
+            'filters' => $filters,
+        ];
+
+        if ($report_format === 'pdf') {
+            $this->export_applications_report_pdf_html($applications, $report_context);
+            return;
+        }
+
+        $this->export_applications_report_csv($applications, $report_context);
+    }
+
+    /**
+     * Resolve report date range into start/end datetime strings.
+     *
+     * @return array|null
+     */
+    private function resolve_report_date_range($report_range, $custom_start, $custom_end)
+    {
+        $now_ts = current_time('timestamp');
+
+        $build = function ($start_ts, $end_ts, $label) {
+            return [
+                'start' => date('Y-m-d 00:00:00', $start_ts),
+                'end' => date('Y-m-d 23:59:59', $end_ts),
+                'label' => $label,
+            ];
+        };
+
+        switch ($report_range) {
+            case 'today':
+                return $build($now_ts, $now_ts, __('Today', 'job-posting-manager'));
+            case 'last_week':
+                return $build(strtotime('-7 days', $now_ts), $now_ts, __('Last Week', 'job-posting-manager'));
+            case 'last_month':
+                return $build(strtotime('-1 month', $now_ts), $now_ts, __('Last Month', 'job-posting-manager'));
+            case 'last_3_months':
+                return $build(strtotime('-3 months', $now_ts), $now_ts, __('Last 3 Months', 'job-posting-manager'));
+            case 'last_6_months':
+                return $build(strtotime('-6 months', $now_ts), $now_ts, __('Last 6 Months', 'job-posting-manager'));
+            case 'last_year':
+                return $build(strtotime('-1 year', $now_ts), $now_ts, __('Last Year', 'job-posting-manager'));
+            case 'custom':
+                if (
+                    !preg_match('/^\d{4}-\d{2}-\d{2}$/', $custom_start) ||
+                    !preg_match('/^\d{4}-\d{2}-\d{2}$/', $custom_end)
+                ) {
+                    return null;
+                }
+                $start_ts = strtotime($custom_start . ' 00:00:00');
+                $end_ts = strtotime($custom_end . ' 23:59:59');
+                if (!$start_ts || !$end_ts || $start_ts > $end_ts) {
+                    return null;
+                }
+                return [
+                    'start' => date('Y-m-d 00:00:00', $start_ts),
+                    'end' => date('Y-m-d 23:59:59', $end_ts),
+                    'label' => sprintf(__('Custom Range (%1$s to %2$s)', 'job-posting-manager'), $custom_start, $custom_end),
+                ];
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Extract a single value from possible form keys.
+     */
+    private function get_first_form_value($form_data, $keys)
+    {
+        foreach ($keys as $key) {
+            if (isset($form_data[$key]) && $form_data[$key] !== '') {
+                return is_scalar($form_data[$key]) ? sanitize_text_field((string) $form_data[$key]) : '';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Build a normalized, detailed report row for one application.
+     */
+    private function build_application_report_row($application)
+    {
+        $job = get_post($application->job_id);
+        $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+        $form_data = json_decode($application->notes, true);
+        if (!is_array($form_data)) {
+            $form_data = [];
+        }
+
+        $first_name = $this->get_first_form_value($form_data, ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name']);
+        $middle_name = $this->get_first_form_value($form_data, ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name']);
+        $last_name = $this->get_first_form_value($form_data, ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name']);
+        $email = $this->get_first_form_value($form_data, ['email', 'email_address', 'e-mail', 'email-address']);
+        $application_number = $this->get_first_form_value($form_data, ['application_number']);
+        $date_of_registration = $this->get_first_form_value($form_data, ['date_of_registration']);
+        $phone = $this->get_first_form_value($form_data, ['phone', 'phone_number', 'mobile', 'contact_number']);
+        $address = $this->get_first_form_value($form_data, ['address', 'full_address', 'home_address', 'current_address']);
+        $birth_date = $this->get_first_form_value($form_data, ['birth_date', 'date_of_birth', 'birthday']);
+        $gender = $this->get_first_form_value($form_data, ['gender', 'sex']);
+        $civil_status = $this->get_first_form_value($form_data, ['civil_status', 'marital_status']);
+        $education = $this->get_first_form_value($form_data, ['education', 'educational_attainment', 'highest_education']);
+        $work_experience = $this->get_first_form_value($form_data, ['work_experience', 'experience', 'years_of_experience']);
+        $skills = $this->get_first_form_value($form_data, ['skills', 'technical_skills', 'core_skills']);
+        $cover_letter = $this->get_first_form_value($form_data, ['cover_letter', 'message', 'application_message']);
+
+        if ($user) {
+            if ($first_name === '' && isset($user->first_name)) {
+                $first_name = sanitize_text_field($user->first_name);
+            }
+            if ($last_name === '' && isset($user->last_name)) {
+                $last_name = sanitize_text_field($user->last_name);
+            }
+            if ($email === '' && isset($user->user_email)) {
+                $email = sanitize_email($user->user_email);
+            }
+        }
+
+        $full_name = trim(preg_replace('/\s+/', ' ', $first_name . ' ' . $middle_name . ' ' . $last_name));
+        $status_info = self::get_status_by_slug($application->status);
+        $status_name = $status_info ? $status_info['name'] : ucfirst((string) $application->status);
+
+        return [
+            'id' => (int) $application->id,
+            'application_number' => $application_number,
+            'application_date' => date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date)),
+            'application_date_raw' => (string) $application->application_date,
+            'status' => $status_name,
+            'status_slug' => (string) $application->status,
+            'job_id' => (int) $application->job_id,
+            'job_title' => $job ? $job->post_title : __('Job Deleted', 'job-posting-manager'),
+            'user_type' => $user ? __('Registered', 'job-posting-manager') : __('Guest', 'job-posting-manager'),
+            'user_id' => (int) $application->user_id,
+            'user_name' => $user ? $user->display_name : __('Guest', 'job-posting-manager'),
+            'user_email' => $user ? $user->user_email : '',
+            'first_name' => $first_name,
+            'middle_name' => $middle_name,
+            'last_name' => $last_name,
+            'full_name' => $full_name,
+            'email' => $email,
+            'date_of_registration' => $date_of_registration,
+            'phone' => $phone,
+            'address' => $address,
+            'birth_date' => $birth_date,
+            'gender' => $gender,
+            'civil_status' => $civil_status,
+            'education' => $education,
+            'work_experience' => $work_experience,
+            'skills' => $skills,
+            'cover_letter' => $cover_letter,
+            'form_data' => $form_data,
+        ];
+    }
+
+    /**
+     * Export detailed applications report to CSV.
+     */
+    private function export_applications_report_csv($applications, $context)
+    {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=applications-report-' . date('Y-m-d-H-i-s') . '.csv');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        fputcsv($output, [__('Detailed Applications Report', 'job-posting-manager')]);
+        fputcsv($output, [__('Generated At', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format'))]);
+        fputcsv($output, [__('Date Range', 'job-posting-manager'), $context['range_label']]);
+        fputcsv($output, [__('Range Start', 'job-posting-manager'), $context['range_start']]);
+        fputcsv($output, [__('Range End', 'job-posting-manager'), $context['range_end']]);
+        fputcsv($output, [__('Filter: Status', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager')]);
+        fputcsv($output, [__('Filter: Job ID', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager')]);
+        fputcsv($output, [__('Filter: Search', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager')]);
+        fputcsv($output, [__('Total Matching Applications', 'job-posting-manager'), count($applications)]);
+        fputcsv($output, []);
+
+        fputcsv($output, [
+            __('ID', 'job-posting-manager'),
+            __('Application Number', 'job-posting-manager'),
+            __('Application Date', 'job-posting-manager'),
+            __('Status', 'job-posting-manager'),
+            __('Status Slug', 'job-posting-manager'),
+            __('Job ID', 'job-posting-manager'),
+            __('Job Title', 'job-posting-manager'),
+            __('User Type', 'job-posting-manager'),
+            __('User ID', 'job-posting-manager'),
+            __('User Name', 'job-posting-manager'),
+            __('User Email', 'job-posting-manager'),
+            __('First Name', 'job-posting-manager'),
+            __('Middle Name', 'job-posting-manager'),
+            __('Last Name', 'job-posting-manager'),
+            __('Full Name', 'job-posting-manager'),
+            __('Applicant Email', 'job-posting-manager'),
+            __('Date of Registration', 'job-posting-manager'),
+            __('Phone', 'job-posting-manager'),
+            __('Address', 'job-posting-manager'),
+            __('Birth Date', 'job-posting-manager'),
+            __('Gender', 'job-posting-manager'),
+            __('Civil Status', 'job-posting-manager'),
+            __('Education', 'job-posting-manager'),
+            __('Work Experience', 'job-posting-manager'),
+            __('Skills', 'job-posting-manager'),
+            __('Cover Letter / Message', 'job-posting-manager'),
+            __('Raw Form Data (JSON)', 'job-posting-manager'),
+        ]);
+
+        foreach ($applications as $application) {
+            $row = $this->build_application_report_row($application);
+            fputcsv($output, [
+                $row['id'],
+                $row['application_number'],
+                $row['application_date'],
+                $row['status'],
+                $row['status_slug'],
+                $row['job_id'],
+                $row['job_title'],
+                $row['user_type'],
+                $row['user_id'],
+                $row['user_name'],
+                $row['user_email'],
+                $row['first_name'],
+                $row['middle_name'],
+                $row['last_name'],
+                $row['full_name'],
+                $row['email'],
+                $row['date_of_registration'],
+                $row['phone'],
+                $row['address'],
+                $row['birth_date'],
+                $row['gender'],
+                $row['civil_status'],
+                $row['education'],
+                $row['work_experience'],
+                $row['skills'],
+                $row['cover_letter'],
+                wp_json_encode($row['form_data']),
+            ]);
+        }
+
+        exit;
+    }
+
+    /**
+     * Export detailed applications report to printable HTML (PDF-ready).
+     */
+    private function export_applications_report_pdf_html($applications, $context)
+    {
+        header('Content-Type: text/html; charset=utf-8');
+
+        $rows = [];
+        $status_counts = [];
+        $job_counts = [];
+        $registered_count = 0;
+        $guest_count = 0;
+        $range_start_display = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($context['range_start']));
+        $range_end_display = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($context['range_end']));
+
+        foreach ($applications as $application) {
+            $row = $this->build_application_report_row($application);
+            $rows[] = $row;
+            $status_key = $row['status'];
+            $status_counts[$status_key] = isset($status_counts[$status_key]) ? $status_counts[$status_key] + 1 : 1;
+            $job_key = $row['job_title'];
+            $job_counts[$job_key] = isset($job_counts[$job_key]) ? $job_counts[$job_key] + 1 : 1;
+            if ($row['user_type'] === __('Registered', 'job-posting-manager')) {
+                $registered_count++;
+            } else {
+                $guest_count++;
+            }
+        }
+
+        arsort($status_counts);
+        arsort($job_counts);
+
+        ?>
+        <!doctype html>
+        <html>
+
+        <head>
+            <meta charset="utf-8">
+            <title><?php esc_html_e('Detailed Applications Report', 'job-posting-manager'); ?></title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; color: #111; }
+                h1, h2, h3 { margin: 0 0 10px; }
+                .meta { margin-bottom: 18px; color: #444; font-size: 12px; }
+                .grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; margin: 14px 0 18px; }
+                .card { border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: #fafafa; }
+                .card .label { font-size: 11px; color: #666; margin-bottom: 5px; text-transform: uppercase; }
+                .card .value { font-size: 20px; font-weight: 700; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+                th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 12px; vertical-align: top; }
+                th { background: #f5f5f5; text-align: left; }
+                .app-block { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin: 0 0 14px; page-break-inside: avoid; }
+                .row { margin: 3px 0; font-size: 12px; }
+                .row strong { display: inline-block; min-width: 180px; color: #444; }
+                .raw-data-list { background: #f8f8f8; border: 1px solid #eee; padding: 8px; font-size: 11px; }
+                .raw-data-list div { margin: 2px 0; }
+                @media print { .no-print { display: none; } body { margin: 10mm; } }
+            </style>
+            <script>
+                window.onload = function () { window.print(); };
+            </script>
+        </head>
+
+        <body>
+            <h1><?php esc_html_e('Detailed Applications Report', 'job-posting-manager'); ?></h1>
+            <div class="meta">
+                <div><?php echo esc_html(sprintf(__('Generated: %s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')))); ?></div>
+                <div><?php echo esc_html(sprintf(__('Range: %1$s (%2$s to %3$s)', 'job-posting-manager'), $context['range_label'], $range_start_display, $range_end_display)); ?></div>
+                <div><?php echo esc_html(sprintf(__('Filters - Status: %1$s | Job ID: %2$s | Search: %3$s', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager'))); ?></div>
+            </div>
+
+            <div class="grid">
+                <div class="card"><div class="label"><?php esc_html_e('Total Applications', 'job-posting-manager'); ?></div><div class="value"><?php echo esc_html((string) count($rows)); ?></div></div>
+                <div class="card"><div class="label"><?php esc_html_e('Registered Users', 'job-posting-manager'); ?></div><div class="value"><?php echo esc_html((string) $registered_count); ?></div></div>
+                <div class="card"><div class="label"><?php esc_html_e('Guest Applications', 'job-posting-manager'); ?></div><div class="value"><?php echo esc_html((string) $guest_count); ?></div></div>
+                <div class="card"><div class="label"><?php esc_html_e('Unique Jobs Applied', 'job-posting-manager'); ?></div><div class="value"><?php echo esc_html((string) count($job_counts)); ?></div></div>
+            </div>
+
+            <h2><?php esc_html_e('Applications by Status', 'job-posting-manager'); ?></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
+                        <th><?php esc_html_e('Count', 'job-posting-manager'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($status_counts)): ?>
+                        <tr><td colspan="2"><?php esc_html_e('No data available', 'job-posting-manager'); ?></td></tr>
+                    <?php else: ?>
+                        <?php foreach ($status_counts as $status_name => $count): ?>
+                            <tr>
+                                <td><?php echo esc_html($status_name); ?></td>
+                                <td><?php echo esc_html((string) $count); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <h2><?php esc_html_e('Top Jobs by Applications', 'job-posting-manager'); ?></h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Job Title', 'job-posting-manager'); ?></th>
+                        <th><?php esc_html_e('Applications', 'job-posting-manager'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($job_counts)): ?>
+                        <tr><td colspan="2"><?php esc_html_e('No data available', 'job-posting-manager'); ?></td></tr>
+                    <?php else: ?>
+                        <?php foreach ($job_counts as $job_title => $count): ?>
+                            <tr>
+                                <td><?php echo esc_html($job_title); ?></td>
+                                <td><?php echo esc_html((string) $count); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <h2><?php esc_html_e('Detailed Application Records', 'job-posting-manager'); ?></h2>
+            <?php if (empty($rows)): ?>
+                <p><?php esc_html_e('No applications found for the selected report criteria.', 'job-posting-manager'); ?></p>
+            <?php else: ?>
+                <?php foreach ($rows as $row): ?>
+                    <div class="app-block">
+                        <h3><?php echo esc_html(sprintf(__('Application #%1$s (ID: %2$d)', 'job-posting-manager'), $row['application_number'] !== '' ? $row['application_number'] : '-', $row['id'])); ?></h3>
+                        <div class="row"><strong><?php esc_html_e('Submitted', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['application_date']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Status', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['status'] . ' [' . $row['status_slug'] . ']'); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Job', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['job_title'] . ' (ID: ' . $row['job_id'] . ')'); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Applicant Full Name', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['full_name']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Applicant Email', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['email']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('First / Middle / Last', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['first_name'] . ' / ' . $row['middle_name'] . ' / ' . $row['last_name']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('User Account', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['user_type'] . ' | ID: ' . $row['user_id'] . ' | ' . $row['user_name'] . ' | ' . $row['user_email']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Date of Registration', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['date_of_registration']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Phone', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['phone']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Address', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['address']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Birth Date', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['birth_date']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Gender', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['gender']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Civil Status', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['civil_status']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Education', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['education']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Work Experience', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['work_experience']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Skills', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['skills']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Cover Letter / Message', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['cover_letter']); ?></div>
+                        <div class="row"><strong><?php esc_html_e('Raw Form Data', 'job-posting-manager'); ?>:</strong></div>
+                        <div class="raw-data-list">
+                            <?php if (empty($row['form_data'])): ?>
+                                <div><?php esc_html_e('No additional form data.', 'job-posting-manager'); ?></div>
+                            <?php else: ?>
+                                <?php foreach ($row['form_data'] as $field_key => $field_value): ?>
+                                    <?php
+                                    $display_key = ucwords(str_replace(['_', '-'], ' ', (string) $field_key));
+                                    if (is_array($field_value)) {
+                                        $display_items = array_map(function ($item) {
+                                            if (is_scalar($item)) {
+                                                return sanitize_text_field((string) $item);
+                                            }
+                                            return '';
+                                        }, $field_value);
+                                        $display_items = array_filter($display_items, function ($item) {
+                                            return $item !== '';
+                                        });
+                                        $display_value = implode(', ', $display_items);
+                                    } elseif (is_bool($field_value)) {
+                                        $display_value = $field_value ? __('Yes', 'job-posting-manager') : __('No', 'job-posting-manager');
+                                    } elseif (is_scalar($field_value)) {
+                                        $display_value = sanitize_text_field((string) $field_value);
+                                    } else {
+                                        $display_value = '';
+                                    }
+                                    ?>
+                                    <div><strong><?php echo esc_html($display_key); ?>:</strong> <?php echo esc_html($display_value); ?></div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </body>
+
+        </html>
+        <?php
+        exit;
     }
 
     /**
