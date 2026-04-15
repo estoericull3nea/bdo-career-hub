@@ -171,6 +171,7 @@ class JPM_Frontend
         add_action('wp_ajax_jpm_update_personal_info', [$this, 'handle_update_personal_info']);
         add_action('wp_ajax_jpm_toggle_saved_job', [$this, 'toggle_saved_job_ajax']);
         add_action('wp_ajax_nopriv_jpm_toggle_saved_job', [$this, 'toggle_saved_job_ajax']);
+        add_action('wp_footer', [$this, 'render_homepage_hiring_popup']);
 
         // Filter password reset email to use custom reset page
         add_filter('retrieve_password_message', [$this, 'customize_password_reset_email'], 10, 4);
@@ -231,6 +232,174 @@ class JPM_Frontend
         $query_vars['name'] = $job_slug;
 
         return $query_vars;
+    }
+
+    /**
+     * Render configurable hiring popup on homepage.
+     */
+    public function render_homepage_hiring_popup()
+    {
+        if (is_admin() || !is_front_page()) {
+            return;
+        }
+
+        $popup_settings = get_option('jpm_homepage_popup_settings', []);
+        $job_id = isset($popup_settings['enabled_job_id']) ? absint($popup_settings['enabled_job_id']) : 0;
+        if ($job_id <= 0) {
+            return;
+        }
+
+        $job = get_post($job_id);
+        if (!$job || $job->post_type !== 'job_posting' || $job->post_status !== 'publish') {
+            return;
+        }
+
+        $target_url = '';
+        if (!empty($popup_settings['popup_url'])) {
+            $target_url = esc_url($popup_settings['popup_url']);
+        }
+        if ($target_url === '') {
+            $target_url = get_permalink($job_id);
+        }
+
+        $delay_seconds = isset($popup_settings['delay_seconds']) ? absint($popup_settings['delay_seconds']) : 3;
+        if ($delay_seconds < 0) {
+            $delay_seconds = 0;
+        }
+        if ($delay_seconds > 120) {
+            $delay_seconds = 120;
+        }
+
+        $company_name = get_post_meta($job_id, 'company_name', true);
+        ?>
+        <div id="jpm-homepage-hiring-popup" class="jpm-homepage-hiring-popup" style="display:none;" aria-hidden="true">
+            <div class="jpm-homepage-hiring-popup__overlay"></div>
+            <div class="jpm-homepage-hiring-popup__dialog" role="dialog" aria-modal="true"
+                aria-labelledby="jpm-homepage-hiring-popup-title">
+                <button type="button" class="jpm-homepage-hiring-popup__close"
+                    aria-label="<?php esc_attr_e('Close popup', 'job-posting-manager'); ?>">
+                    &times;
+                </button>
+                <p class="jpm-homepage-hiring-popup__badge"><?php esc_html_e("We're Hiring", 'job-posting-manager'); ?></p>
+                <h2 id="jpm-homepage-hiring-popup-title" class="jpm-homepage-hiring-popup__title">
+                    <?php echo esc_html(get_the_title($job_id)); ?>
+                </h2>
+                <?php if (!empty($company_name)): ?>
+                    <p class="jpm-homepage-hiring-popup__company"><?php echo esc_html($company_name); ?></p>
+                <?php endif; ?>
+                <div class="jpm-homepage-hiring-popup__actions">
+                    <a class="jpm-homepage-hiring-popup__cta" href="<?php echo esc_url($target_url); ?>">
+                        <?php esc_html_e('View Job', 'job-posting-manager'); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <style>
+            .jpm-homepage-hiring-popup {
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .jpm-homepage-hiring-popup__overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.55);
+            }
+            .jpm-homepage-hiring-popup__dialog {
+                position: relative;
+                width: min(560px, calc(100% - 32px));
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+                padding: 26px 24px 22px;
+                text-align: center;
+                z-index: 2;
+            }
+            .jpm-homepage-hiring-popup__close {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                width: 34px;
+                height: 34px;
+                border: 0;
+                border-radius: 999px;
+                background: #f2f2f2;
+                color: #333;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 1;
+            }
+            .jpm-homepage-hiring-popup__badge {
+                display: inline-block;
+                margin: 0 0 10px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #fff;
+                background: #2271b1;
+                border-radius: 999px;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+            }
+            .jpm-homepage-hiring-popup__title {
+                margin: 0 0 8px;
+                font-size: 28px;
+                line-height: 1.25;
+                color: #111;
+            }
+            .jpm-homepage-hiring-popup__company {
+                margin: 0 0 18px;
+                color: #555;
+            }
+            .jpm-homepage-hiring-popup__actions {
+                display: flex;
+                justify-content: center;
+            }
+            .jpm-homepage-hiring-popup__cta {
+                display: inline-block;
+                background: #2271b1;
+                color: #fff !important;
+                text-decoration: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-weight: 600;
+            }
+            .jpm-homepage-hiring-popup__cta:hover {
+                background: #135e96;
+            }
+            @media (max-width: 640px) {
+                .jpm-homepage-hiring-popup__title {
+                    font-size: 22px;
+                }
+            }
+        </style>
+        <script>
+            (function () {
+                var popup = document.getElementById('jpm-homepage-hiring-popup');
+                if (!popup) {
+                    return;
+                }
+
+                var delayMs = <?php echo (int) ($delay_seconds * 1000); ?>;
+                var closeBtn = popup.querySelector('.jpm-homepage-hiring-popup__close');
+
+                window.setTimeout(function () {
+                    popup.style.display = 'flex';
+                    popup.setAttribute('aria-hidden', 'false');
+                }, delayMs);
+
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function () {
+                        popup.style.display = 'none';
+                        popup.setAttribute('aria-hidden', 'true');
+                    });
+                }
+            })();
+        </script>
+        <?php
     }
 
     public function job_listings_shortcode($atts)
