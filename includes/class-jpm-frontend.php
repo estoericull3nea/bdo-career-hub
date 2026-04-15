@@ -112,7 +112,7 @@ class JPM_Frontend
      */
     private function render_bookmark_button($job_id, $is_saved, $is_logged_in)
     {
-        $label = $is_saved ? __('Saved', 'job-posting-manager') : __('Save Job', 'job-posting-manager');
+        $label = $is_saved ? __('Unsave Job', 'job-posting-manager') : __('Save Job', 'job-posting-manager');
         $title = $is_saved
             ? __('Remove from saved jobs', 'job-posting-manager')
             : __('Save job', 'job-posting-manager');

@@ -1073,7 +1073,7 @@ jQuery(document).ready(function ($) {
 
   function setBookmarkButtonState($button, isSaved) {
     const saved = !!isSaved;
-    const text = saved ? "Saved" : "Save Job";
+    const text = saved ? "Unsave Job" : "Save Job";
     const label = saved ? "Remove from saved jobs" : "Save job";
     $button.toggleClass("is-saved", saved);
     $button.attr("data-is-saved", saved ? "1" : "0");
@@ -1098,7 +1098,11 @@ jQuery(document).ready(function ($) {
       return;
     }
 
-    $button.prop("disabled", true).addClass("is-loading");
+    const wasSaved = String($button.attr("data-is-saved")) === "1";
+    $button
+      .prop("disabled", true)
+      .addClass("is-loading")
+      .text(wasSaved ? "Unsaving..." : "Saving...");
 
     $.ajax({
       url: jpm_ajax.ajax_url,
@@ -1140,6 +1144,7 @@ jQuery(document).ready(function ($) {
           window.location.href = redirectUrl;
           return;
         }
+        setBookmarkButtonState($button, wasSaved);
         showToast("Unable to save this job. Please try again.", "error");
       },
       complete: function () {
