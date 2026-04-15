@@ -1071,6 +1071,83 @@ jQuery(document).ready(function ($) {
     }, 300);
   }
 
+  function setBookmarkButtonState($button, isSaved) {
+    const saved = !!isSaved;
+    const text = saved ? "Saved" : "Save Job";
+    const label = saved ? "Remove from saved jobs" : "Save job";
+    $button.toggleClass("is-saved", saved);
+    $button.attr("data-is-saved", saved ? "1" : "0");
+    $button.attr("aria-label", label);
+    $button.attr("title", label);
+    $button.text(text);
+  }
+
+  $(document).on("click", ".jpm-bookmark-job-btn", function (e) {
+    e.preventDefault();
+    const $button = $(this);
+    const jobId = parseInt($button.data("job-id"), 10);
+    const isLoggedIn = String($button.data("logged-in")) === "1";
+    const signInUrl = (typeof jpm_ajax !== "undefined" && jpm_ajax.sign_in_url) ? jpm_ajax.sign_in_url : "/sign-in/";
+
+    if (!isLoggedIn) {
+      window.location.href = signInUrl;
+      return;
+    }
+
+    if (!jobId) {
+      return;
+    }
+
+    $button.prop("disabled", true).addClass("is-loading");
+
+    $.ajax({
+      url: jpm_ajax.ajax_url,
+      type: "POST",
+      data: {
+        action: "jpm_toggle_saved_job",
+        job_id: jobId,
+        nonce: jpm_ajax.nonce
+      },
+      success: function (response) {
+        if (!response || !response.success || !response.data) {
+          showToast("Failed to update saved job.", "error");
+          return;
+        }
+
+        const saved = !!response.data.saved;
+        const escapedJobId = String(jobId).replace(/"/g, '\\"');
+        const $allButtons = $('.jpm-bookmark-job-btn[data-job-id="' + escapedJobId + '"]');
+        $allButtons.each(function () {
+          setBookmarkButtonState($(this), saved);
+        });
+
+        if (!saved) {
+          $button.closest(".jpm-saved-job-card").slideUp(200, function () {
+            $(this).remove();
+          });
+        }
+
+        if (response.data.message) {
+          showToast(response.data.message, "success");
+        }
+      },
+      error: function (xhr) {
+        let redirectUrl = "";
+        if (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.redirect_url) {
+          redirectUrl = xhr.responseJSON.data.redirect_url;
+        }
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+          return;
+        }
+        showToast("Unable to save this job. Please try again.", "error");
+      },
+      complete: function () {
+        $button.prop("disabled", false).removeClass("is-loading");
+      }
+    });
+  });
+
   // AJAX for application submission (legacy form)
   $("#jpm-apply-form").on("submit", function (e) {
     e.preventDefault();

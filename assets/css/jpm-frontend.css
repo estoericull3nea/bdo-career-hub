@@ -1265,6 +1265,7 @@
   flex-direction: column;
   width: 100%;
   max-width: 350px;
+  position: relative;
 }
 
 .jpm-job-card:hover {
@@ -1320,6 +1321,56 @@
 .jpm-job-card-title-wrapper .jpm-status-badge {
   flex-shrink: 0;
   margin-top: 2px;
+  order: 3;
+}
+
+.jpm-job-card-title-wrapper .jpm-bookmark-job-btn {
+  margin-left: auto;
+  order: 2;
+
+  position: absolute;
+  top: 5px;
+  color: white;
+  background: #0073aa;
+  right: 5px;
+  padding: 0px 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.jpm-bookmark-job-btn {
+  border: 1px solid #d1d5db;
+  background: #0073aa;
+  color: #fff;
+  border-radius: 999px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.jpm-bookmark-job-btn:hover {
+  border-color: #005a87;
+  background: #005a87;
+  color: #fff;
+}
+
+.jpm-bookmark-job-btn.is-saved {
+  border-color: #0073aa;
+  background: #004d73;
+  color: #fff;
+}
+
+.jpm-bookmark-job-btn.is-loading {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .jpm-job-card-title a:hover {
@@ -2178,7 +2229,9 @@
   padding: 30px 30px;
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
   position: relative;
   overflow: hidden;
 }
@@ -2248,7 +2301,9 @@
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .jpm-tracker-form:hover {
@@ -2286,7 +2341,8 @@
   outline: none;
   border-color: #0073aa;
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(0, 115, 170, 0.1),
+  box-shadow:
+    0 0 0 4px rgba(0, 115, 170, 0.1),
     0 4px 12px rgba(0, 115, 170, 0.15);
   transform: translateY(-1px);
 }
@@ -2516,10 +2572,9 @@
   animation-delay: 0.25s;
 }
 
-.jpm-tracker-accordion-item:nth-child(n+6) {
+.jpm-tracker-accordion-item:nth-child(n + 6) {
   animation-delay: 0.3s;
 }
-
 
 .jpm-tracker-accordion-item::before {
   content: "";
@@ -2540,7 +2595,9 @@
 
 .jpm-tracker-accordion-item[aria-expanded="true"] {
   border-color: #0073aa;
-  box-shadow: 0 6px 20px rgba(0, 115, 170, 0.2), 0 2px 6px rgba(0, 115, 170, 0.15);
+  box-shadow:
+    0 6px 20px rgba(0, 115, 170, 0.2),
+    0 2px 6px rgba(0, 115, 170, 0.15);
   background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
 }
 
@@ -2591,7 +2648,8 @@
   width: 100%;
 }
 
-.jpm-tracker-accordion-header[aria-expanded="true"] .jpm-tracker-accordion-icon {
+.jpm-tracker-accordion-header[aria-expanded="true"]
+  .jpm-tracker-accordion-icon {
   transform: rotate(180deg);
   color: #0073aa;
 }
@@ -2608,7 +2666,6 @@
   text-align: left;
   order: 1;
 }
-
 
 .jpm-tracker-accordion-icon {
   width: 20px;
@@ -2629,7 +2686,10 @@
 .jpm-tracker-accordion-content {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  transition:
+    max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
   background: transparent;
   opacity: 0;
   padding: 0 16px;
@@ -2651,7 +2711,8 @@
   animation: fadeInDown 0.4s ease-out;
 }
 
-.jpm-tracker-accordion-item[aria-expanded="true"] .jpm-tracker-accordion-content {
+.jpm-tracker-accordion-item[aria-expanded="true"]
+  .jpm-tracker-accordion-content {
   max-height: 500px !important;
   visibility: visible !important;
 }
@@ -2887,8 +2948,6 @@
     border-radius: 8px;
   }
 
- 
-
   .jpm-tracker-status-name {
     font-size: 0.9em;
   }
@@ -3008,7 +3067,9 @@
   border: 1px solid #d1d5db;
   padding: 10px 12px;
   font-size: 14px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .jpm-section-block .jpm-form-field:focus {
