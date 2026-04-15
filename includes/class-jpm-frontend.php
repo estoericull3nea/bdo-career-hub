@@ -254,13 +254,7 @@ class JPM_Frontend
             return;
         }
 
-        $target_url = '';
-        if (!empty($popup_settings['popup_url'])) {
-            $target_url = esc_url($popup_settings['popup_url']);
-        }
-        if ($target_url === '') {
-            $target_url = get_permalink($job_id);
-        }
+        $target_url = get_permalink($job_id);
 
         $delay_seconds = isset($popup_settings['delay_seconds']) ? absint($popup_settings['delay_seconds']) : 3;
         if ($delay_seconds < 0) {
