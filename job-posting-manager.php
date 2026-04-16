@@ -63,7 +63,8 @@ function jpm_enqueue_frontend_scripts()
     wp_enqueue_script('jpm-frontend-js', JPM_PLUGIN_URL . 'assets/js/jpm-frontend.js', ['jquery'], time(), true);
     wp_localize_script('jpm-frontend-js', 'jpm_ajax', [
         'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('jpm_nonce')
+        'nonce' => wp_create_nonce('jpm_nonce'),
+        'sign_in_url' => home_url('/sign-in/')
     ]);
     // Enqueue dashicons for icons
     wp_enqueue_style('dashicons');

@@ -82,6 +82,55 @@ class JPM_Frontend
         return !empty($amount) ? $symbol . $amount : '';
     }
 
+    /**
+     * Get saved job IDs for a user.
+     *
+     * @param int $user_id User ID.
+     * @return int[]
+     */
+    private function get_user_saved_job_ids($user_id)
+    {
+        $saved = get_user_meta(absint($user_id), 'jpm_saved_jobs', true);
+        if (!is_array($saved)) {
+            return [];
+        }
+
+        $saved = array_map('absint', $saved);
+        $saved = array_filter($saved);
+        $saved = array_values(array_unique($saved));
+
+        return $saved;
+    }
+
+    /**
+     * Render bookmark button for a job card.
+     *
+     * @param int  $job_id       Job post ID.
+     * @param bool $is_saved     Whether currently saved by user.
+     * @param bool $is_logged_in Whether user is logged in.
+     * @return string
+     */
+    private function render_bookmark_button($job_id, $is_saved, $is_logged_in)
+    {
+        $label = $is_saved ? __('Unsave Job', 'job-posting-manager') : __('Save Job', 'job-posting-manager');
+        $title = $is_saved
+            ? __('Remove from saved jobs', 'job-posting-manager')
+            : __('Save job', 'job-posting-manager');
+
+        $button_classes = 'jpm-bookmark-job-btn' . ($is_saved ? ' is-saved' : '');
+
+        return sprintf(
+            '<button type="button" class="%1$s" data-job-id="%2$d" data-is-saved="%3$s" data-logged-in="%4$s" aria-label="%5$s" title="%6$s">%7$s</button>',
+            esc_attr($button_classes),
+            absint($job_id),
+            $is_saved ? '1' : '0',
+            $is_logged_in ? '1' : '0',
+            esc_attr($title),
+            esc_attr($title),
+            esc_html($label)
+        );
+    }
+
     public function __construct()
     {
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
@@ -120,6 +169,9 @@ class JPM_Frontend
         add_action('wp_ajax_jpm_find_register_page', [$this, 'find_register_page']);
         add_action('wp_ajax_nopriv_jpm_find_register_page', [$this, 'find_register_page']);
         add_action('wp_ajax_jpm_update_personal_info', [$this, 'handle_update_personal_info']);
+        add_action('wp_ajax_jpm_toggle_saved_job', [$this, 'toggle_saved_job_ajax']);
+        add_action('wp_ajax_nopriv_jpm_toggle_saved_job', [$this, 'toggle_saved_job_ajax']);
+        add_action('wp_footer', [$this, 'render_homepage_hiring_popup']);
 
         // Filter password reset email to use custom reset page
         add_filter('retrieve_password_message', [$this, 'customize_password_reset_email'], 10, 4);
@@ -180,6 +232,277 @@ class JPM_Frontend
         $query_vars['name'] = $job_slug;
 
         return $query_vars;
+    }
+
+    /**
+     * Render configurable hiring popup on homepage.
+     */
+    public function render_homepage_hiring_popup()
+    {
+        if (is_admin() || !is_front_page()) {
+            return;
+        }
+
+        $popup_settings = get_option('jpm_homepage_popup_settings', []);
+        $job_id = isset($popup_settings['enabled_job_id']) ? absint($popup_settings['enabled_job_id']) : 0;
+        if ($job_id <= 0) {
+            return;
+        }
+
+        $job = get_post($job_id);
+        if (!$job || $job->post_type !== 'job_posting' || $job->post_status !== 'publish') {
+            return;
+        }
+
+        $target_url = get_permalink($job_id);
+
+        $delay_seconds = isset($popup_settings['delay_seconds']) ? absint($popup_settings['delay_seconds']) : 3;
+        if ($delay_seconds < 0) {
+            $delay_seconds = 0;
+        }
+        if ($delay_seconds > 120) {
+            $delay_seconds = 120;
+        }
+
+        $company_name = get_post_meta($job_id, 'company_name', true);
+        $location = get_post_meta($job_id, 'location', true);
+        $job_description_raw = trim((string) $job->post_content);
+        if ($job_description_raw === '') {
+            $job_description_raw = trim((string) $job->post_excerpt);
+        }
+        $job_description_html = $job_description_raw !== ''
+            ? wp_kses_post(wpautop($job_description_raw))
+            : '<p>' . esc_html__('No description available for this job yet.', 'job-posting-manager') . '</p>';
+        ?>
+        <div id="jpm-homepage-hiring-popup" class="jpm-homepage-hiring-popup" style="display:none;" aria-hidden="true">
+            <div class="jpm-homepage-hiring-popup__overlay"></div>
+            <div class="jpm-homepage-hiring-popup__dialog" role="dialog" aria-modal="true"
+                aria-labelledby="jpm-homepage-hiring-popup-title">
+                <button type="button" class="jpm-homepage-hiring-popup__close"
+                    aria-label="<?php esc_attr_e('Close popup', 'job-posting-manager'); ?>">
+                    &times;
+                </button>
+                <div class="jpm-homepage-hiring-popup__hero">
+                    <?php if (!empty($company_name)): ?>
+                        <div class="jpm-homepage-hiring-popup__company"><?php echo esc_html($company_name); ?></div>
+                    <?php endif; ?>
+                    <div class="jpm-homepage-hiring-popup__hiring-line">
+                        <span class="jpm-homepage-hiring-popup__ribbon jpm-homepage-hiring-popup__ribbon--red"><?php esc_html_e('WE ARE', 'job-posting-manager'); ?></span>
+                        <span class="jpm-homepage-hiring-popup__ribbon jpm-homepage-hiring-popup__ribbon--yellow"><?php esc_html_e('HIRING!', 'job-posting-manager'); ?></span>
+                    </div>
+                    <?php if (!empty($location)): ?>
+                        <div class="jpm-homepage-hiring-popup__bound">
+                            <?php echo esc_html(sprintf(__('BOUND TO %s', 'job-posting-manager'), strtoupper($location))); ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <h2 id="jpm-homepage-hiring-popup-title" class="jpm-homepage-hiring-popup__title">
+                    <?php echo esc_html(strtoupper(get_the_title($job_id))); ?>
+                </h2>
+
+                <div class="jpm-homepage-hiring-popup__requirements">
+                    <div class="jpm-homepage-hiring-popup__description-scroll">
+                        <?php echo $job_description_html; ?>
+                    </div>
+                </div>
+
+                <div class="jpm-homepage-hiring-popup__actions">
+                    <a class="jpm-homepage-hiring-popup__cta" href="<?php echo esc_url($target_url); ?>">
+                        <?php esc_html_e('Apply Now', 'job-posting-manager'); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <style>
+            .jpm-homepage-hiring-popup {
+                position: fixed;
+                inset: 0;
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .jpm-homepage-hiring-popup__overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.55);
+            }
+            .jpm-homepage-hiring-popup__dialog {
+                position: relative;
+                width: min(760px, calc(100% - 32px));
+                max-height: calc(100vh - 40px);
+                overflow: auto;
+                background: linear-gradient(180deg, #284a7a 0%, #3c679f 42%, #d6e3f5 100%);
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+                padding: 22px 22px 20px;
+                text-align: center;
+                z-index: 2;
+                color: #0f1726;
+            }
+            .jpm-homepage-hiring-popup__close {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                width: 34px;
+                height: 34px;
+                border: 0;
+                border-radius: 999px;
+                background: #ffffff;
+                color: #101010;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 1;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+            }
+            .jpm-homepage-hiring-popup__hero {
+                background: rgba(17, 37, 71, 0.58);
+                border: 2px solid rgba(255, 255, 255, 0.45);
+                border-radius: 10px;
+                padding: 14px 12px 16px;
+                margin-bottom: 14px;
+            }
+            .jpm-homepage-hiring-popup__company {
+                color: #fff;
+                font-size: clamp(22px, 4vw, 42px);
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                text-shadow: 0 2px 0 #000;
+                margin-bottom: 10px;
+            }
+            .jpm-homepage-hiring-popup__hiring-line {
+                display: flex;
+                justify-content: center;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-bottom: 12px;
+            }
+            .jpm-homepage-hiring-popup__ribbon {
+                display: inline-block;
+                padding: 8px 20px;
+                font-size: clamp(22px, 4.4vw, 44px);
+                font-weight: 900;
+                line-height: 1;
+                color: #fff;
+                border: 3px solid #fff;
+                text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+            }
+            .jpm-homepage-hiring-popup__ribbon--red {
+                background: #ff3434;
+                transform: skewX(-11deg);
+            }
+            .jpm-homepage-hiring-popup__ribbon--yellow {
+                background: #f7be2d;
+                color: #181818;
+                transform: skewX(-11deg);
+            }
+            .jpm-homepage-hiring-popup__bound {
+                color: #fff;
+                font-size: clamp(20px, 3vw, 38px);
+                font-weight: 800;
+                text-transform: uppercase;
+                font-style: italic;
+                text-shadow: 0 2px 0 #000;
+            }
+            .jpm-homepage-hiring-popup__title {
+                margin: 0 auto 14px;
+                max-width: 92%;
+                display: inline-block;
+                background: #ea5a4f;
+                border: 4px solid #f2d9b8;
+                border-radius: 10px;
+                padding: 10px 18px;
+                font-size: clamp(28px, 4.7vw, 58px);
+                line-height: 1;
+                font-weight: 900;
+                font-style: italic;
+                color: #fff;
+                text-shadow: 0 3px 0 #000;
+            }
+            .jpm-homepage-hiring-popup__requirements {
+                background: #f3dfbf;
+                border-radius: 8px;
+                border: 2px solid #fef7ea;
+                text-align: left;
+                padding: 14px 16px;
+                margin: 0 auto 16px;
+                max-width: 95%;
+            }
+            .jpm-homepage-hiring-popup__description-scroll {
+                max-height: 320px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding-right: 6px;
+            }
+            .jpm-homepage-hiring-popup__description-scroll p,
+            .jpm-homepage-hiring-popup__description-scroll li {
+                margin: 0 0 10px;
+                font-size: 20px;
+                font-weight: 700;
+                line-height: 1.4;
+                color: #1f2430;
+            }
+            .jpm-homepage-hiring-popup__description-scroll ul,
+            .jpm-homepage-hiring-popup__description-scroll ol {
+                margin: 0 0 10px;
+                padding-left: 22px;
+            }
+            .jpm-homepage-hiring-popup__actions {
+                display: flex;
+                justify-content: center;
+            }
+            .jpm-homepage-hiring-popup__cta {
+                display: inline-block;
+                background: #ff3b2f;
+                color: #fff !important;
+                text-decoration: none;
+                padding: 11px 24px;
+                border-radius: 8px;
+                font-size: 18px;
+                font-weight: 800;
+                text-transform: uppercase;
+                border: 2px solid #fff;
+                box-shadow: 0 2px 0 #8b1111;
+            }
+            .jpm-homepage-hiring-popup__cta:hover {
+                background: #e2281e;
+            }
+            @media (max-width: 820px) {
+                .jpm-homepage-hiring-popup__title {
+                    font-size: clamp(24px, 7vw, 42px);
+                }
+                .jpm-homepage-hiring-popup__description-scroll p,
+                .jpm-homepage-hiring-popup__description-scroll li {
+                    font-size: 17px;
+                }
+            }
+        </style>
+        <script>
+            (function () {
+                var popup = document.getElementById('jpm-homepage-hiring-popup');
+                if (!popup) {
+                    return;
+                }
+
+                var delayMs = <?php echo (int) ($delay_seconds * 1000); ?>;
+                var closeBtn = popup.querySelector('.jpm-homepage-hiring-popup__close');
+
+                window.setTimeout(function () {
+                    popup.style.display = 'flex';
+                    popup.setAttribute('aria-hidden', 'false');
+                }, delayMs);
+
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function () {
+                        popup.style.display = 'none';
+                        popup.setAttribute('aria-hidden', 'true');
+                    });
+                }
+            })();
+        </script>
+        <?php
     }
 
     public function job_listings_shortcode($atts)
@@ -342,6 +665,9 @@ class JPM_Frontend
             return '<p class="jpm-no-jobs">' . __('No jobs available at the moment.', 'job-posting-manager') . '</p>';
         }
 
+        $is_logged_in = is_user_logged_in();
+        $saved_job_ids = $is_logged_in ? $this->get_user_saved_job_ids(get_current_user_id()) : [];
+
         // Pre-fetching cache disabled
 
         ob_start();
@@ -368,6 +694,7 @@ class JPM_Frontend
                     $status_badge = '<span class="jpm-status-badge jpm-status-active">' . esc_html__('Active', 'job-posting-manager') . '</span>';
                 }
                 $time_remaining = $this->get_time_remaining($job->ID);
+                $is_saved = in_array($job->ID, $saved_job_ids, true);
                 ?>
                 <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job->ID); ?>">
                     <?php if ($company_image_url): ?>
@@ -381,6 +708,7 @@ class JPM_Frontend
                             <h3 class="jpm-job-card-title">
                                 <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title($job->ID)); ?></a>
                             </h3>
+                            <?php echo $this->render_bookmark_button($job->ID, $is_saved, $is_logged_in); ?>
                             <?php if (!empty($status_badge)): ?>
                                 <?php echo wp_kses_post($status_badge); ?>
                             <?php endif; ?>
@@ -637,6 +965,8 @@ class JPM_Frontend
         }
 
         $jobs_query = new WP_Query($args);
+        $is_logged_in = is_user_logged_in();
+        $saved_job_ids = $is_logged_in ? $this->get_user_saved_job_ids(get_current_user_id()) : [];
 
         // Get unique locations and companies for filter dropdowns (non-expired jobs only)
         // Optimized: Use direct SQL query instead of fetching all posts.
@@ -788,6 +1118,7 @@ class JPM_Frontend
                             $status_badge = '<span class="jpm-status-badge jpm-status-active">' . esc_html__('Active', 'job-posting-manager') . '</span>';
                         }
                         $time_remaining = $this->get_time_remaining($job_id);
+                        $is_saved = in_array($job_id, $saved_job_ids, true);
                         ?>
                         <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
                             <?php if ($company_image_url): ?>
@@ -801,6 +1132,7 @@ class JPM_Frontend
                                     <h3 class="jpm-job-card-title">
                                         <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
                                     </h3>
+                                    <?php echo $this->render_bookmark_button($job_id, $is_saved, $is_logged_in); ?>
                                     <?php if (!empty($status_badge)): ?>
                                         <?php echo wp_kses_post($status_badge); ?>
                                     <?php endif; ?>
@@ -1054,6 +1386,8 @@ class JPM_Frontend
         }
 
         $jobs_query = new WP_Query($args);
+        $is_logged_in = is_user_logged_in();
+        $saved_job_ids = $is_logged_in ? $this->get_user_saved_job_ids(get_current_user_id()) : [];
 
         ob_start();
         if ($jobs_query->have_posts()):
@@ -1084,6 +1418,7 @@ class JPM_Frontend
                     $excerpt = wp_trim_words(get_the_content(), 20);
                 }
                 $time_remaining = $this->get_time_remaining($job_id);
+                $is_saved = in_array($job_id, $saved_job_ids, true);
                 ?>
                 <div class="jpm-job-card" data-job-id="<?php echo esc_attr($job_id); ?>">
                     <?php if ($company_image_url): ?>
@@ -1093,9 +1428,12 @@ class JPM_Frontend
                         </div>
                     <?php endif; ?>
                     <div class="jpm-job-card-content">
-                        <h3 class="jpm-job-card-title">
-                            <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
-                        </h3>
+                        <div class="jpm-job-card-title-wrapper">
+                            <h3 class="jpm-job-card-title">
+                                <a href="<?php echo esc_url($job_link); ?>"><?php echo esc_html(get_the_title()); ?></a>
+                            </h3>
+                            <?php echo $this->render_bookmark_button($job_id, $is_saved, $is_logged_in); ?>
+                        </div>
                         <?php if (!empty($company_name)): ?>
                             <div class="jpm-job-card-meta"><span class="jpm-job-company"><i
                                         class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?></span>
@@ -4405,6 +4743,18 @@ class JPM_Frontend
             'post_status' => 'publish'
         ]);
 
+        $saved_job_ids = $this->get_user_saved_job_ids($user_id);
+        $saved_jobs = [];
+        if (!empty($saved_job_ids)) {
+            $saved_jobs = get_posts([
+                'post_type' => 'job_posting',
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'post__in' => $saved_job_ids,
+                'orderby' => 'post__in',
+            ]);
+        }
+
         $atts = shortcode_atts([
             'title' => __('My Profile', 'job-posting-manager'),
         ], $atts);
@@ -4456,6 +4806,15 @@ class JPM_Frontend
                                 <circle cx="12" cy="7" r="4"></circle>
                             </svg>
                             <span><?php esc_html_e('Information', 'job-posting-manager'); ?></span>
+                        </a>
+                        <a href="#" class="jpm-profile-nav-item" data-tab="saved-jobs">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            <span><?php esc_html_e('Saved Jobs', 'job-posting-manager'); ?></span>
+                            <?php if (count($saved_jobs) > 0): ?>
+                                <span class="jpm-nav-badge"><?php echo count($saved_jobs); ?></span>
+                            <?php endif; ?>
                         </a>
                     </nav>
                 </aside>
@@ -5573,6 +5932,73 @@ class JPM_Frontend
                                                 </div>
                                             </div>
                                         <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Saved Jobs Tab -->
+                    <div class="jpm-profile-tab-content" id="jpm-tab-saved-jobs">
+                        <div class="jpm-profile-tab-header">
+                            <h2 class="jpm-profile-tab-title">
+                                <?php esc_html_e('Saved Jobs', 'job-posting-manager'); ?>
+                                <span class="jpm-applications-count">(<?php echo count($saved_jobs); ?>)</span>
+                            </h2>
+                        </div>
+
+                        <?php if (empty($saved_jobs)): ?>
+                            <div class="jpm-no-applications">
+                                <p><?php esc_html_e('You have no saved jobs yet.', 'job-posting-manager'); ?></p>
+                                <a href="<?php echo esc_url(home_url('/job-postings/')); ?>" class="jpm-btn jpm-btn-primary">
+                                    <?php esc_html_e('Browse Jobs', 'job-posting-manager'); ?>
+                                </a>
+                            </div>
+                        <?php else: ?>
+                            <div class="jpm-applications-list jpm-saved-jobs-list">
+                                <?php foreach ($saved_jobs as $saved_job):
+                                    $saved_job_id = absint($saved_job->ID);
+                                    $saved_company = get_post_meta($saved_job_id, 'company_name', true);
+                                    $saved_location = get_post_meta($saved_job_id, 'location', true);
+                                    $saved_salary = get_post_meta($saved_job_id, 'salary', true);
+                                    $saved_duration = get_post_meta($saved_job_id, 'duration', true);
+                                    $saved_link = get_permalink($saved_job_id);
+                                    ?>
+                                    <div class="jpm-application-card jpm-saved-job-card" data-job-id="<?php echo esc_attr($saved_job_id); ?>">
+                                        <div class="jpm-application-header">
+                                            <div class="jpm-application-job-title">
+                                                <h4><a href="<?php echo esc_url($saved_link); ?>"><?php echo esc_html(get_the_title($saved_job_id)); ?></a></h4>
+                                                <?php if (!empty($saved_company)): ?>
+                                                    <span class="jpm-job-company"><?php echo esc_html($saved_company); ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php echo $this->render_bookmark_button($saved_job_id, true, true); ?>
+                                        </div>
+                                        <div class="jpm-application-details">
+                                            <?php if (!empty($saved_location)): ?>
+                                                <div class="jpm-application-detail-item">
+                                                    <span class="jpm-detail-label"><?php esc_html_e('Location:', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-detail-value"><?php echo esc_html($saved_location); ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($saved_salary)): ?>
+                                                <div class="jpm-application-detail-item">
+                                                    <span class="jpm-detail-label"><?php esc_html_e('Salary:', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-detail-value"><?php echo esc_html($this->format_salary($saved_job_id, $saved_salary)); ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($saved_duration)): ?>
+                                                <div class="jpm-application-detail-item">
+                                                    <span class="jpm-detail-label"><?php esc_html_e('Duration:', 'job-posting-manager'); ?></span>
+                                                    <span class="jpm-detail-value"><?php echo esc_html($saved_duration); ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="jpm-job-card-actions">
+                                            <a href="<?php echo esc_url($saved_link); ?>" class="jpm-btn jpm-btn-apply">
+                                                <?php esc_html_e('Apply Now', 'job-posting-manager'); ?>
+                                            </a>
+                                        </div>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -7076,6 +7502,60 @@ class JPM_Frontend
         wp_send_json_success([
             'message' => __('Login successful!', 'job-posting-manager'),
             'redirect_url' => $final_redirect
+        ]);
+    }
+
+    /**
+     * Toggle save/unsave job for current user.
+     */
+    public function toggle_saved_job_ajax()
+    {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'jpm_nonce')) {
+            wp_send_json_error(['message' => __('Security check failed.', 'job-posting-manager')]);
+        }
+
+        if (!is_user_logged_in()) {
+            wp_send_json_error([
+                'message' => __('Please sign in first.', 'job-posting-manager'),
+                'redirect_url' => home_url('/sign-in/'),
+            ]);
+        }
+
+        $job_id = isset($_POST['job_id']) ? absint(wp_unslash($_POST['job_id'])) : 0;
+        if ($job_id <= 0) {
+            wp_send_json_error(['message' => __('Invalid job.', 'job-posting-manager')]);
+        }
+
+        $job = get_post($job_id);
+        if (!$job || $job->post_type !== 'job_posting' || $job->post_status !== 'publish') {
+            wp_send_json_error(['message' => __('Job not found.', 'job-posting-manager')]);
+        }
+
+        $user_id = get_current_user_id();
+        $saved_job_ids = $this->get_user_saved_job_ids($user_id);
+        $is_saved = in_array($job_id, $saved_job_ids, true);
+
+        if ($is_saved) {
+            $saved_job_ids = array_values(array_diff($saved_job_ids, [$job_id]));
+            update_user_meta($user_id, 'jpm_saved_jobs', $saved_job_ids);
+
+            wp_send_json_success([
+                'saved' => false,
+                'job_id' => $job_id,
+                'count' => count($saved_job_ids),
+                'message' => __('Job removed from saved jobs.', 'job-posting-manager'),
+            ]);
+        }
+
+        $saved_job_ids[] = $job_id;
+        $saved_job_ids = array_values(array_unique(array_map('absint', $saved_job_ids)));
+        update_user_meta($user_id, 'jpm_saved_jobs', $saved_job_ids);
+
+        wp_send_json_success([
+            'saved' => true,
+            'job_id' => $job_id,
+            'count' => count($saved_job_ids),
+            'message' => __('Job saved successfully.', 'job-posting-manager'),
         ]);
     }
 

@@ -11,6 +11,7 @@ class JPM_Settings
         add_action('admin_menu', [$this, 'add_settings_page'], 99);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('wp_ajax_jpm_save_email_settings', [$this, 'ajax_save_email_settings']);
+        add_action('wp_ajax_jpm_save_popup_settings', [$this, 'ajax_save_popup_settings']);
         add_action('wp_ajax_jpm_send_test_email', [$this, 'ajax_send_test_email']);
     }
 
@@ -247,6 +248,47 @@ class JPM_Settings
             'cc_emails' => '',
             'bcc_emails' => '',
         ]);
+        $homepage_popup_settings = get_option('jpm_homepage_popup_settings', [
+            'enabled_job_id' => 0,
+            'popup_url' => '',
+            'delay_seconds' => 3,
+        ]);
+        $popup_job_id = isset($homepage_popup_settings['enabled_job_id']) ? absint($homepage_popup_settings['enabled_job_id']) : 0;
+        $popup_url = isset($homepage_popup_settings['popup_url']) ? esc_url($homepage_popup_settings['popup_url']) : '';
+        $popup_delay_seconds = isset($homepage_popup_settings['delay_seconds']) ? absint($homepage_popup_settings['delay_seconds']) : 3;
+        if ($popup_delay_seconds < 0) {
+            $popup_delay_seconds = 0;
+        }
+        if ($popup_delay_seconds > 120) {
+            $popup_delay_seconds = 120;
+        }
+
+        $now_ts = current_time('timestamp');
+        $active_jobs = get_posts([
+            'post_type' => 'job_posting',
+            'posts_per_page' => -1,
+            'post_status' => 'publish',
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'meta_query' => [
+                'relation' => 'OR',
+                [
+                    'key' => 'expiration_date',
+                    'compare' => 'NOT EXISTS',
+                ],
+                [
+                    'key' => 'expiration_date',
+                    'value' => '',
+                    'compare' => '=',
+                ],
+                [
+                    'key' => 'expiration_date',
+                    'value' => $now_ts,
+                    'compare' => '>',
+                    'type' => 'NUMERIC',
+                ],
+            ],
+        ]);
         $admin_field_value = '';
         if (!empty($email_settings['admin_email']) && is_email($email_settings['admin_email'])) {
             $admin_field_value = $email_settings['admin_email'];
@@ -274,6 +316,9 @@ class JPM_Settings
                     </a>
                     <a href="#" class="jpm-tab-link" data-tab="email">
                         <?php esc_html_e('Email Settings', 'job-posting-manager'); ?>
+                    </a>
+                    <a href="#" class="jpm-tab-link" data-tab="popup">
+                        <?php esc_html_e('Popup Settings', 'job-posting-manager'); ?>
                     </a>
                 </nav>
 
@@ -524,6 +569,73 @@ class JPM_Settings
                                 <button type="submit" id="jpm-send-test-email-btn" class="button button-secondary">
                                     <span
                                         class="jpm-btn-text"><?php esc_html_e('Send Test Email', 'job-posting-manager'); ?></span>
+                                </button>
+                            </p>
+                        </form>
+                    </div>
+
+                    <!-- Popup Settings Tab -->
+                    <div class="jpm-tab-content" id="tab-popup">
+                        <h2><?php esc_html_e('Homepage Hiring Popup', 'job-posting-manager'); ?></h2>
+                        <p class="description">
+                            <?php esc_html_e('Select one active job to highlight in a centered popup on the homepage.', 'job-posting-manager'); ?>
+                        </p>
+
+                        <div id="jpm-save-popup-message" style="margin-top: 15px; display: none;"></div>
+
+                        <form id="jpm-save-popup-settings-form" style="margin-top: 20px;">
+                            <?php wp_nonce_field('jpm_save_popup_settings', 'jpm_popup_settings_nonce'); ?>
+
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">
+                                        <label for="homepage_popup_job_id"><?php esc_html_e('Active Job', 'job-posting-manager'); ?></label>
+                                    </th>
+                                    <td>
+                                        <select id="homepage_popup_job_id" name="homepage_popup_job_id" style="min-width: 300px;">
+                                            <option value="0"><?php esc_html_e('Disabled (No popup)', 'job-posting-manager'); ?></option>
+                                            <?php foreach ($active_jobs as $job): ?>
+                                                <option value="<?php echo esc_attr((string) $job->ID); ?>" <?php selected($popup_job_id, $job->ID); ?>>
+                                                    <?php echo esc_html($job->post_title); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <p class="description">
+                                            <?php esc_html_e('Choose which active job to highlight.', 'job-posting-manager'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">
+                                        <label for="homepage_popup_url"><?php esc_html_e('Popup URL', 'job-posting-manager'); ?></label>
+                                    </th>
+                                    <td>
+                                        <input type="url" id="homepage_popup_url" name="homepage_popup_url"
+                                            value="<?php echo esc_attr($popup_url); ?>" class="regular-text"
+                                            placeholder="<?php echo esc_attr(home_url('/job-postings/')); ?>" />
+                                        <p class="description">
+                                            <?php esc_html_e('Button URL inside popup. Leave blank to use the selected job URL.', 'job-posting-manager'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">
+                                        <label for="homepage_popup_delay_seconds"><?php esc_html_e('Show Delay (seconds)', 'job-posting-manager'); ?></label>
+                                    </th>
+                                    <td>
+                                        <input type="number" min="0" max="120" id="homepage_popup_delay_seconds"
+                                            name="homepage_popup_delay_seconds"
+                                            value="<?php echo esc_attr((string) $popup_delay_seconds); ?>" class="small-text" />
+                                        <p class="description">
+                                            <?php esc_html_e('How many seconds to wait before showing popup on homepage.', 'job-posting-manager'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p class="submit">
+                                <button type="submit" id="jpm-save-popup-btn" class="button button-primary">
+                                    <span class="jpm-btn-text"><?php esc_html_e('Save Popup Settings', 'job-posting-manager'); ?></span>
                                 </button>
                             </p>
                         </form>
@@ -802,6 +914,43 @@ class JPM_Settings
                     });
                 });
 
+                // Save popup settings form AJAX
+                $('#jpm-save-popup-settings-form').on('submit', function (e) {
+                    e.preventDefault();
+
+                    var $form = $(this);
+                    var $message = $('#jpm-save-popup-message');
+                    var $button = $('#jpm-save-popup-btn');
+                    var $btnText = $button.find('.jpm-btn-text');
+
+                    $button.prop('disabled', true);
+                    $btnText.text('<?php echo esc_js(__('Saving...', 'job-posting-manager')); ?>');
+                    $message.hide();
+
+                    var formData = $form.serialize();
+                    formData += '&action=jpm_save_popup_settings';
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: formData,
+                        success: function (response) {
+                            if (response.success) {
+                                $message.html('<div class="notice notice-success is-dismissible"><p>' + (response.data.message || '<?php echo esc_js(__('Popup settings saved successfully!', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            } else {
+                                $message.html('<div class="notice notice-error is-dismissible"><p>' + (response.data.message || '<?php echo esc_js(__('Failed to save popup settings. Please try again.', 'job-posting-manager')); ?>') + '</p></div>').show();
+                            }
+                        },
+                        error: function () {
+                            $message.html('<div class="notice notice-error is-dismissible"><p><?php echo esc_js(__('An error occurred while saving popup settings. Please try again.', 'job-posting-manager')); ?></p></div>').show();
+                        },
+                        complete: function () {
+                            $button.prop('disabled', false);
+                            $btnText.text('<?php echo esc_js(__('Save Popup Settings', 'job-posting-manager')); ?>');
+                        }
+                    });
+                });
+
                 // Test email form AJAX
                 $('#jpm-test-email-form').on('submit', function (e) {
                     e.preventDefault();
@@ -954,6 +1103,43 @@ class JPM_Settings
             wp_send_json_error([
                 'message' => __('Failed to save settings. Please try again.', 'job-posting-manager')
             ]);
+        }
+    }
+
+    /**
+     * AJAX handler for saving popup settings
+     */
+    public function ajax_save_popup_settings()
+    {
+        check_ajax_referer('jpm_save_popup_settings', 'jpm_popup_settings_nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permission denied.', 'job-posting-manager')]);
+        }
+
+        $popup_job_id = isset($_POST['homepage_popup_job_id']) ? absint(wp_unslash($_POST['homepage_popup_job_id'])) : 0;
+        $popup_delay_seconds = isset($_POST['homepage_popup_delay_seconds']) ? absint(wp_unslash($_POST['homepage_popup_delay_seconds'])) : 3;
+        $popup_url = isset($_POST['homepage_popup_url']) ? esc_url_raw(wp_unslash($_POST['homepage_popup_url'])) : '';
+
+        if ($popup_delay_seconds < 0) {
+            $popup_delay_seconds = 0;
+        }
+        if ($popup_delay_seconds > 120) {
+            $popup_delay_seconds = 120;
+        }
+
+        $homepage_popup_settings = [
+            'enabled_job_id' => $popup_job_id,
+            'popup_url' => $popup_url,
+            'delay_seconds' => $popup_delay_seconds,
+        ];
+
+        $result = update_option('jpm_homepage_popup_settings', $homepage_popup_settings);
+
+        if ($result !== false) {
+            wp_send_json_success(['message' => __('Popup settings saved successfully!', 'job-posting-manager')]);
+        } else {
+            wp_send_json_success(['message' => __('Popup settings are already up to date.', 'job-posting-manager')]);
         }
     }
 
