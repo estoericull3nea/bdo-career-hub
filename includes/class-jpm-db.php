@@ -57,6 +57,7 @@ class JPM_Admin
         add_action('admin_post_jpm_unwhitelist_application', [$this, 'handle_unwhitelist_application']);
         add_action('admin_post_jpm_save_employer_welfare', [$this, 'handle_save_employer_welfare']);
         add_action('admin_post_jpm_contact_employer_welfare', [$this, 'handle_contact_employer_welfare']);
+        add_action('admin_post_jpm_bulk_email_whitelisted_applications', [$this, 'handle_bulk_email_whitelisted_applications']);
         add_action('admin_post_jpm_save_whitelist_custom_status', [$this, 'handle_save_whitelist_custom_status']);
         add_action('admin_post_jpm_update_whitelist_custom_status_template', [$this, 'handle_update_whitelist_custom_status_template']);
         add_action('admin_post_jpm_delete_whitelist_custom_status_template', [$this, 'handle_delete_whitelist_custom_status_template']);
@@ -703,6 +704,131 @@ class JPM_Admin
 
         unset($redirect_args['employer_contact_error']);
         $redirect_args['employer_contact_sent'] = '1';
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Send one email message to selected applications on Whitelisted Applications page.
+     */
+    public function handle_bulk_email_whitelisted_applications()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_bulk_email_whitelisted_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_bulk_email_whitelisted_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_bulk_email_whitelisted')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $redirect_args = [
+            'page' => 'jpm-whitelisted-applications',
+            'bulk_email_error' => '1',
+        ];
+        if (isset($_POST['jpm_return_search']) && $_POST['jpm_return_search'] !== '') {
+            $redirect_args['search'] = sanitize_text_field(wp_unslash($_POST['jpm_return_search']));
+        }
+        if (isset($_POST['jpm_return_job_id'])) {
+            $return_job_id = absint(wp_unslash($_POST['jpm_return_job_id']));
+            if ($return_job_id > 0) {
+                $redirect_args['job_id'] = $return_job_id;
+            }
+        }
+        if (isset($_POST['jpm_return_location']) && $_POST['jpm_return_location'] !== '') {
+            $redirect_args['location'] = sanitize_text_field(wp_unslash($_POST['jpm_return_location']));
+        }
+        if (isset($_POST['jpm_return_custom_status']) && $_POST['jpm_return_custom_status'] !== '') {
+            $redirect_args['custom_status'] = sanitize_text_field(wp_unslash($_POST['jpm_return_custom_status']));
+        }
+        if (isset($_POST['jpm_return_submitted_on']) && $_POST['jpm_return_submitted_on'] !== '') {
+            $on = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_on']));
+            if ($on !== '') {
+                $redirect_args['submitted_on'] = $on;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_from']) && $_POST['jpm_return_submitted_from'] !== '') {
+            $from = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_from']));
+            if ($from !== '') {
+                $redirect_args['submitted_from'] = $from;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_to']) && $_POST['jpm_return_submitted_to'] !== '') {
+            $to = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_to']));
+            if ($to !== '') {
+                $redirect_args['submitted_to'] = $to;
+            }
+        }
+
+        $raw_ids = isset($_POST['application_ids']) ? sanitize_text_field(wp_unslash($_POST['application_ids'])) : '';
+        $application_ids = array_values(array_unique(array_filter(array_map('absint', explode(',', $raw_ids)))));
+        $from_email = isset($_POST['from_email']) ? sanitize_email(wp_unslash($_POST['from_email'])) : '';
+        $subject = isset($_POST['subject']) ? sanitize_text_field(wp_unslash($_POST['subject'])) : '';
+        $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';
+
+        if (empty($application_ids) || !is_email($from_email) || $subject === '' || wp_strip_all_tags($content) === '') {
+            set_transient(
+                'jpm_bulk_email_err_' . get_current_user_id(),
+                __('Please select applications and provide valid email details.', 'job-posting-manager'),
+                60
+            );
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . $from_email . '>',
+            'Reply-To: ' . $from_email,
+        ];
+
+        $sent_count = 0;
+        $failed_count = 0;
+        foreach ($application_ids as $application_id) {
+            $application = JPM_Database::get_application($application_id);
+            if (!$application) {
+                $failed_count++;
+                continue;
+            }
+
+            $user = !empty($application->user_id) ? get_userdata((int) $application->user_id) : null;
+            $form_data = json_decode((string) ($application->notes ?? ''), true);
+            if (!is_array($form_data)) {
+                $form_data = [];
+            }
+            $to_email = $this->get_first_form_value($form_data, ['email', 'email_address', 'e-mail', 'email-address']);
+            $to_email = $to_email !== '' ? sanitize_email($to_email) : '';
+            if ($to_email === '' && $user && isset($user->user_email)) {
+                $to_email = sanitize_email($user->user_email);
+            }
+            if (!is_email($to_email)) {
+                $failed_count++;
+                continue;
+            }
+
+            $sent = wp_mail($to_email, $subject, wpautop($content), $headers);
+            if ($sent) {
+                $sent_count++;
+            } else {
+                $failed_count++;
+            }
+        }
+
+        if ($sent_count <= 0) {
+            set_transient(
+                'jpm_bulk_email_err_' . get_current_user_id(),
+                __('Bulk email failed. No emails were sent.', 'job-posting-manager'),
+                60
+            );
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        unset($redirect_args['bulk_email_error']);
+        $redirect_args['bulk_email_sent'] = $sent_count;
+        if ($failed_count > 0) {
+            $redirect_args['bulk_email_failed'] = $failed_count;
+        }
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
@@ -4361,6 +4487,21 @@ class JPM_Admin
                     <p><?php esc_html_e('Employer contact email sent successfully.', 'job-posting-manager'); ?></p>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($_GET['bulk_email_sent'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p>
+                        <?php
+                        $bulk_sent = absint(wp_unslash($_GET['bulk_email_sent']));
+                        $bulk_failed = isset($_GET['bulk_email_failed']) ? absint(wp_unslash($_GET['bulk_email_failed'])) : 0;
+                        if ($bulk_failed > 0) {
+                            echo esc_html(sprintf(__('Bulk email sent to %1$d applicant(s). %2$d failed.', 'job-posting-manager'), $bulk_sent, $bulk_failed));
+                        } else {
+                            echo esc_html(sprintf(__('Bulk email sent to %d applicant(s).', 'job-posting-manager'), $bulk_sent));
+                        }
+                        ?>
+                    </p>
+                </div>
+            <?php endif; ?>
             <?php if (!empty($_GET['whitelist_custom_status_saved'])): ?>
                 <div class="notice notice-success is-dismissible">
                     <p><?php esc_html_e('Custom status saved for this whitelisted application.', 'job-posting-manager'); ?></p>
@@ -4394,6 +4535,16 @@ class JPM_Admin
                 ?>
                 <div class="notice notice-error is-dismissible">
                     <p><?php echo esc_html((string) $employer_contact_err_msg); ?></p>
+                </div>
+            <?php } ?>
+            <?php
+            $bulk_email_err_transient = 'jpm_bulk_email_err_' . get_current_user_id();
+            $bulk_email_err_msg = get_transient($bulk_email_err_transient);
+            if (!empty($_GET['bulk_email_error']) && $bulk_email_err_msg !== false && $bulk_email_err_msg !== '') {
+                delete_transient($bulk_email_err_transient);
+                ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php echo esc_html((string) $bulk_email_err_msg); ?></p>
                 </div>
             <?php } ?>
             <?php
@@ -4520,9 +4671,18 @@ class JPM_Admin
                 <?php endif; ?>
             <?php else: ?>
                 <div class="jpm-table-responsive">
+                    <div style="margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button type="button" class="button button-primary" id="jpm-open-whitelist-bulk-email-modal" disabled>
+                            <?php esc_html_e('Bulk Send Email', 'job-posting-manager'); ?>
+                        </button>
+                        <span class="description"><?php esc_html_e('Select applications first, then click Bulk Send Email.', 'job-posting-manager'); ?></span>
+                    </div>
                     <table class="widefat striped jpm-applications-table">
                         <thead>
                             <tr>
+                                <th style="width:34px;">
+                                    <input type="checkbox" id="jpm-whitelist-select-all" aria-label="<?php esc_attr_e('Select all applications', 'job-posting-manager'); ?>">
+                                </th>
                                 <th><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Job Title', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Application Date', 'job-posting-manager'); ?></th>
@@ -4556,6 +4716,9 @@ class JPM_Admin
                                 $employer_history_payload = !empty($employer_history) ? wp_json_encode($employer_history) : '';
                                 ?>
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" class="jpm-whitelist-row-select" value="<?php echo esc_attr((string) (int) $application->id); ?>" aria-label="<?php esc_attr_e('Select application', 'job-posting-manager'); ?>">
+                                    </td>
                                     <td><?php echo esc_html($application->id); ?></td>
                                     <td>
                                         <a href="<?php echo esc_url(admin_url('post.php?post=' . $application->job_id . '&action=edit')); ?>">
@@ -4667,21 +4830,6 @@ class JPM_Admin
                                                     target="_blank" class="button button-small" style="text-decoration: none;">
                                                     <?php esc_html_e('View Details', 'job-posting-manager'); ?>
                                                 </a>
-                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                                    <?php wp_nonce_field('jpm_unwhitelist_application', 'jpm_unwhitelist_application_nonce'); ?>
-                                                    <input type="hidden" name="action" value="jpm_unwhitelist_application">
-                                                    <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
-                                                    <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
-                                                    <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
-                                                    <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
-                                                    <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
-                                                    <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
-                                                    <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
-                                                    <button type="button" class="button button-small jpm-open-pending-form-confirm"
-                                                        data-confirm-message="<?php echo esc_attr(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>">
-                                                        <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>
-                                                    </button>
-                                                </form>
                                             </div>
                                         </div>
                                     </td>
@@ -4983,6 +5131,52 @@ class JPM_Admin
                 </div>
             </div>
 
+            <div id="jpm-whitelist-bulk-email-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-whitelist-bulk-email-title" style="max-width: 620px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-whitelist-bulk-email-title"><?php esc_html_e('Bulk send email', 'job-posting-manager'); ?></h2>
+                    <p id="jpm-whitelist-bulk-email-ref" class="description" style="margin-bottom: 12px;"></p>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="jpm-whitelist-bulk-email-form">
+                        <?php wp_nonce_field('jpm_bulk_email_whitelisted', 'jpm_bulk_email_whitelisted_nonce'); ?>
+                        <input type="hidden" name="action" value="jpm_bulk_email_whitelisted_applications">
+                        <input type="hidden" name="application_ids" id="jpm-whitelist-bulk-email-application-ids" value="">
+                        <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                        <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                        <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
+                        <input type="hidden" name="jpm_return_custom_status" value="<?php echo esc_attr($filters['custom_status']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-bulk-email-from"><?php esc_html_e('From', 'job-posting-manager'); ?></label>
+                            <input type="email" id="jpm-whitelist-bulk-email-from" name="from_email" class="regular-text" required
+                                value="<?php echo esc_attr(get_option('admin_email')); ?>" autocomplete="email" maxlength="191">
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-bulk-email-subject"><?php esc_html_e('Subject', 'job-posting-manager'); ?></label>
+                            <input type="text" id="jpm-whitelist-bulk-email-subject" name="subject" class="regular-text" required maxlength="191"
+                                placeholder="<?php esc_attr_e('Update regarding your job application', 'job-posting-manager'); ?>">
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-bulk-email-content"><?php esc_html_e('Content', 'job-posting-manager'); ?></label>
+                            <textarea id="jpm-whitelist-bulk-email-content" name="content" rows="8" required
+                                placeholder="<?php esc_attr_e('Write your message to selected applicants here.', 'job-posting-manager'); ?>"></textarea>
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="button jpm-whitelist-bulk-email-cancel">
+                                <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                            </button>
+                            <button type="submit" class="button button-primary">
+                                <?php esc_html_e('Send Email', 'job-posting-manager'); ?>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <div id="jpm-whitelist-custom-status-manage-modal" class="jpm-admin-modal" style="display:none;">
                 <div class="jpm-admin-modal__backdrop"></div>
                 <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
@@ -5268,6 +5462,9 @@ class JPM_Admin
                     function closeWhitelistReportModal() {
                         $('#jpm-whitelist-report-modal').hide();
                     }
+                    function closeWhitelistBulkEmailModal() {
+                        $('#jpm-whitelist-bulk-email-modal').hide();
+                    }
                     function closeWhitelistCustomStatusModal() {
                         $('#jpm-whitelist-custom-status-modal').hide();
                     }
@@ -5309,6 +5506,36 @@ class JPM_Admin
                     });
                     $(document).on('click', '.jpm-whitelist-report-cancel, #jpm-whitelist-report-modal .jpm-admin-modal__close, #jpm-whitelist-report-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistReportModal();
+                    });
+
+                    $('#jpm-whitelist-select-all').on('change', function () {
+                        const isChecked = $(this).is(':checked');
+                        $('.jpm-whitelist-row-select').prop('checked', isChecked);
+                        $('#jpm-open-whitelist-bulk-email-modal').prop('disabled', !isChecked);
+                    });
+                    $(document).on('change', '.jpm-whitelist-row-select', function () {
+                        const total = $('.jpm-whitelist-row-select').length;
+                        const checked = $('.jpm-whitelist-row-select:checked').length;
+                        $('#jpm-whitelist-select-all').prop('checked', total > 0 && total === checked);
+                        $('#jpm-open-whitelist-bulk-email-modal').prop('disabled', checked <= 0);
+                    });
+                    $('#jpm-open-whitelist-bulk-email-modal').on('click', function (e) {
+                        e.preventDefault();
+                        const selectedIds = $('.jpm-whitelist-row-select:checked').map(function () {
+                            return $(this).val();
+                        }).get();
+                        if (!selectedIds.length) {
+                            alert('<?php echo esc_js(__('Please select at least one application first.', 'job-posting-manager')); ?>');
+                            return;
+                        }
+                        $('#jpm-whitelist-bulk-email-application-ids').val(selectedIds.join(','));
+                        $('#jpm-whitelist-bulk-email-ref').text(
+                            '<?php echo esc_js(__('Selected applicants: %d', 'job-posting-manager')); ?>'.replace('%d', selectedIds.length)
+                        );
+                        $('#jpm-whitelist-bulk-email-modal').show();
+                    });
+                    $(document).on('click', '.jpm-whitelist-bulk-email-cancel, #jpm-whitelist-bulk-email-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-modal .jpm-admin-modal__backdrop', function () {
+                        closeWhitelistBulkEmailModal();
                     });
 
                     function applyWhitelistExistingStatusSelection() {
