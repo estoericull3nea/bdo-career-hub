@@ -642,6 +642,7 @@ class JPM_Frontend
         <div class="jpm-latest-jobs">
             <?php foreach ($jobs as $job):
                 $location = get_post_meta($job->ID, 'location', true);
+                $salary = get_post_meta($job->ID, 'salary', true);
                 $duration = get_post_meta($job->ID, 'duration', true);
                 $company_image_id = get_post_meta($job->ID, 'company_image', true);
                 $company_image_url = '';
@@ -681,6 +682,9 @@ class JPM_Frontend
                         <div class="jpm-job-card-info">
                             <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
+                            <?php endif; ?>
+                            <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
+                                        class="dashicons dashicons-money-alt"></i><?php echo esc_html($salary); ?> </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
@@ -762,6 +766,7 @@ class JPM_Frontend
         }
 
         $location = get_post_meta($job_id, 'location', true);
+        $salary = get_post_meta($job_id, 'salary', true);
         $duration = get_post_meta($job_id, 'duration', true);
         $company_image_id = get_post_meta($job_id, 'company_image', true);
         $company_image_url = '';
@@ -792,6 +797,12 @@ class JPM_Frontend
                     <li>
                         <strong><?php esc_html_e('Location:', 'job-posting-manager'); ?></strong>
                         <span><?php echo esc_html($location); ?></span>
+                    </li>
+                <?php endif; ?>
+                <?php if (!empty($salary)): ?>
+                    <li>
+                        <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
+                        <span><?php echo esc_html($salary); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
@@ -1008,6 +1019,7 @@ class JPM_Frontend
                         $jobs_query->the_post();
                         $job_id = get_the_ID();
                         $location = get_post_meta($job_id, 'location', true);
+                        $salary = get_post_meta($job_id, 'salary', true);
                         $duration = get_post_meta($job_id, 'duration', true);
                         $company_image_id = get_post_meta($job_id, 'company_image', true);
                         $company_image_url = '';
@@ -1047,6 +1059,9 @@ class JPM_Frontend
                                 <div class="jpm-job-card-info">
                                     <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
+                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
                                     <?php endif; ?>
                                     <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
@@ -1294,6 +1309,7 @@ class JPM_Frontend
                 $jobs_query->the_post();
                 $job_id = get_the_ID();
                 $location = get_post_meta($job_id, 'location', true);
+                $salary = get_post_meta($job_id, 'salary', true);
                 $duration = get_post_meta($job_id, 'duration', true);
                 $company_image_id = get_post_meta($job_id, 'company_image', true);
                 $company_image_url = '';
@@ -1327,6 +1343,12 @@ class JPM_Frontend
                                 <span class="jpm-job-info-item">
                                     <i class="dashicons dashicons-location"></i>
                                     <?php echo esc_html($location); ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if (!empty($salary)): ?>
+                                <span class="jpm-job-info-item">
+                                    <i class="dashicons dashicons-money-alt"></i>
+                                    <?php echo esc_html($salary); ?>
                                 </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?>

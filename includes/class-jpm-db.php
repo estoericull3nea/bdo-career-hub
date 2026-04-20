@@ -5563,6 +5563,7 @@ class JPM_Admin
         global $post;
         $company_image_id = get_post_meta($post->ID, 'company_image', true);
         $location = get_post_meta($post->ID, 'location', true);
+        $salary = get_post_meta($post->ID, 'salary', true);
         $duration = get_post_meta($post->ID, 'duration', true);
         $time_remaining = $this->get_time_remaining($post->ID);
 
@@ -5576,6 +5577,12 @@ class JPM_Admin
                     <li class="jpm-job-detail-item jpm-job-location">
                         <strong><?php esc_html_e('Location:', 'job-posting-manager'); ?></strong>
                         <span><?php echo esc_html($location); ?></span>
+                    </li>
+                <?php endif; ?>
+                <?php if (!empty($salary)): ?>
+                    <li class="jpm-job-detail-item jpm-job-salary">
+                        <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
+                        <span><?php echo esc_html($salary); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
