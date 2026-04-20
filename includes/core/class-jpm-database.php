@@ -229,7 +229,7 @@ class JPM_Database
     /**
      * Get applications with filters
      * 
-     * @param array $filters Filter options (status, job_id, user_id, search, whitelisted_only, location)
+     * @param array $filters Filter options (status, job_id, user_id, search, whitelisted_only, location). When set, location matches the job posting meta key "location" (Job Listings), not applicant form fields.
      * @return array Array of application objects
      */
     public static function get_applications($filters = [])
@@ -292,62 +292,25 @@ class JPM_Database
     }
 
     /**
-     * Best-effort location value from stored application form data (notes JSON).
+     * Location from the job posting edit screen (post meta `location`).
      *
-     * @param array $form_data Decoded form payload.
-     * @return string Non-empty location or empty string.
+     * @param int $job_id Job post ID.
+     * @return string Trimmed location or empty string.
      */
-    public static function extract_application_location_from_form_data($form_data)
+    public static function get_job_posting_location($job_id)
     {
-        if (!is_array($form_data)) {
+        $job_id = absint($job_id);
+        if ($job_id <= 0) {
             return '';
         }
 
-        $priority_keys = [
-            'location',
-            'current_location',
-            'desired_location',
-            'place_of_residence',
-            'placeofresidence',
-            'work_location',
-            'worklocation',
-            'job_location',
-            'joblocation',
-            'site_location',
-            'city',
-            'current_city',
-            'currentcity',
-            'address',
-            'current_address',
-            'currentaddress',
-        ];
-
-        foreach ($priority_keys as $key) {
-            if (!isset($form_data[$key]) || $form_data[$key] === '' || $form_data[$key] === null) {
-                continue;
-            }
-            if (is_scalar($form_data[$key])) {
-                return trim((string) $form_data[$key]);
-            }
-        }
-
-        foreach ($form_data as $key => $value) {
-            if (!is_scalar($value) || (string) $value === '') {
-                continue;
-            }
-            $key_norm = strtolower(str_replace([' ', '-'], '_', (string) $key));
-            if (strpos($key_norm, 'location') !== false) {
-                return trim((string) $value);
-            }
-        }
-
-        return '';
+        return trim((string) get_post_meta($job_id, 'location', true));
     }
 
     /**
-     * Sorted list of distinct location strings from a set of application rows.
+     * Sorted list of distinct job-listing locations for a set of application rows.
      *
-     * @param array $applications Objects from get_results.
+     * @param array $applications Objects from get_results (must include job_id).
      * @return string[]
      */
     public static function list_distinct_locations_from_applications($applications)
@@ -358,14 +321,16 @@ class JPM_Database
 
         $by_lower = [];
         foreach ($applications as $application) {
-            $form_data = json_decode($application->notes, true);
-            $location = self::extract_application_location_from_form_data(is_array($form_data) ? $form_data : []);
-            if ($location === '') {
+            if (!isset($application->job_id)) {
                 continue;
             }
-            $lower = strtolower($location);
+            $loc = self::get_job_posting_location((int) $application->job_id);
+            if ($loc === '') {
+                continue;
+            }
+            $lower = strtolower($loc);
             if (!isset($by_lower[$lower])) {
-                $by_lower[$lower] = $location;
+                $by_lower[$lower] = $loc;
             }
         }
 
@@ -377,7 +342,7 @@ class JPM_Database
 
     /**
      * @param array  $applications Application objects.
-     * @param string $location     Selected location (matched case-insensitively).
+     * @param string $location     Selected job listing location (matched case-insensitively).
      * @return array
      */
     private static function filter_applications_by_location($applications, $location)
@@ -391,8 +356,10 @@ class JPM_Database
         $filtered = [];
 
         foreach ($applications as $application) {
-            $form_data = json_decode($application->notes, true);
-            $app_location = self::extract_application_location_from_form_data(is_array($form_data) ? $form_data : []);
+            if (!isset($application->job_id)) {
+                continue;
+            }
+            $app_location = self::get_job_posting_location((int) $application->job_id);
             if ($want === strtolower($app_location)) {
                 $filtered[] = $application;
             }

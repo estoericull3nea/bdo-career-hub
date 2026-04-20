@@ -3067,7 +3067,7 @@ class JPM_Admin
                             </select>
                         </label>
                         <label>
-                            <?php esc_html_e('Filter by Location:', 'job-posting-manager'); ?>
+                            <?php esc_html_e('Filter by job location:', 'job-posting-manager'); ?>
                             <select name="location" style="min-width: 200px;">
                                 <option value="" <?php selected($filters['location'], ''); ?>><?php esc_html_e('All locations', 'job-posting-manager'); ?></option>
                                 <?php foreach ($location_options as $location_opt): ?>
@@ -3116,7 +3116,7 @@ class JPM_Admin
                                 <th><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('User', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Application Number', 'job-posting-manager'); ?></th>
-                                <th><?php esc_html_e('Location', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Job location', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
                             </tr>
                         </thead>
@@ -3129,7 +3129,7 @@ class JPM_Admin
                                     $form_data = [];
                                 }
                                 $application_number = isset($form_data['application_number']) ? $form_data['application_number'] : '';
-                                $row_location = JPM_Database::extract_application_location_from_form_data($form_data);
+                                $row_location = $job ? JPM_Database::get_job_posting_location((int) $application->job_id) : '';
                                 ?>
                                 <tr>
                                     <td><?php echo esc_html($application->id); ?></td>
