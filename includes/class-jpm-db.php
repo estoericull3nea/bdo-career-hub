@@ -3108,13 +3108,6 @@ class JPM_Admin
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <input type="submit" class="button button-primary"
-                            value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
-                        <?php if ($has_filters): ?>
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-whitelisted-applications')); ?>" class="button">
-                                <?php esc_html_e('Clear', 'job-posting-manager'); ?>
-                            </a>
-                        <?php endif; ?>
                     </div>
                     <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
                         <div>
@@ -3142,6 +3135,15 @@ class JPM_Admin
                     <p class="description" style="margin-top: 10px; margin-bottom: 0;">
                         <?php esc_html_e('If you set an exact "Submitted on" date, the from/to range is ignored. Otherwise use from and/or to for a range.', 'job-posting-manager'); ?>
                     </p>
+                    <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="submit" class="button button-primary"
+                            value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
+                        <?php if ($has_filters): ?>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-whitelisted-applications')); ?>" class="button">
+                                <?php esc_html_e('Clear', 'job-posting-manager'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </form>
             </div>
 
