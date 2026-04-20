@@ -3994,8 +3994,8 @@ class JPM_Admin
             'submitted_on' => isset($_GET['submitted_on']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_on'])) : '',
             'submitted_from' => isset($_GET['submitted_from']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_from'])) : '',
             'submitted_to' => isset($_GET['submitted_to']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_to'])) : '',
+            'custom_status' => isset($_GET['custom_status']) ? sanitize_text_field(wp_unslash($_GET['custom_status'])) : '',
         ];
-        $accepted_jobs_only = isset($_GET['accepted_jobs_only']) && sanitize_text_field(wp_unslash($_GET['accepted_jobs_only'])) === '1';
 
         $accepted_filters = [
             'job_id' => $filters['job_id'],
@@ -4076,6 +4076,39 @@ class JPM_Admin
             ];
         }
         $whitelist_custom_status_catalog = array_values($whitelist_custom_status_catalog);
+        $selected_custom_status_exists = false;
+        foreach ($whitelist_custom_status_catalog as $catalog_item) {
+            $catalog_key = strtolower($catalog_item['name'] . '|' . $catalog_item['abbr'] . '|' . $catalog_item['bg_color'] . '|' . $catalog_item['text_color']);
+            if ($catalog_key === strtolower((string) $filters['custom_status'])) {
+                $selected_custom_status_exists = true;
+                break;
+            }
+        }
+        if ($filters['custom_status'] !== '' && !$selected_custom_status_exists) {
+            $filters['custom_status'] = '';
+        }
+
+        if ($filters['custom_status'] !== '') {
+            $filtered_applications = [];
+            foreach ($applications as $app_row) {
+                $app_id = isset($app_row->id) ? (int) $app_row->id : 0;
+                if ($app_id <= 0 || !isset($whitelist_custom_status_map[$app_id]) || !is_array($whitelist_custom_status_map[$app_id])) {
+                    continue;
+                }
+                $app_status = $whitelist_custom_status_map[$app_id];
+                $app_key = strtolower(
+                    trim((string) ($app_status['name'] ?? '')) . '|' .
+                    trim((string) ($app_status['abbr'] ?? '')) . '|' .
+                    trim((string) ($app_status['bg_color'] ?? '')) . '|' .
+                    trim((string) ($app_status['text_color'] ?? ''))
+                );
+                if ($app_key === strtolower((string) $filters['custom_status'])) {
+                    $filtered_applications[] = $app_row;
+                }
+            }
+            $applications = $filtered_applications;
+        }
+
         $has_applications = !empty($applications);
         $total_whitelisted = count($applications);
         $registered_count = 0;
@@ -4096,44 +4129,16 @@ class JPM_Admin
             $filters['search'] !== '' ||
             $filters['job_id'] > 0 ||
             $filters['location'] !== '' ||
+            $filters['custom_status'] !== '' ||
             $filters['submitted_on'] !== '' ||
             $filters['submitted_from'] !== '' ||
             $filters['submitted_to'] !== ''
         );
-
-        if ($accepted_jobs_only) {
-            $accepted_rows = JPM_DB::get_applications([
-                'status' => 'accepted',
-            ]);
-            $whitelisted_rows = JPM_DB::get_applications([
-                'whitelisted_only' => true,
-            ]);
-            $accepted_or_whitelisted_job_ids = [];
-            foreach (array_merge($accepted_rows, $whitelisted_rows) as $row) {
-                if (!empty($row->job_id)) {
-                    $accepted_or_whitelisted_job_ids[] = (int) $row->job_id;
-                }
-            }
-            $accepted_or_whitelisted_job_ids = array_values(array_unique(array_filter($accepted_or_whitelisted_job_ids)));
-            if (!empty($accepted_or_whitelisted_job_ids)) {
-                $jobs = get_posts([
-                    'post_type' => 'job_posting',
-                    'posts_per_page' => -1,
-                    'post_status' => 'any',
-                    'post__in' => $accepted_or_whitelisted_job_ids,
-                    'orderby' => 'title',
-                    'order' => 'ASC',
-                ]);
-            } else {
-                $jobs = [];
-            }
-        } else {
-            $jobs = get_posts([
-                'post_type' => 'job_posting',
-                'posts_per_page' => -1,
-                'post_status' => 'any',
-            ]);
-        }
+        $jobs = get_posts([
+            'post_type' => 'job_posting',
+            'posts_per_page' => -1,
+            'post_status' => 'any',
+        ]);
 
         ?>
         <div class="wrap jpm-applications-page">
@@ -4432,10 +4437,6 @@ class JPM_Admin
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <label style="display:flex;align-items:center;gap:6px;padding-bottom:2px;">
-                            <input type="checkbox" name="accepted_jobs_only" value="1" <?php checked($accepted_jobs_only); ?>>
-                            <?php esc_html_e('Accepted jobs only', 'job-posting-manager'); ?>
-                        </label>
                         <label>
                             <?php esc_html_e('Filter by job location:', 'job-posting-manager'); ?>
                             <select name="location" style="min-width: 200px;">
@@ -4443,6 +4444,20 @@ class JPM_Admin
                                 <?php foreach ($location_options as $location_opt): ?>
                                     <option value="<?php echo esc_attr($location_opt); ?>" <?php selected(strtolower((string) $filters['location']), strtolower((string) $location_opt)); ?>>
                                         <?php echo esc_html($location_opt); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label>
+                            <?php esc_html_e('Filter by custom status:', 'job-posting-manager'); ?>
+                            <select name="custom_status" style="min-width: 220px;">
+                                <option value="" <?php selected($filters['custom_status'], ''); ?>><?php esc_html_e('All custom statuses', 'job-posting-manager'); ?></option>
+                                <?php foreach ($whitelist_custom_status_catalog as $catalog_item):
+                                    $catalog_key = strtolower($catalog_item['name'] . '|' . $catalog_item['abbr'] . '|' . $catalog_item['bg_color'] . '|' . $catalog_item['text_color']);
+                                    $catalog_label = $catalog_item['name'] . ' (' . $catalog_item['abbr'] . ')';
+                                    ?>
+                                    <option value="<?php echo esc_attr($catalog_key); ?>" <?php selected(strtolower((string) $filters['custom_status']), $catalog_key); ?>>
+                                        <?php echo esc_html($catalog_label); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
