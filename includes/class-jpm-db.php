@@ -1283,6 +1283,55 @@ class JPM_Admin
         $next_url = $paged < $total_pages ? add_query_arg(array_merge($pagination_base_args, ['paged' => $paged + 1]), admin_url('admin.php')) : '';
         ?>
         <div class="wrap jpm-job-listings-page">
+            <style>
+                .jpm-job-listings-page .jpm-actions-menu__dropdown {
+                    padding: 8px;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown form {
+                    display: block;
+                    width: 100%;
+                    margin: 0;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown .button {
+                    display: block;
+                    width: 100%;
+                    box-sizing: border-box;
+                    margin: 0 0 8px;
+                    text-align: left;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown .button:last-child {
+                    margin-bottom: 0;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown details {
+                    margin-top: 0;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown details summary {
+                    list-style: none;
+                    cursor: pointer;
+                    font-weight: 600;
+                    color: #2271b1;
+                    padding: 6px 4px;
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown details summary:hover {
+                    background: #f0f6fc;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown details summary::-webkit-details-marker {
+                    display: none;
+                }
+
+                .jpm-job-listings-page .jpm-actions-menu__dropdown details[open] summary {
+                    margin-bottom: 8px;
+                }
+            </style>
             <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
                 <h1 style="margin-bottom: 0;"><?php esc_html_e('Job Listings', 'job-posting-manager'); ?></h1>
                 <?php if (current_user_can('manage_options')): ?>
@@ -1583,66 +1632,71 @@ class JPM_Admin
                                         </a>
                                     </td>
                                     <td>
-                                        <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">
-                                            <?php esc_html_e('Edit', 'job-posting-manager'); ?>
-                                        </a>
-                                        <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
-                                            <?php esc_html_e('View', 'job-posting-manager'); ?>
-                                        </a>
-                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                            style="margin-top: 6px;">
-                                            <?php wp_nonce_field('jpm_delete_job', 'jpm_delete_job_nonce'); ?>
-                                            <input type="hidden" name="action" value="jpm_delete_job">
-                                            <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
-                                            <button type="submit" class="button button-small"
-                                                style="border-color: #b32d2e; color: #b32d2e;"
-                                                onclick="return confirm('<?php echo esc_js(__('Delete this job and all of its applications permanently? This cannot be undone.', 'job-posting-manager')); ?>');">
-                                                <?php esc_html_e('Delete', 'job-posting-manager'); ?>
+                                        <div class="jpm-actions-menu" style="position: relative; display: inline-block;">
+                                            <button type="button" class="button button-small jpm-actions-menu__toggle" aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e('Open actions', 'job-posting-manager'); ?>" style="min-width:34px;text-align:center;padding:0 8px;line-height:1.2;font-size:18px;">
+                                                &bull;&bull;&bull;
                                             </button>
-                                        </form>
-                                        <?php if (!$is_expired): ?>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                                style="margin-top: 6px;">
-                                                <?php wp_nonce_field('jpm_mark_expired', 'jpm_mark_expired_nonce'); ?>
-                                                <input type="hidden" name="action" value="jpm_mark_expired">
-                                                <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
-                                                <button type="submit" class="button button-small" style="border-color: #b32d2e;"
-                                                    onclick="return confirm('<?php echo esc_js(__('Mark this job as expired?', 'job-posting-manager')); ?>');">
-                                                    <?php esc_html_e('Mark as expired', 'job-posting-manager'); ?>
-                                                </button>
-                                            </form>
-                                        <?php endif; ?>
-                                        <details style="margin-top: 6px;">
-                                            <summary style="cursor: pointer; color: #0073aa; font-weight: 600;">
-                                                <?php esc_html_e('Edit Expiration', 'job-posting-manager'); ?>
-                                            </summary>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                                style="margin-top: 8px;">
-                                                <?php wp_nonce_field('jpm_update_expiration', 'jpm_expiration_nonce'); ?>
-                                                <input type="hidden" name="action" value="jpm_update_expiration">
-                                                <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
-                                                <input type="number" name="expiration_duration" min="1" step="1"
-                                                    value="<?php echo esc_attr($expiration_duration > 0 ? $expiration_duration : 30); ?>"
-                                                    style="width: 70px;">
-                                                <select name="expiration_unit">
-                                                    <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>>
-                                                        <?php esc_html_e('Minutes', 'job-posting-manager'); ?>
-                                                    </option>
-                                                    <option value="hours" <?php selected($expiration_unit, 'hours'); ?>>
-                                                        <?php esc_html_e('Hours', 'job-posting-manager'); ?>
-                                                    </option>
-                                                    <option value="days" <?php selected($expiration_unit, 'days'); ?>>
-                                                        <?php esc_html_e('Days', 'job-posting-manager'); ?>
-                                                    </option>
-                                                    <option value="months" <?php selected($expiration_unit, 'months'); ?>>
-                                                        <?php esc_html_e('Months', 'job-posting-manager'); ?>
-                                                    </option>
-                                                </select>
-                                                <button type="submit" class="button button-small">
-                                                    <?php esc_html_e('Save', 'job-posting-manager'); ?>
-                                                </button>
-                                            </form>
-                                        </details>
+                                            <div class="jpm-actions-menu__dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:30; min-width:220px; background:#fff; border:1px solid #ccd0d4; border-radius:4px; box-shadow:0 4px 16px rgba(0,0,0,0.14); padding:8px;">
+                                                <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">
+                                                    <?php esc_html_e('Edit', 'job-posting-manager'); ?>
+                                                </a>
+                                                <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
+                                                    <?php esc_html_e('View', 'job-posting-manager'); ?>
+                                                </a>
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                                    <?php wp_nonce_field('jpm_delete_job', 'jpm_delete_job_nonce'); ?>
+                                                    <input type="hidden" name="action" value="jpm_delete_job">
+                                                    <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
+                                                    <button type="submit" class="button button-small"
+                                                        style="border-color: #b32d2e; color: #b32d2e;"
+                                                        onclick="return confirm('<?php echo esc_js(__('Delete this job and all of its applications permanently? This cannot be undone.', 'job-posting-manager')); ?>');">
+                                                        <?php esc_html_e('Delete', 'job-posting-manager'); ?>
+                                                    </button>
+                                                </form>
+                                                <?php if (!$is_expired): ?>
+                                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                                        <?php wp_nonce_field('jpm_mark_expired', 'jpm_mark_expired_nonce'); ?>
+                                                        <input type="hidden" name="action" value="jpm_mark_expired">
+                                                        <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
+                                                        <button type="submit" class="button button-small" style="border-color: #b32d2e;"
+                                                            onclick="return confirm('<?php echo esc_js(__('Mark this job as expired?', 'job-posting-manager')); ?>');">
+                                                            <?php esc_html_e('Mark as expired', 'job-posting-manager'); ?>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                                <details style="margin-top: 6px;">
+                                                    <summary style="cursor: pointer; color: #0073aa; font-weight: 600;">
+                                                        <?php esc_html_e('Edit Expiration', 'job-posting-manager'); ?>
+                                                    </summary>
+                                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                                        style="margin-top: 8px;">
+                                                        <?php wp_nonce_field('jpm_update_expiration', 'jpm_expiration_nonce'); ?>
+                                                        <input type="hidden" name="action" value="jpm_update_expiration">
+                                                        <input type="hidden" name="job_id" value="<?php echo esc_attr($job->ID); ?>">
+                                                        <input type="number" name="expiration_duration" min="1" step="1"
+                                                            value="<?php echo esc_attr($expiration_duration > 0 ? $expiration_duration : 30); ?>"
+                                                            style="width: 70px;">
+                                                        <select name="expiration_unit">
+                                                            <option value="minutes" <?php selected($expiration_unit, 'minutes'); ?>>
+                                                                <?php esc_html_e('Minutes', 'job-posting-manager'); ?>
+                                                            </option>
+                                                            <option value="hours" <?php selected($expiration_unit, 'hours'); ?>>
+                                                                <?php esc_html_e('Hours', 'job-posting-manager'); ?>
+                                                            </option>
+                                                            <option value="days" <?php selected($expiration_unit, 'days'); ?>>
+                                                                <?php esc_html_e('Days', 'job-posting-manager'); ?>
+                                                            </option>
+                                                            <option value="months" <?php selected($expiration_unit, 'months'); ?>>
+                                                                <?php esc_html_e('Months', 'job-posting-manager'); ?>
+                                                            </option>
+                                                        </select>
+                                                        <button type="submit" class="button button-small">
+                                                            <?php esc_html_e('Save', 'job-posting-manager'); ?>
+                                                        </button>
+                                                    </form>
+                                                </details>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1686,6 +1740,33 @@ class JPM_Admin
 
                     $toggleJobListingsFiltersBtn.on('click', function () {
                         $jobListingsFiltersPanel.stop(true, true).slideToggle(120, updateJobListingsFiltersToggleLabel);
+                    });
+
+                    function closeAllJobListingActionMenus() {
+                        $('.jpm-job-listings-page .jpm-actions-menu__dropdown').hide();
+                        $('.jpm-job-listings-page .jpm-actions-menu__toggle').attr('aria-expanded', 'false');
+                    }
+
+                    $(document).on('click', '.jpm-job-listings-page .jpm-actions-menu__toggle', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const $toggle = $(this);
+                        const $menu = $toggle.closest('.jpm-actions-menu');
+                        const $dropdown = $menu.find('.jpm-actions-menu__dropdown').first();
+                        const isOpen = $dropdown.is(':visible');
+                        closeAllJobListingActionMenus();
+                        if (!isOpen) {
+                            $dropdown.show();
+                            $toggle.attr('aria-expanded', 'true');
+                        }
+                    });
+
+                    $(document).on('click', function () {
+                        closeAllJobListingActionMenus();
+                    });
+
+                    $(document).on('click', '.jpm-job-listings-page .jpm-actions-menu__dropdown', function (e) {
+                        e.stopPropagation();
                     });
 
                     updateJobListingsFiltersToggleLabel();
@@ -2115,75 +2196,78 @@ class JPM_Admin
                                 </td>
                                 <td><?php echo esc_html($application_number); ?></td>
                                 <td>
-                                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                                        <select class="jpm-application-status-select"
-                                            data-application-id="<?php echo esc_attr($application->id); ?>" style="min-width: 120px;">
+                                    <div class="jpm-actions-menu">
+                                        <button type="button" class="button button-small jpm-actions-menu__toggle" aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e('Open actions', 'job-posting-manager'); ?>">
+                                            &bull;&bull;&bull;
+                                        </button>
+                                        <div class="jpm-actions-menu__dropdown">
+                                            <select class="jpm-application-status-select"
+                                                data-application-id="<?php echo esc_attr($application->id); ?>">
+                                                <?php
+                                                $status_options = self::get_status_options();
+                                                foreach ($status_options as $slug => $name):
+                                                    ?>
+                                                    <option value="<?php echo esc_attr($slug); ?>" <?php selected($application->status, $slug); ?>>
+                                                        <?php echo esc_html($name); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
+                                                target="_blank" class="button button-small" style="text-decoration: none;">
+                                                <?php esc_html_e('View Details', 'job-posting-manager'); ?>
+                                            </a>
                                             <?php
-                                            $status_options = self::get_status_options();
-                                            foreach ($status_options as $slug => $name):
-                                                ?>
-                                                <option value="<?php echo esc_attr($slug); ?>" <?php selected($application->status, $slug); ?>>
-                                                    <?php echo esc_html($name); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
-                                            target="_blank" class="button button-small" style="text-decoration: none;">
-                                            <?php esc_html_e('View Details', 'job-posting-manager'); ?>
-                                        </a>
-                                        <?php
-                                        $is_accepted = strtolower((string) $application->status) === 'accepted';
-                                        $is_whitelisted = isset($application->whitelisted) && (int) $application->whitelisted === 1;
-                                        ?>
-                                        <span class="jpm-whitelist-container<?php echo $is_accepted ? '' : ' jpm-whitelist-container--hidden'; ?>">
-                                            <?php if ($is_whitelisted): ?>
-                                                <span class="button button-small" style="opacity:0.85;cursor:default;background:#f0f0f1;border-color:#c3c4c7;color:#2c3338;">
-                                                    <?php esc_html_e('Whitelisted', 'job-posting-manager'); ?>
-                                                </span>
-                                            <?php else: ?>
-                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                                    style="display: inline-block; margin: 0;">
-                                                    <?php wp_nonce_field('jpm_whitelist_application', 'jpm_whitelist_application_nonce'); ?>
-                                                    <input type="hidden" name="action" value="jpm_whitelist_application">
-                                                    <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
-                                                    <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
-                                                    <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
-                                                    <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
-                                                    <button type="button" class="button button-small jpm-open-pending-form-confirm"
-                                                        data-confirm-message="<?php echo esc_attr(__('Add this applicant to the whitelist?', 'job-posting-manager')); ?>">
-                                                        <?php esc_html_e('Whitelist', 'job-posting-manager'); ?>
-                                                    </button>
-                                                </form>
+                                            $is_accepted = strtolower((string) $application->status) === 'accepted';
+                                            $is_whitelisted = isset($application->whitelisted) && (int) $application->whitelisted === 1;
+                                            ?>
+                                            <span class="jpm-whitelist-container<?php echo $is_accepted ? '' : ' jpm-whitelist-container--hidden'; ?>">
+                                                <?php if ($is_whitelisted): ?>
+                                                    <span class="button button-small" style="opacity:0.85;cursor:default;background:#f0f0f1;border-color:#c3c4c7;color:#2c3338;">
+                                                        <?php esc_html_e('Whitelisted', 'job-posting-manager'); ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                                        <?php wp_nonce_field('jpm_whitelist_application', 'jpm_whitelist_application_nonce'); ?>
+                                                        <input type="hidden" name="action" value="jpm_whitelist_application">
+                                                        <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
+                                                        <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                                                        <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                                        <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
+                                                        <button type="button" class="button button-small jpm-open-pending-form-confirm"
+                                                            data-confirm-message="<?php echo esc_attr(__('Add this applicant to the whitelist?', 'job-posting-manager')); ?>">
+                                                            <?php esc_html_e('Whitelist', 'job-posting-manager'); ?>
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </span>
+                                            <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
+                                                <button type="button" class="button button-small jpm-view-requirements-btn"
+                                                    data-application-id="<?php echo esc_attr($application->id); ?>"
+                                                    data-requirements-type="medical" style="text-decoration: none;">
+                                                    <?php esc_html_e('View Requirements', 'job-posting-manager'); ?>
+                                                </button>
                                             <?php endif; ?>
-                                        </span>
-                                        <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
-                                            <button type="button" class="button button-small jpm-view-requirements-btn"
-                                                data-application-id="<?php echo esc_attr($application->id); ?>"
-                                                data-requirements-type="medical" style="text-decoration: none;">
-                                                <?php esc_html_e('View Requirements', 'job-posting-manager'); ?>
-                                            </button>
-                                        <?php endif; ?>
-                                        <?php if ($interview_status_slug && $application->status === $interview_status_slug): ?>
-                                            <button type="button" class="button button-small jpm-view-requirements-btn"
-                                                data-application-id="<?php echo esc_attr($application->id); ?>"
-                                                data-requirements-type="interview" style="text-decoration: none;">
-                                                <?php esc_html_e('View Requirements', 'job-posting-manager'); ?>
-                                            </button>
-                                        <?php endif; ?>
-                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                            style="display: inline-block; margin: 0;">
-                                            <?php wp_nonce_field('jpm_delete_application', 'jpm_delete_application_nonce'); ?>
-                                            <input type="hidden" name="action" value="jpm_delete_application">
-                                            <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
-                                            <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
-                                            <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
-                                            <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
-                                            <button type="submit" class="button button-small"
-                                                style="border-color: #b32d2e; color: #b32d2e;"
-                                                onclick="return confirm('<?php echo esc_js(__('Delete this application permanently? This cannot be undone.', 'job-posting-manager')); ?>');">
-                                                <?php esc_html_e('Delete', 'job-posting-manager'); ?>
-                                            </button>
-                                        </form>
+                                            <?php if ($interview_status_slug && $application->status === $interview_status_slug): ?>
+                                                <button type="button" class="button button-small jpm-view-requirements-btn"
+                                                    data-application-id="<?php echo esc_attr($application->id); ?>"
+                                                    data-requirements-type="interview" style="text-decoration: none;">
+                                                    <?php esc_html_e('View Requirements', 'job-posting-manager'); ?>
+                                                </button>
+                                            <?php endif; ?>
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                                <?php wp_nonce_field('jpm_delete_application', 'jpm_delete_application_nonce'); ?>
+                                                <input type="hidden" name="action" value="jpm_delete_application">
+                                                <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
+                                                <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                                                <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                                <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
+                                                <button type="submit" class="button button-small"
+                                                    style="border-color: #b32d2e; color: #b32d2e;"
+                                                    onclick="return confirm('<?php echo esc_js(__('Delete this application permanently? This cannot be undone.', 'job-posting-manager')); ?>');">
+                                                    <?php esc_html_e('Delete', 'job-posting-manager'); ?>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -2601,6 +2685,53 @@ class JPM_Admin
                 gap: 12px;
             }
 
+            .jpm-actions-menu {
+                position: relative;
+                display: inline-block;
+            }
+
+            .jpm-actions-menu__toggle {
+                min-width: 34px;
+                text-align: center;
+                padding: 0 8px;
+                line-height: 1.2;
+                font-size: 18px;
+            }
+
+            .jpm-actions-menu__dropdown {
+                position: absolute;
+                right: 0;
+                top: calc(100% + 6px);
+                z-index: 30;
+                min-width: 220px;
+                background: #fff;
+                border: 1px solid #ccd0d4;
+                border-radius: 4px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+                padding: 8px;
+                display: none;
+            }
+
+            .jpm-actions-menu.is-open .jpm-actions-menu__dropdown {
+                display: block;
+            }
+
+            .jpm-actions-menu__dropdown .button,
+            .jpm-actions-menu__dropdown .jpm-application-status-select {
+                display: block;
+                width: 100%;
+                margin: 0 0 6px;
+                text-align: left;
+            }
+
+            .jpm-actions-menu__dropdown .button:last-child {
+                margin-bottom: 0;
+            }
+
+            .jpm-actions-menu__dropdown form {
+                margin: 0;
+            }
+
             .jpm-status-update-success {
                 color: #28a745;
                 margin-left: 5px;
@@ -2683,6 +2814,26 @@ class JPM_Admin
                     $('#jpm-pending-form-confirm-modal').hide();
                     jpmPendingConfirmForm = null;
                 }
+
+                $(document).on('click', '.jpm-actions-menu__toggle', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const $menu = $(this).closest('.jpm-actions-menu');
+                    const isOpen = $menu.hasClass('is-open');
+                    $('.jpm-actions-menu').removeClass('is-open').find('.jpm-actions-menu__toggle').attr('aria-expanded', 'false');
+                    if (!isOpen) {
+                        $menu.addClass('is-open');
+                        $(this).attr('aria-expanded', 'true');
+                    }
+                });
+
+                $(document).on('click', function () {
+                    $('.jpm-actions-menu').removeClass('is-open').find('.jpm-actions-menu__toggle').attr('aria-expanded', 'false');
+                });
+
+                $(document).on('click', '.jpm-actions-menu__dropdown', function (e) {
+                    e.stopPropagation();
+                });
 
                 $(document).on('click', '.jpm-open-pending-form-confirm', function (e) {
                     e.preventDefault();
@@ -3493,6 +3644,52 @@ class JPM_Admin
                     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
                     gap: 12px;
                 }
+
+                .jpm-actions-menu {
+                    position: relative;
+                    display: inline-block;
+                }
+
+                .jpm-actions-menu__toggle {
+                    min-width: 34px;
+                    text-align: center;
+                    padding: 0 8px;
+                    line-height: 1.2;
+                    font-size: 18px;
+                }
+
+                .jpm-actions-menu__dropdown {
+                    position: absolute;
+                    right: 0;
+                    top: calc(100% + 6px);
+                    z-index: 25;
+                    min-width: 180px;
+                    background: #fff;
+                    border: 1px solid #ccd0d4;
+                    border-radius: 4px;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+                    padding: 8px;
+                    display: none;
+                }
+
+                .jpm-actions-menu.is-open .jpm-actions-menu__dropdown {
+                    display: block;
+                }
+
+                .jpm-actions-menu__dropdown .button {
+                    display: block;
+                    width: 100%;
+                    margin: 0 0 6px;
+                    text-align: left;
+                }
+
+                .jpm-actions-menu__dropdown .button:last-child {
+                    margin-bottom: 0;
+                }
+
+                .jpm-actions-menu__dropdown form {
+                    margin: 0;
+                }
             </style>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                 <h1 style="margin:0;"><?php esc_html_e('Whitelisted applications', 'job-posting-manager'); ?></h1>
@@ -3763,35 +3960,39 @@ class JPM_Admin
                                         ?>
                                     </td>
                                     <td>
-                                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                                            <button type="button" class="button button-small jpm-open-employer-welfare-modal"
-                                                data-application-id="<?php echo esc_attr((string) (int) $application->id); ?>"
-                                                data-employer-first="<?php echo esc_attr($emp_fn); ?>"
-                                                data-employer-last="<?php echo esc_attr($emp_ln); ?>"
-                                                data-employer-phone="<?php echo esc_attr($emp_phone); ?>"
-                                                data-employer-email="<?php echo esc_attr($emp_email); ?>">
-                                                <?php echo $emp_email !== '' ? esc_html__('Update employer', 'job-posting-manager') : esc_html__('Add employer', 'job-posting-manager'); ?>
+                                        <div class="jpm-actions-menu">
+                                            <button type="button" class="button button-small jpm-actions-menu__toggle" aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e('Open actions', 'job-posting-manager'); ?>">
+                                                &bull;&bull;&bull;
                                             </button>
-                                            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
-                                                target="_blank" class="button button-small" style="text-decoration: none;">
-                                                <?php esc_html_e('View Details', 'job-posting-manager'); ?>
-                                            </a>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                                style="display: inline-block; margin: 0;">
-                                                <?php wp_nonce_field('jpm_unwhitelist_application', 'jpm_unwhitelist_application_nonce'); ?>
-                                                <input type="hidden" name="action" value="jpm_unwhitelist_application">
-                                                <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
-                                                <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
-                                                <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
-                                                <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
-                                                <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
-                                                <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
-                                                <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
-                                                <button type="button" class="button button-small jpm-open-pending-form-confirm"
-                                                    data-confirm-message="<?php echo esc_attr(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>">
-                                                    <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>
+                                            <div class="jpm-actions-menu__dropdown">
+                                                <button type="button" class="button button-small jpm-open-employer-welfare-modal"
+                                                    data-application-id="<?php echo esc_attr((string) (int) $application->id); ?>"
+                                                    data-employer-first="<?php echo esc_attr($emp_fn); ?>"
+                                                    data-employer-last="<?php echo esc_attr($emp_ln); ?>"
+                                                    data-employer-phone="<?php echo esc_attr($emp_phone); ?>"
+                                                    data-employer-email="<?php echo esc_attr($emp_email); ?>">
+                                                    <?php echo $emp_email !== '' ? esc_html__('Update employer', 'job-posting-manager') : esc_html__('Add employer', 'job-posting-manager'); ?>
                                                 </button>
-                                            </form>
+                                                <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
+                                                    target="_blank" class="button button-small" style="text-decoration: none;">
+                                                    <?php esc_html_e('View Details', 'job-posting-manager'); ?>
+                                                </a>
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                                    <?php wp_nonce_field('jpm_unwhitelist_application', 'jpm_unwhitelist_application_nonce'); ?>
+                                                    <input type="hidden" name="action" value="jpm_unwhitelist_application">
+                                                    <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
+                                                    <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                                                    <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                                    <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
+                                                    <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                                                    <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                                                    <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
+                                                    <button type="button" class="button button-small jpm-open-pending-form-confirm"
+                                                        data-confirm-message="<?php echo esc_attr(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>">
+                                                        <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -4038,6 +4239,26 @@ class JPM_Admin
                         $('#jpm-pending-form-confirm-modal').hide();
                         jpmPendingConfirmForm = null;
                     }
+
+                    $(document).on('click', '.jpm-actions-menu__toggle', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const $menu = $(this).closest('.jpm-actions-menu');
+                        const isOpen = $menu.hasClass('is-open');
+                        $('.jpm-actions-menu').removeClass('is-open').find('.jpm-actions-menu__toggle').attr('aria-expanded', 'false');
+                        if (!isOpen) {
+                            $menu.addClass('is-open');
+                            $(this).attr('aria-expanded', 'true');
+                        }
+                    });
+
+                    $(document).on('click', function () {
+                        $('.jpm-actions-menu').removeClass('is-open').find('.jpm-actions-menu__toggle').attr('aria-expanded', 'false');
+                    });
+
+                    $(document).on('click', '.jpm-actions-menu__dropdown', function (e) {
+                        e.stopPropagation();
+                    });
 
                     $(document).on('click', '.jpm-open-pending-form-confirm', function (e) {
                         e.preventDefault();
