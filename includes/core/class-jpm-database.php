@@ -73,12 +73,51 @@ class JPM_Database
             status varchar(50) DEFAULT 'pending',
             resume_file_path varchar(255),
             notes text,
+            whitelisted tinyint(1) NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
             UNIQUE KEY unique_application (user_id, job_id)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    /**
+     * Add new columns on existing installs (dbDelta does not always alter).
+     */
+    public static function maybe_upgrade_schema()
+    {
+        global $wpdb;
+        $table = self::get_validated_applications_table();
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from validated prefix + literal.
+        $exists = $wpdb->get_results("SHOW COLUMNS FROM `{$table}` LIKE 'whitelisted'", ARRAY_A);
+        if (!empty($exists)) {
+            return;
+        }
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name validated.
+        $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN whitelisted tinyint(1) NOT NULL DEFAULT 0");
+    }
+
+    /**
+     * Mark an application as whitelisted or not.
+     *
+     * @param int  $id          Application ID.
+     * @param bool $whitelisted Whether to whitelist.
+     * @return bool|int|false Rows updated, or false on failure.
+     */
+    public static function set_whitelisted($id, $whitelisted)
+    {
+        global $wpdb;
+        $table = self::get_validated_applications_table();
+        $val = $whitelisted ? 1 : 0;
+
+        return $wpdb->update(
+            $table,
+            ['whitelisted' => $val],
+            ['id' => absint($id)],
+            ['%d'],
+            ['%d']
+        );
     }
 
     /**
@@ -203,6 +242,7 @@ class JPM_Database
             'job_id' => isset($filters['job_id']) ? absint($filters['job_id']) : 0,
             'user_id' => isset($filters['user_id']) ? absint($filters['user_id']) : 0,
             'search' => isset($filters['search']) ? sanitize_text_field((string) $filters['search']) : '',
+            'whitelisted_only' => !empty($filters['whitelisted_only']),
         ];
 
         $where = [];
@@ -223,9 +263,17 @@ class JPM_Database
             $where_values[] = $normalized_filters['user_id'];
         }
 
-        if (!empty($where_values)) {
+        if (!empty($normalized_filters['whitelisted_only'])) {
+            $where[] = 'whitelisted = 1';
+        }
+
+        if (!empty($where)) {
             $query = "SELECT * FROM {$table} WHERE " . implode(' AND ', $where) . ' ORDER BY application_date DESC';
-            $applications = $wpdb->get_results($wpdb->prepare($query, ...$where_values));
+            if (!empty($where_values)) {
+                $applications = $wpdb->get_results($wpdb->prepare($query, ...$where_values));
+            } else {
+                $applications = $wpdb->get_results($query);
+            }
         } else {
             $applications = $wpdb->get_results("SELECT * FROM {$table} ORDER BY application_date DESC");
         }

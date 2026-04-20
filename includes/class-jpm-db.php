@@ -51,6 +51,8 @@ class JPM_Admin
         add_action('admin_post_jpm_mark_expired', [$this, 'handle_mark_expired']);
         add_action('admin_post_jpm_delete_job', [$this, 'handle_delete_job']);
         add_action('admin_post_jpm_delete_application', [$this, 'handle_delete_application']);
+        add_action('admin_post_jpm_whitelist_application', [$this, 'handle_whitelist_application']);
+        add_action('admin_post_jpm_unwhitelist_application', [$this, 'handle_unwhitelist_application']);
 
         // Removed cache-related hooks
     }
@@ -90,6 +92,7 @@ class JPM_Admin
         add_submenu_page('jpm-dashboard', __('Job Listings', 'job-posting-manager'), __('Job Listings', 'job-posting-manager'), 'manage_options', 'jpm-job-listings', [$this, 'job_listings_page']);
         add_submenu_page('jpm-dashboard', __('Add New Job', 'job-posting-manager'), __('Add New Job', 'job-posting-manager'), 'manage_options', 'post-new.php?post_type=job_posting');
         add_submenu_page('jpm-dashboard', __('Applications', 'job-posting-manager'), __('Applications', 'job-posting-manager'), 'manage_options', 'jpm-applications', [$this, 'applications_page']);
+        add_submenu_page('jpm-dashboard', __('Whitelisted Applications', 'job-posting-manager'), __('Whitelisted', 'job-posting-manager'), 'manage_options', 'jpm-whitelisted-applications', [$this, 'whitelisted_applications_page']);
         add_submenu_page('jpm-dashboard', __('Status Management', 'job-posting-manager'), __('Status Management', 'job-posting-manager'), 'manage_options', 'jpm-status-management', [$this, 'status_management_page']);
     }
 
@@ -297,6 +300,115 @@ class JPM_Admin
 
         unset($redirect_args['application_delete_error']);
         $redirect_args['application_deleted'] = '1';
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Add an accepted application to the whitelist (admin-post).
+     */
+    public function handle_whitelist_application()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_whitelist_application_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_whitelist_application_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_whitelist_application')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
+
+        $redirect_args = [
+            'page' => 'jpm-applications',
+            'whitelist_error' => '1',
+        ];
+        if (isset($_POST['jpm_return_search']) && $_POST['jpm_return_search'] !== '') {
+            $redirect_args['search'] = sanitize_text_field(wp_unslash($_POST['jpm_return_search']));
+        }
+        if (isset($_POST['jpm_return_job_id'])) {
+            $rj = absint(wp_unslash($_POST['jpm_return_job_id']));
+            if ($rj > 0) {
+                $redirect_args['job_id'] = $rj;
+            }
+        }
+        if (isset($_POST['jpm_return_status']) && $_POST['jpm_return_status'] !== '') {
+            $redirect_args['status'] = sanitize_text_field(wp_unslash($_POST['jpm_return_status']));
+        }
+
+        if ($application_id <= 0) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $application = JPM_Database::get_application($application_id);
+        if (!$application || strtolower((string) $application->status) !== 'accepted') {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $updated = JPM_DB::set_whitelisted($application_id, true);
+        if ($updated === false) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        unset($redirect_args['whitelist_error']);
+        $redirect_args['whitelist_added'] = '1';
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Remove an application from the whitelist (admin-post).
+     */
+    public function handle_unwhitelist_application()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_unwhitelist_application_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_unwhitelist_application_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_unwhitelist_application')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
+
+        $redirect_args = [
+            'page' => 'jpm-whitelisted-applications',
+            'whitelist_error' => '1',
+        ];
+        if (isset($_POST['jpm_return_search']) && $_POST['jpm_return_search'] !== '') {
+            $redirect_args['search'] = sanitize_text_field(wp_unslash($_POST['jpm_return_search']));
+        }
+        if (isset($_POST['jpm_return_job_id'])) {
+            $rj = absint(wp_unslash($_POST['jpm_return_job_id']));
+            if ($rj > 0) {
+                $redirect_args['job_id'] = $rj;
+            }
+        }
+
+        if ($application_id <= 0) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $application = JPM_Database::get_application($application_id);
+        if (!$application) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $updated = JPM_DB::set_whitelisted($application_id, false);
+        if ($updated === false) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        unset($redirect_args['whitelist_error']);
+        $redirect_args['whitelist_removed'] = '1';
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
@@ -1382,6 +1494,16 @@ class JPM_Admin
                     <p><?php esc_html_e('Could not delete that application.', 'job-posting-manager'); ?></p>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($_GET['whitelist_added'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Application added to the whitelist.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($_GET['whitelist_error'])): ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php esc_html_e('Could not update the whitelist. Only accepted applications can be whitelisted.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
             <?php if (!empty($report_range)): ?>
                 <div class="notice notice-info is-dismissible" style="margin-top: 12px;">
                     <p>
@@ -1723,6 +1845,31 @@ class JPM_Admin
                                             target="_blank" class="button button-small" style="text-decoration: none;">
                                             <?php esc_html_e('View Details', 'job-posting-manager'); ?>
                                         </a>
+                                        <?php
+                                        $is_accepted = strtolower((string) $application->status) === 'accepted';
+                                        $is_whitelisted = isset($application->whitelisted) && (int) $application->whitelisted === 1;
+                                        ?>
+                                        <?php if ($is_accepted): ?>
+                                            <?php if ($is_whitelisted): ?>
+                                                <span class="button button-small" style="opacity:0.85;cursor:default;background:#f0f0f1;border-color:#c3c4c7;color:#2c3338;">
+                                                    <?php esc_html_e('Whitelisted', 'job-posting-manager'); ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                                    style="display: inline-block; margin: 0;">
+                                                    <?php wp_nonce_field('jpm_whitelist_application', 'jpm_whitelist_application_nonce'); ?>
+                                                    <input type="hidden" name="action" value="jpm_whitelist_application">
+                                                    <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
+                                                    <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                                                    <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                                    <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
+                                                    <button type="submit" class="button button-small"
+                                                        onclick="return confirm('<?php echo esc_js(__('Add this applicant to the whitelist?', 'job-posting-manager')); ?>');">
+                                                        <?php esc_html_e('Whitelist', 'job-posting-manager'); ?>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                         <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
                                             <button type="button" class="button button-small jpm-view-requirements-btn"
                                                 data-application-id="<?php echo esc_attr($application->id); ?>"
@@ -2805,6 +2952,183 @@ class JPM_Admin
                 });
             });
         </script>
+        <?php
+    }
+
+    public function whitelisted_applications_page()
+    {
+        $filters = [
+            'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
+            'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+            'whitelisted_only' => true,
+        ];
+
+        $applications = JPM_DB::get_applications($filters);
+        $has_applications = !empty($applications);
+        $has_filters = ($filters['search'] !== '' || $filters['job_id'] > 0);
+
+        $jobs = get_posts([
+            'post_type' => 'job_posting',
+            'posts_per_page' => -1,
+            'post_status' => 'any',
+        ]);
+
+        ?>
+        <div class="wrap jpm-applications-page">
+            <h1 style="margin:0 0 8px;"><?php esc_html_e('Whitelisted applications', 'job-posting-manager'); ?></h1>
+            <p class="description" style="margin-top:0;">
+                <?php esc_html_e('Applicants you marked as whitelisted from the Applications screen (accepted status only).', 'job-posting-manager'); ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>"><?php esc_html_e('Back to all applications', 'job-posting-manager'); ?></a>
+            </p>
+
+            <?php if (!empty($_GET['whitelist_removed'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Application removed from the whitelist.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($_GET['whitelist_error'])): ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php esc_html_e('Could not update the whitelist.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+                <form method="get" action="">
+                    <input type="hidden" name="page" value="jpm-whitelisted-applications">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            <?php esc_html_e('Search Applications:', 'job-posting-manager'); ?>
+                        </label>
+                        <input type="text" name="search" class="regular-text"
+                            value="<?php echo esc_attr($filters['search']); ?>"
+                            placeholder="<?php esc_attr_e('Search by name, email, or application number...', 'job-posting-manager'); ?>"
+                            style="width: 100%; max-width: 500px;">
+                    </div>
+                    <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                        <label>
+                            <?php esc_html_e('Filter by Job:', 'job-posting-manager'); ?>
+                            <select name="job_id">
+                                <option value=""><?php esc_html_e('All Jobs', 'job-posting-manager'); ?></option>
+                                <?php foreach ($jobs as $job): ?>
+                                    <option value="<?php echo esc_attr($job->ID); ?>" <?php selected($filters['job_id'], $job->ID); ?>>
+                                        <?php echo esc_html($job->post_title); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <input type="submit" class="button button-primary"
+                            value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
+                        <?php if ($has_filters): ?>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-whitelisted-applications')); ?>" class="button">
+                                <?php esc_html_e('Clear', 'job-posting-manager'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            <?php if (!$has_applications): ?>
+                <?php if ($has_filters): ?>
+                    <p><?php esc_html_e('No whitelisted applications match your search or filters.', 'job-posting-manager'); ?></p>
+                <?php else: ?>
+                <div class="jpm-empty-state">
+                    <div class="jpm-empty-card">
+                        <div class="jpm-empty-icon">[ ]</div>
+                        <h2><?php esc_html_e('No whitelisted applications', 'job-posting-manager'); ?></h2>
+                        <p><?php esc_html_e('When an application has status Accepted, use the Whitelist action on the Applications page to add it here.', 'job-posting-manager'); ?></p>
+                        <div class="jpm-empty-actions">
+                            <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>">
+                                <?php esc_html_e('Go to Applications', 'job-posting-manager'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+            <?php else: ?>
+                <div class="jpm-table-responsive">
+                    <table class="widefat striped jpm-applications-table">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e('ID', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Job Title', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Application Date', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('User', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Application Number', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($applications as $application):
+                                $job = get_post($application->job_id);
+                                $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
+                                $form_data = json_decode($application->notes, true);
+                                $application_number = isset($form_data['application_number']) ? $form_data['application_number'] : '';
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html($application->id); ?></td>
+                                    <td>
+                                        <a href="<?php echo esc_url(admin_url('post.php?post=' . $application->job_id . '&action=edit')); ?>">
+                                            <?php echo esc_html($job ? $job->post_title : __('Job Deleted', 'job-posting-manager')); ?>
+                                        </a>
+                                    </td>
+                                    <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($application->application_date))); ?></td>
+                                    <td>
+                                        <?php
+                                        $status_info = self::get_status_by_slug($application->status);
+                                        if ($status_info):
+                                            $bg_color = $status_info['color'];
+                                            $text_color = $status_info['text_color'];
+                                            $status_name = $status_info['name'];
+                                        else:
+                                            $bg_color = '#ffc107';
+                                            $text_color = '#000000';
+                                            $status_name = ucfirst($application->status);
+                                        endif;
+                                        ?>
+                                        <span class="jpm-status-badge jpm-status-<?php echo esc_attr($application->status); ?>"
+                                            style="background-color: <?php echo esc_attr($bg_color); ?>; color: <?php echo esc_attr($text_color); ?>;">
+                                            <?php echo esc_html($status_name); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if ($user): ?>
+                                            <a href="<?php echo esc_url(admin_url('user-edit.php?user_id=' . $user->ID)); ?>">
+                                                <?php echo esc_html($user->display_name); ?>
+                                            </a>
+                                            <br><small><?php echo esc_html($user->user_email); ?></small>
+                                        <?php else: ?>
+                                            <em><?php esc_html_e('Guest', 'job-posting-manager'); ?></em>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html($application_number); ?></td>
+                                    <td>
+                                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
+                                                target="_blank" class="button button-small" style="text-decoration: none;">
+                                                <?php esc_html_e('View Details', 'job-posting-manager'); ?>
+                                            </a>
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                                style="display: inline-block; margin: 0;">
+                                                <?php wp_nonce_field('jpm_unwhitelist_application', 'jpm_unwhitelist_application_nonce'); ?>
+                                                <input type="hidden" name="action" value="jpm_unwhitelist_application">
+                                                <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
+                                                <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                                                <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                                <button type="submit" class="button button-small"
+                                                    onclick="return confirm('<?php echo esc_js(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>');">
+                                                    <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
         <?php
     }
 

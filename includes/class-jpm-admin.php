@@ -57,6 +57,18 @@ class JPM_DB
     }
 
     /**
+     * Set whitelist flag on an application.
+     *
+     * @param int  $id          Application ID.
+     * @param bool $whitelisted Whitelist on or off.
+     * @return bool|int|false
+     */
+    public static function set_whitelisted($id, $whitelisted)
+    {
+        return JPM_Database::set_whitelisted($id, $whitelisted);
+    }
+
+    /**
      * Get all statuses with full information
      * Delegates to JPM_Status_Manager
      */
