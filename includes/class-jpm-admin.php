@@ -69,6 +69,18 @@ class JPM_DB
     }
 
     /**
+     * Save employer welfare-check details on a whitelisted application.
+     *
+     * @param int   $application_id Application ID.
+     * @param array $fields         employer_* field keys.
+     * @return true|WP_Error
+     */
+    public static function update_application_employer_welfare($application_id, array $fields)
+    {
+        return JPM_Database::update_application_employer_welfare($application_id, $fields);
+    }
+
+    /**
      * Get all statuses with full information
      * Delegates to JPM_Status_Manager
      */

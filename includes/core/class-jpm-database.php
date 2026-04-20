@@ -74,6 +74,11 @@ class JPM_Database
             resume_file_path varchar(255),
             notes text,
             whitelisted tinyint(1) NOT NULL DEFAULT 0,
+            employer_first_name varchar(191) NULL,
+            employer_last_name varchar(191) NULL,
+            employer_phone varchar(100) NULL,
+            employer_email varchar(191) NULL,
+            employer_recorded_at datetime NULL,
             PRIMARY KEY (id),
             UNIQUE KEY unique_application (user_id, job_id)
         ) $charset_collate;";
@@ -91,11 +96,26 @@ class JPM_Database
         $table = self::get_validated_applications_table();
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from validated prefix + literal.
         $exists = $wpdb->get_results("SHOW COLUMNS FROM `{$table}` LIKE 'whitelisted'", ARRAY_A);
-        if (!empty($exists)) {
-            return;
+        if (empty($exists)) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name validated.
+            $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN whitelisted tinyint(1) NOT NULL DEFAULT 0");
         }
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name validated.
-        $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN whitelisted tinyint(1) NOT NULL DEFAULT 0");
+
+        $employer_columns = [
+            'employer_first_name' => 'varchar(191) NULL',
+            'employer_last_name' => 'varchar(191) NULL',
+            'employer_phone' => 'varchar(100) NULL',
+            'employer_email' => 'varchar(191) NULL',
+            'employer_recorded_at' => 'datetime NULL',
+        ];
+        foreach ($employer_columns as $column => $definition) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table/column names validated.
+            $col_exists = $wpdb->get_results("SHOW COLUMNS FROM `{$table}` LIKE '" . esc_sql($column) . "'", ARRAY_A);
+            if (empty($col_exists)) {
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+            }
+        }
     }
 
     /**
@@ -541,6 +561,64 @@ class JPM_Database
         $application = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id));
 
         return $application;
+    }
+
+    /**
+     * Save employer / welfare-check contact for a whitelisted application.
+     *
+     * @param int   $application_id Application row ID.
+     * @param array $fields         Keys: employer_first_name, employer_last_name, employer_phone, employer_email.
+     * @return true|WP_Error
+     */
+    public static function update_application_employer_welfare($application_id, array $fields)
+    {
+        global $wpdb;
+        $table = self::get_validated_applications_table();
+        $application_id = absint($application_id);
+        if ($application_id <= 0) {
+            return new WP_Error('invalid_id', __('Invalid application.', 'job-posting-manager'));
+        }
+
+        $row = self::get_application($application_id);
+        if (!$row || (int) $row->whitelisted !== 1) {
+            return new WP_Error('not_whitelisted', __('That application is not whitelisted.', 'job-posting-manager'));
+        }
+
+        $first = isset($fields['employer_first_name']) ? sanitize_text_field((string) $fields['employer_first_name']) : '';
+        $last = isset($fields['employer_last_name']) ? sanitize_text_field((string) $fields['employer_last_name']) : '';
+        $phone = isset($fields['employer_phone']) ? sanitize_text_field((string) $fields['employer_phone']) : '';
+        $email_raw = isset($fields['employer_email']) ? trim((string) $fields['employer_email']) : '';
+        $email = $email_raw !== '' ? sanitize_email($email_raw) : '';
+
+        if ($first === '' || $last === '' || $phone === '' || $email_raw === '') {
+            return new WP_Error('missing_fields', __('Please fill in all employer fields.', 'job-posting-manager'));
+        }
+        if ($email === '' || !is_email($email)) {
+            return new WP_Error('invalid_email', __('Please enter a valid employer email address.', 'job-posting-manager'));
+        }
+
+        $updated = $wpdb->update(
+            $table,
+            [
+                'employer_first_name' => $first,
+                'employer_last_name' => $last,
+                'employer_phone' => $phone,
+                'employer_email' => $email,
+                'employer_recorded_at' => current_time('mysql'),
+            ],
+            [
+                'id' => $application_id,
+                'whitelisted' => 1,
+            ],
+            ['%s', '%s', '%s', '%s', '%s'],
+            ['%d', '%d']
+        );
+
+        if ($updated === false) {
+            return new WP_Error('db_error', __('Could not save employer details.', 'job-posting-manager'));
+        }
+
+        return true;
     }
 
     /**

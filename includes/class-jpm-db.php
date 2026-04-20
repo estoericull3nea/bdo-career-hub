@@ -53,6 +53,7 @@ class JPM_Admin
         add_action('admin_post_jpm_delete_application', [$this, 'handle_delete_application']);
         add_action('admin_post_jpm_whitelist_application', [$this, 'handle_whitelist_application']);
         add_action('admin_post_jpm_unwhitelist_application', [$this, 'handle_unwhitelist_application']);
+        add_action('admin_post_jpm_save_employer_welfare', [$this, 'handle_save_employer_welfare']);
 
         // Removed cache-related hooks
     }
@@ -430,6 +431,85 @@ class JPM_Admin
 
         unset($redirect_args['whitelist_error']);
         $redirect_args['whitelist_removed'] = '1';
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Save employer welfare-check fields for a whitelisted application (admin-post).
+     */
+    public function handle_save_employer_welfare()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_save_employer_welfare_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_save_employer_welfare_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_save_employer_welfare')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $redirect_args = [
+            'page' => 'jpm-whitelisted-applications',
+            'employer_error' => '1',
+        ];
+        if (isset($_POST['jpm_return_search']) && $_POST['jpm_return_search'] !== '') {
+            $redirect_args['search'] = sanitize_text_field(wp_unslash($_POST['jpm_return_search']));
+        }
+        if (isset($_POST['jpm_return_job_id'])) {
+            $rj = absint(wp_unslash($_POST['jpm_return_job_id']));
+            if ($rj > 0) {
+                $redirect_args['job_id'] = $rj;
+            }
+        }
+        if (isset($_POST['jpm_return_location']) && $_POST['jpm_return_location'] !== '') {
+            $redirect_args['location'] = sanitize_text_field(wp_unslash($_POST['jpm_return_location']));
+        }
+        if (isset($_POST['jpm_return_submitted_on']) && $_POST['jpm_return_submitted_on'] !== '') {
+            $on = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_on']));
+            if ($on !== '') {
+                $redirect_args['submitted_on'] = $on;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_from']) && $_POST['jpm_return_submitted_from'] !== '') {
+            $from = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_from']));
+            if ($from !== '') {
+                $redirect_args['submitted_from'] = $from;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_to']) && $_POST['jpm_return_submitted_to'] !== '') {
+            $to = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_to']));
+            if ($to !== '') {
+                $redirect_args['submitted_to'] = $to;
+            }
+        }
+
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
+        if ($application_id <= 0) {
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $fields = [
+            'employer_first_name' => isset($_POST['employer_first_name']) ? wp_unslash($_POST['employer_first_name']) : '',
+            'employer_last_name' => isset($_POST['employer_last_name']) ? wp_unslash($_POST['employer_last_name']) : '',
+            'employer_phone' => isset($_POST['employer_phone']) ? wp_unslash($_POST['employer_phone']) : '',
+            'employer_email' => isset($_POST['employer_email']) ? wp_unslash($_POST['employer_email']) : '',
+        ];
+
+        $result = JPM_DB::update_application_employer_welfare($application_id, $fields);
+        if (is_wp_error($result)) {
+            set_transient(
+                'jpm_employer_welfare_err_' . get_current_user_id(),
+                $result->get_error_message(),
+                60
+            );
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        unset($redirect_args['employer_error']);
+        $redirect_args['employer_saved'] = '1';
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
@@ -3199,6 +3279,8 @@ class JPM_Admin
 
                 .jpm-admin-field textarea,
                 .jpm-admin-field input[type="text"],
+                .jpm-admin-field input[type="email"],
+                .jpm-admin-field input[type="tel"],
                 .jpm-admin-field input[type="date"],
                 .jpm-admin-field input[type="time"] {
                     width: 100%;
@@ -3246,6 +3328,21 @@ class JPM_Admin
                     <p><?php esc_html_e('Could not update the whitelist.', 'job-posting-manager'); ?></p>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($_GET['employer_saved'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Employer welfare details saved.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
+            <?php
+            $employer_err_transient = 'jpm_employer_welfare_err_' . get_current_user_id();
+            $employer_err_msg = get_transient($employer_err_transient);
+            if (!empty($_GET['employer_error']) && $employer_err_msg !== false && $employer_err_msg !== '') {
+                delete_transient($employer_err_transient);
+                ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php echo esc_html((string) $employer_err_msg); ?></p>
+                </div>
+            <?php } ?>
 
             <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
@@ -3350,6 +3447,7 @@ class JPM_Admin
                                 <th><?php esc_html_e('User', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Application Number', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Job location', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Employer (welfare)', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
                             </tr>
                         </thead>
@@ -3363,6 +3461,10 @@ class JPM_Admin
                                 }
                                 $application_number = isset($form_data['application_number']) ? $form_data['application_number'] : '';
                                 $row_location = $job ? JPM_Database::get_job_posting_location((int) $application->job_id) : '';
+                                $emp_fn = isset($application->employer_first_name) ? trim((string) $application->employer_first_name) : '';
+                                $emp_ln = isset($application->employer_last_name) ? trim((string) $application->employer_last_name) : '';
+                                $emp_phone = isset($application->employer_phone) ? trim((string) $application->employer_phone) : '';
+                                $emp_email = isset($application->employer_email) ? trim((string) $application->employer_email) : '';
                                 ?>
                                 <tr>
                                     <td><?php echo esc_html($application->id); ?></td>
@@ -3403,7 +3505,31 @@ class JPM_Admin
                                     <td><?php echo esc_html($application_number); ?></td>
                                     <td><?php echo $row_location !== '' ? esc_html($row_location) : '&mdash;'; ?></td>
                                     <td>
+                                        <?php
+                                        if ($emp_fn !== '' || $emp_ln !== '' || $emp_email !== '') {
+                                            $name_line = trim($emp_fn . ' ' . $emp_ln);
+                                            if ($name_line !== '') {
+                                                echo esc_html($name_line);
+                                            }
+                                            if ($emp_email !== '') {
+                                                echo $name_line !== '' ? '<br>' : '';
+                                                echo '<small>' . esc_html($emp_email) . '</small>';
+                                            }
+                                        } else {
+                                            echo '&mdash;';
+                                        }
+                                        ?>
+                                    </td>
+                                    <td>
                                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                            <button type="button" class="button button-small jpm-open-employer-welfare-modal"
+                                                data-application-id="<?php echo esc_attr((string) (int) $application->id); ?>"
+                                                data-employer-first="<?php echo esc_attr($emp_fn); ?>"
+                                                data-employer-last="<?php echo esc_attr($emp_ln); ?>"
+                                                data-employer-phone="<?php echo esc_attr($emp_phone); ?>"
+                                                data-employer-email="<?php echo esc_attr($emp_email); ?>">
+                                                <?php echo $emp_email !== '' ? esc_html__('Update employer', 'job-posting-manager') : esc_html__('Add employer', 'job-posting-manager'); ?>
+                                            </button>
                                             <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
                                                 target="_blank" class="button button-small" style="text-decoration: none;">
                                                 <?php esc_html_e('View Details', 'job-posting-manager'); ?>
@@ -3449,6 +3575,68 @@ class JPM_Admin
                             <?php esc_html_e('Confirm', 'job-posting-manager'); ?>
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <div id="jpm-employer-welfare-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-employer-welfare-modal-title" style="max-width: 520px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-employer-welfare-modal-title"><?php esc_html_e('Employer welfare check', 'job-posting-manager'); ?></h2>
+                    <p id="jpm-employer-welfare-app-ref" class="description" style="margin-bottom: 12px;"></p>
+                    <p class="description" style="margin-bottom: 8px;">
+                        <?php esc_html_e('Record the applicant\'s employer contact for a welfare check. All fields are required.', 'job-posting-manager'); ?>
+                    </p>
+                    <p class="description" style="margin-bottom: 16px; font-style: italic; color: #646970;">
+                        <?php esc_html_e('Example: Maria Santos · +63 917 000 0000 · hr.contact@employer.com', 'job-posting-manager'); ?>
+                    </p>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="jpm-employer-welfare-form">
+                        <?php wp_nonce_field('jpm_save_employer_welfare', 'jpm_save_employer_welfare_nonce'); ?>
+                        <input type="hidden" name="action" value="jpm_save_employer_welfare">
+                        <input type="hidden" name="application_id" id="jpm-employer-welfare-application-id" value="">
+                        <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                        <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                        <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
+                        <div class="jpm-admin-field jpm-admin-field--inline">
+                            <div>
+                                <label for="jpm-employer-first"><?php esc_html_e('Employer first name', 'job-posting-manager'); ?></label>
+                                <input type="text" id="jpm-employer-first" name="employer_first_name" class="regular-text" required
+                                    autocomplete="given-name" maxlength="191"
+                                    placeholder="<?php esc_attr_e('e.g. Maria', 'job-posting-manager'); ?>">
+                            </div>
+                            <div>
+                                <label for="jpm-employer-last"><?php esc_html_e('Employer last name', 'job-posting-manager'); ?></label>
+                                <input type="text" id="jpm-employer-last" name="employer_last_name" class="regular-text" required
+                                    autocomplete="family-name" maxlength="191"
+                                    placeholder="<?php esc_attr_e('e.g. Santos', 'job-posting-manager'); ?>">
+                            </div>
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-employer-phone"><?php esc_html_e('Phone number', 'job-posting-manager'); ?></label>
+                            <input type="tel" id="jpm-employer-phone" name="employer_phone" class="regular-text" required
+                                autocomplete="tel" maxlength="100"
+                                placeholder="<?php esc_attr_e('e.g. +63 917 000 0000', 'job-posting-manager'); ?>">
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-employer-email"><?php esc_html_e('Email', 'job-posting-manager'); ?></label>
+                            <input type="email" id="jpm-employer-email" name="employer_email" class="regular-text" required
+                                autocomplete="email" maxlength="191"
+                                placeholder="<?php esc_attr_e('e.g. hr.contact@employer.com', 'job-posting-manager'); ?>">
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="button jpm-employer-welfare-cancel">
+                                <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                            </button>
+                            <button type="submit" class="button button-primary">
+                                <?php esc_html_e('Save employer', 'job-posting-manager'); ?>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -3541,6 +3729,27 @@ class JPM_Admin
                             jpmPendingConfirmForm.submit();
                         }
                         closePendingFormConfirmModal();
+                    });
+
+                    function closeEmployerWelfareModal() {
+                        $('#jpm-employer-welfare-modal').hide();
+                    }
+
+                    $(document).on('click', '.jpm-open-employer-welfare-modal', function (e) {
+                        e.preventDefault();
+                        const $btn = $(this);
+                        const appId = $btn.attr('data-application-id') || '';
+                        $('#jpm-employer-welfare-application-id').val(appId);
+                        $('#jpm-employer-first').val($btn.attr('data-employer-first') || '');
+                        $('#jpm-employer-last').val($btn.attr('data-employer-last') || '');
+                        $('#jpm-employer-phone').val($btn.attr('data-employer-phone') || '');
+                        $('#jpm-employer-email').val($btn.attr('data-employer-email') || '');
+                        const refTpl = '<?php echo esc_js(__('Application #%s', 'job-posting-manager')); ?>';
+                        $('#jpm-employer-welfare-app-ref').text(refTpl.replace('%s', appId));
+                        $('#jpm-employer-welfare-modal').show();
+                    });
+                    $(document).on('click', '.jpm-employer-welfare-cancel, #jpm-employer-welfare-modal .jpm-admin-modal__close, #jpm-employer-welfare-modal .jpm-admin-modal__backdrop', function () {
+                        closeEmployerWelfareModal();
                     });
 
                     function closeWhitelistReportModal() {
