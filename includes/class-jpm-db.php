@@ -3735,6 +3735,27 @@ class JPM_Admin
         }
 
         $whitelist_custom_status_map = $this->get_whitelist_custom_status_map();
+        $whitelist_custom_status_catalog = [];
+        foreach ($whitelist_custom_status_map as $status_item) {
+            if (!is_array($status_item)) {
+                continue;
+            }
+            $name = isset($status_item['name']) ? trim((string) $status_item['name']) : '';
+            $abbr = isset($status_item['abbr']) ? trim((string) $status_item['abbr']) : '';
+            $bg_color = isset($status_item['bg_color']) ? trim((string) $status_item['bg_color']) : '';
+            $text_color = isset($status_item['text_color']) ? trim((string) $status_item['text_color']) : '';
+            if ($name === '' || $abbr === '' || $bg_color === '' || $text_color === '') {
+                continue;
+            }
+            $catalog_key = strtolower($name . '|' . $abbr . '|' . $bg_color . '|' . $text_color);
+            $whitelist_custom_status_catalog[$catalog_key] = [
+                'name' => $name,
+                'abbr' => $abbr,
+                'bg_color' => $bg_color,
+                'text_color' => $text_color,
+            ];
+        }
+        $whitelist_custom_status_catalog = array_values($whitelist_custom_status_catalog);
         $has_applications = !empty($applications);
         $total_whitelisted = count($applications);
         $registered_count = 0;
@@ -4561,6 +4582,28 @@ class JPM_Admin
                         <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
                         <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
                         <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-custom-status-existing"><?php esc_html_e('Existing custom status', 'job-posting-manager'); ?></label>
+                            <select id="jpm-whitelist-custom-status-existing" class="regular-text">
+                                <option value="__new__"><?php esc_html_e('New status', 'job-posting-manager'); ?></option>
+                                <?php foreach ($whitelist_custom_status_catalog as $catalog_item): ?>
+                                    <?php
+                                    $catalog_payload = wp_json_encode([
+                                        'name' => $catalog_item['name'],
+                                        'abbr' => $catalog_item['abbr'],
+                                        'bg_color' => $catalog_item['bg_color'],
+                                        'text_color' => $catalog_item['text_color'],
+                                    ]);
+                                    ?>
+                                    <option value="<?php echo esc_attr((string) $catalog_payload); ?>">
+                                        <?php echo esc_html($catalog_item['name'] . ' (' . $catalog_item['abbr'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description" style="margin-top: 6px;">
+                                <?php esc_html_e('Select existing to auto-fill fields, or choose New status to enter manually.', 'job-posting-manager'); ?>
+                            </p>
+                        </div>
+                        <div class="jpm-admin-field">
                             <label for="jpm-whitelist-custom-status-name"><?php esc_html_e('New status', 'job-posting-manager'); ?></label>
                             <input type="text" id="jpm-whitelist-custom-status-name" name="custom_status_name" class="regular-text" required maxlength="80"
                                 placeholder="<?php esc_attr_e('Still In Working', 'job-posting-manager'); ?>">
@@ -4792,6 +4835,24 @@ class JPM_Admin
                         closeWhitelistReportModal();
                     });
 
+                    function applyWhitelistExistingStatusSelection() {
+                        const raw = $('#jpm-whitelist-custom-status-existing').val() || '__new__';
+                        if (raw === '__new__') {
+                            return;
+                        }
+                        try {
+                            const picked = JSON.parse(raw);
+                            if (picked && typeof picked === 'object') {
+                                $('#jpm-whitelist-custom-status-name').val(picked.name || '');
+                                $('#jpm-whitelist-custom-status-abbr').val(picked.abbr || '');
+                                $('#jpm-whitelist-custom-status-bg-color').val(picked.bg_color || '#2271b1');
+                                $('#jpm-whitelist-custom-status-text-color').val(picked.text_color || '#ffffff');
+                            }
+                        } catch (err) {
+                            // Ignore invalid catalog payload and keep manual values.
+                        }
+                    }
+
                     $(document).on('click', '.jpm-open-whitelist-custom-status-modal', function (e) {
                         e.preventDefault();
                         const $btn = $(this);
@@ -4807,8 +4868,38 @@ class JPM_Admin
                         $('#jpm-whitelist-custom-status-abbr').val(statusAbbr);
                         $('#jpm-whitelist-custom-status-bg-color').val(statusBgColor);
                         $('#jpm-whitelist-custom-status-text-color').val(statusTextColor);
+                        const $existing = $('#jpm-whitelist-custom-status-existing');
+                        let matchedExisting = false;
+                        $existing.find('option').each(function () {
+                            const optionVal = $(this).val();
+                            if (!optionVal || optionVal === '__new__') {
+                                return;
+                            }
+                            try {
+                                const opt = JSON.parse(optionVal);
+                                if (
+                                    (opt.name || '') === statusName &&
+                                    (opt.abbr || '') === statusAbbr &&
+                                    (opt.bg_color || '') === statusBgColor &&
+                                    (opt.text_color || '') === statusTextColor
+                                ) {
+                                    $existing.val(optionVal);
+                                    matchedExisting = true;
+                                    return false;
+                                }
+                            } catch (err) {
+                                // Ignore malformed option payload.
+                            }
+                        });
+                        if (!matchedExisting) {
+                            $existing.val('__new__');
+                        }
                         $('#jpm-whitelist-custom-status-app-ref').text(refTpl.replace('%s', appId));
                         $('#jpm-whitelist-custom-status-modal').show();
+                    });
+
+                    $(document).on('change', '#jpm-whitelist-custom-status-existing', function () {
+                        applyWhitelistExistingStatusSelection();
                     });
 
                     $(document).on('click', '.jpm-whitelist-custom-status-cancel, #jpm-whitelist-custom-status-modal .jpm-admin-modal__close, #jpm-whitelist-custom-status-modal .jpm-admin-modal__backdrop', function () {
