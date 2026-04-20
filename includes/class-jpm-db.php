@@ -1973,6 +1973,22 @@ class JPM_Admin
             'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
             'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
         ];
+
+        // If Applications filter is set to Accepted, route to Whitelisted page.
+        if ($filters['status'] !== '' && self::is_accepted_status($filters['status'])) {
+            $redirect_args = [
+                'page' => 'jpm-whitelisted-applications',
+            ];
+            if ($filters['job_id'] > 0) {
+                $redirect_args['job_id'] = $filters['job_id'];
+            }
+            if ($filters['search'] !== '') {
+                $redirect_args['search'] = $filters['search'];
+            }
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
         $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : '';
         $report_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
         $report_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
@@ -3105,6 +3121,10 @@ class JPM_Admin
                         }
                     }).done(function (response) {
                         if (response.success) {
+                            if (response.data && response.data.redirect_to_whitelisted && response.data.redirect_url) {
+                                window.location.href = response.data.redirect_url;
+                                return;
+                            }
                             updateBadge($row, newStatus);
                             syncWhitelistVisibility($row, newStatus);
                             $select.data('previous', newStatus);
@@ -3678,19 +3698,51 @@ class JPM_Admin
             'submitted_on' => isset($_GET['submitted_on']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_on'])) : '',
             'submitted_from' => isset($_GET['submitted_from']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_from'])) : '',
             'submitted_to' => isset($_GET['submitted_to']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_to'])) : '',
-            'whitelisted_only' => true,
         ];
+        $accepted_jobs_only = isset($_GET['accepted_jobs_only']) && sanitize_text_field(wp_unslash($_GET['accepted_jobs_only'])) === '1';
 
-        $base_filters = [
+        $accepted_filters = [
             'job_id' => $filters['job_id'],
             'search' => $filters['search'],
+            'location' => $filters['location'],
+            'submitted_on' => $filters['submitted_on'],
+            'submitted_from' => $filters['submitted_from'],
+            'submitted_to' => $filters['submitted_to'],
+            'status' => 'accepted',
+        ];
+        $whitelisted_filters = [
+            'job_id' => $filters['job_id'],
+            'search' => $filters['search'],
+            'location' => $filters['location'],
             'submitted_on' => $filters['submitted_on'],
             'submitted_from' => $filters['submitted_from'],
             'submitted_to' => $filters['submitted_to'],
             'whitelisted_only' => true,
         ];
+
+        $accepted_applications = JPM_DB::get_applications($accepted_filters);
+        $whitelisted_applications = JPM_DB::get_applications($whitelisted_filters);
+        $applications_map = [];
+        foreach (array_merge($accepted_applications, $whitelisted_applications) as $app_row) {
+            if (!isset($app_row->id)) {
+                continue;
+            }
+            $applications_map[(int) $app_row->id] = $app_row;
+        }
+        $applications = array_values($applications_map);
+        usort($applications, static function ($left, $right) {
+            $left_time = isset($left->application_date) ? strtotime((string) $left->application_date) : 0;
+            $right_time = isset($right->application_date) ? strtotime((string) $right->application_date) : 0;
+            if ($left_time === $right_time) {
+                $left_id = isset($left->id) ? (int) $left->id : 0;
+                $right_id = isset($right->id) ? (int) $right->id : 0;
+                return $right_id - $left_id;
+            }
+            return $right_time - $left_time;
+        });
+
         $location_options = JPM_Database::list_distinct_locations_from_applications(
-            JPM_DB::get_applications($base_filters)
+            $applications
         );
         if ($filters['location'] !== '') {
             $in_list = false;
@@ -3706,7 +3758,6 @@ class JPM_Admin
             }
         }
 
-        $applications = JPM_DB::get_applications($filters);
         $whitelist_custom_status_map = $this->get_whitelist_custom_status_map();
         $has_applications = !empty($applications);
         $total_whitelisted = count($applications);
@@ -3733,11 +3784,39 @@ class JPM_Admin
             $filters['submitted_to'] !== ''
         );
 
-        $jobs = get_posts([
-            'post_type' => 'job_posting',
-            'posts_per_page' => -1,
-            'post_status' => 'any',
-        ]);
+        if ($accepted_jobs_only) {
+            $accepted_rows = JPM_DB::get_applications([
+                'status' => 'accepted',
+            ]);
+            $whitelisted_rows = JPM_DB::get_applications([
+                'whitelisted_only' => true,
+            ]);
+            $accepted_or_whitelisted_job_ids = [];
+            foreach (array_merge($accepted_rows, $whitelisted_rows) as $row) {
+                if (!empty($row->job_id)) {
+                    $accepted_or_whitelisted_job_ids[] = (int) $row->job_id;
+                }
+            }
+            $accepted_or_whitelisted_job_ids = array_values(array_unique(array_filter($accepted_or_whitelisted_job_ids)));
+            if (!empty($accepted_or_whitelisted_job_ids)) {
+                $jobs = get_posts([
+                    'post_type' => 'job_posting',
+                    'posts_per_page' => -1,
+                    'post_status' => 'any',
+                    'post__in' => $accepted_or_whitelisted_job_ids,
+                    'orderby' => 'title',
+                    'order' => 'ASC',
+                ]);
+            } else {
+                $jobs = [];
+            }
+        } else {
+            $jobs = get_posts([
+                'post_type' => 'job_posting',
+                'posts_per_page' => -1,
+                'post_status' => 'any',
+            ]);
+        }
 
         ?>
         <div class="wrap jpm-applications-page">
@@ -4025,6 +4104,10 @@ class JPM_Admin
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;padding-bottom:2px;">
+                            <input type="checkbox" name="accepted_jobs_only" value="1" <?php checked($accepted_jobs_only); ?>>
+                            <?php esc_html_e('Accepted jobs only', 'job-posting-manager'); ?>
                         </label>
                         <label>
                             <?php esc_html_e('Filter by job location:', 'job-posting-manager'); ?>
@@ -5319,9 +5402,39 @@ class JPM_Admin
             }
         </style>
 
-        <script>     jQuery(document).ready(function ($) {         // Update status on change         $('.jpm-application-status').on('change', function () {             var $select = $(this);             var applicationId = $select.data('application-id');             var newStatus = $select.val();                                $.ajax({ url: ajaxurl, type: 'POST', data: { action: 'jpm_update_application_status', application_id: applicationId, status: newStatus, nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>' }, success: function (response) { if (response.success) { location.reload(); } else { alert('Error updating status'); } } });
+        <script>
+            jQuery(document).ready(function ($) {
+                $('.jpm-application-status').on('change', function () {
+                    var $select = $(this);
+                    var applicationId = $select.data('application-id');
+                    var newStatus = $select.val();
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'jpm_update_application_status',
+                            application_id: applicationId,
+                            status: newStatus,
+                            nonce: '<?php echo esc_js(wp_create_nonce('jpm_update_status')); ?>'
+                        },
+                        success: function (response) {
+                            if (response && response.success) {
+                                if (response.data && response.data.redirect_to_whitelisted && response.data.redirect_url) {
+                                    window.location.href = response.data.redirect_url;
+                                    return;
+                                }
+                                location.reload();
+                            } else {
+                                alert('Error updating status');
+                            }
+                        },
+                        error: function () {
+                            alert('Error updating status');
+                        }
+                    });
+                });
             });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         });
         </script>
         <?php
     }
@@ -6091,7 +6204,17 @@ class JPM_Admin
                     do_action('jpm_log_error', 'JPM Email Error: ' . $e->getMessage());
                 }
             }
-            wp_send_json_success(['message' => __('Status updated successfully', 'job-posting-manager')]);
+            $redirect_to_whitelisted = false;
+            if (class_exists('JPM_Status_Manager')) {
+                $redirect_to_whitelisted = JPM_Status_Manager::is_accepted_status($status);
+            } else {
+                $redirect_to_whitelisted = strtolower((string) $status) === 'accepted';
+            }
+            wp_send_json_success([
+                'message' => __('Status updated successfully', 'job-posting-manager'),
+                'redirect_to_whitelisted' => $redirect_to_whitelisted,
+                'redirect_url' => $redirect_to_whitelisted ? admin_url('admin.php?page=jpm-whitelisted-applications') : '',
+            ]);
         } else {
             wp_send_json_error(['message' => __('Failed to update status', 'job-posting-manager')]);
         }
