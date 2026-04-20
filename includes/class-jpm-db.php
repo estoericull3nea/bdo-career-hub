@@ -995,8 +995,14 @@ class JPM_Admin
 
             <hr class="jpm-dashboard-hr" style="margin: 30px 0;">
 
-            <div class="jpm-filters jpm-dashboard-filters"
-                style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+            <div style="margin: 16px 0 8px;">
+                <button type="button" class="button" id="jpm-toggle-dashboard-filters" aria-expanded="false">
+                    <?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>
+                </button>
+            </div>
+
+            <div class="jpm-filters jpm-dashboard-filters" id="jpm-dashboard-filters-panel"
+                style="display:none; margin: 12px 0 20px; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
                     <input type="hidden" name="page" value="jpm-dashboard">
 
@@ -1030,7 +1036,7 @@ class JPM_Admin
                         </div>
                         <div>
                             <input type="submit" class="button button-primary"
-                                value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
+                                value="<?php esc_html_e('Apply Filters', 'job-posting-manager'); ?>">
                             <?php if (!empty($search) || !empty($status_filter)): ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-dashboard')); ?>" class="button">
                                     <?php esc_html_e('Clear', 'job-posting-manager'); ?>
@@ -1131,6 +1137,27 @@ class JPM_Admin
                     </table>
                 </div>
             <?php endif; ?>
+            <script>
+                jQuery(function ($) {
+                    const $dashboardFiltersPanel = $('#jpm-dashboard-filters-panel');
+                    const $toggleDashboardFiltersBtn = $('#jpm-toggle-dashboard-filters');
+
+                    function updateDashboardFiltersToggleLabel() {
+                        const isVisible = $dashboardFiltersPanel.is(':visible');
+                        $toggleDashboardFiltersBtn
+                            .attr('aria-expanded', isVisible ? 'true' : 'false')
+                            .text(isVisible
+                                ? '<?php echo esc_js(__('Hide Search/Filter', 'job-posting-manager')); ?>'
+                                : '<?php echo esc_js(__('Search/Filter', 'job-posting-manager')); ?>');
+                    }
+
+                    $toggleDashboardFiltersBtn.on('click', function () {
+                        $dashboardFiltersPanel.stop(true, true).slideToggle(120, updateDashboardFiltersToggleLabel);
+                    });
+
+                    updateDashboardFiltersToggleLabel();
+                });
+            </script>
         </div>
         <?php
     }
