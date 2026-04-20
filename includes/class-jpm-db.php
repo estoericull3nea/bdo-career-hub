@@ -866,10 +866,18 @@ class JPM_Admin
 
         $sent_count = 0;
         $failed_count = 0;
+        $failed_items = [];
         foreach ($application_ids as $application_id) {
             $application = JPM_Database::get_application($application_id);
             if (!$application) {
                 $failed_count++;
+                $failed_items[] = [
+                    'id' => (int) $application_id,
+                    'name' => '',
+                    'email' => '',
+                    'application_number' => '',
+                    'reason' => __('Application not found.', 'job-posting-manager'),
+                ];
                 continue;
             }
 
@@ -878,6 +886,14 @@ class JPM_Admin
             if (!is_array($form_data)) {
                 $form_data = [];
             }
+            $first_name = $this->get_first_form_value($form_data, ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name']);
+            $middle_name = $this->get_first_form_value($form_data, ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name']);
+            $last_name = $this->get_first_form_value($form_data, ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name']);
+            $full_name = trim(preg_replace('/\s+/', ' ', $first_name . ' ' . $middle_name . ' ' . $last_name));
+            if ($full_name === '' && $user && isset($user->display_name)) {
+                $full_name = sanitize_text_field((string) $user->display_name);
+            }
+            $application_number = $this->get_first_form_value($form_data, ['application_number']);
             $to_email = $this->get_first_form_value($form_data, ['email', 'email_address', 'e-mail', 'email-address']);
             $to_email = $to_email !== '' ? sanitize_email($to_email) : '';
             if ($to_email === '' && $user && isset($user->user_email)) {
@@ -885,6 +901,13 @@ class JPM_Admin
             }
             if (!is_email($to_email)) {
                 $failed_count++;
+                $failed_items[] = [
+                    'id' => (int) $application_id,
+                    'name' => $full_name,
+                    'email' => $to_email,
+                    'application_number' => $application_number,
+                    'reason' => __('Missing or invalid applicant email.', 'job-posting-manager'),
+                ];
                 continue;
             }
 
@@ -893,6 +916,13 @@ class JPM_Admin
                 $sent_count++;
             } else {
                 $failed_count++;
+                $failed_items[] = [
+                    'id' => (int) $application_id,
+                    'name' => $full_name,
+                    'email' => $to_email,
+                    'application_number' => $application_number,
+                    'reason' => __('Email sending failed (wp_mail returned false).', 'job-posting-manager'),
+                ];
             }
         }
 
@@ -909,6 +939,7 @@ class JPM_Admin
                 'failed_count' => $failed_count,
                 'status' => 'failed',
                 'application_ids' => $application_ids,
+                'failed_items' => $failed_items,
             ]);
             set_transient(
                 'jpm_bulk_email_err_' . get_current_user_id(),
@@ -931,6 +962,7 @@ class JPM_Admin
             'failed_count' => $failed_count,
             'status' => $failed_count > 0 ? 'partial' : 'success',
             'application_ids' => $application_ids,
+            'failed_items' => $failed_items,
         ]);
 
         unset($redirect_args['bulk_email_error']);
@@ -991,6 +1023,7 @@ class JPM_Admin
             set_transient($history_transient_key, [
                 'sent_count' => 0,
                 'failed_count' => 0,
+                'failed_items' => [],
                 'selected_count' => count($application_ids),
                 'from_email' => $from_email,
                 'subject' => $subject,
@@ -1038,10 +1071,18 @@ class JPM_Admin
         $batch_ids = array_slice($application_ids, $offset, $batch_size);
         $batch_sent = 0;
         $batch_failed = 0;
+        $batch_failed_items = [];
         foreach ($batch_ids as $application_id) {
             $application = JPM_Database::get_application($application_id);
             if (!$application) {
                 $batch_failed++;
+                $batch_failed_items[] = [
+                    'id' => (int) $application_id,
+                    'name' => '',
+                    'email' => '',
+                    'application_number' => '',
+                    'reason' => __('Application not found.', 'job-posting-manager'),
+                ];
                 continue;
             }
 
@@ -1050,6 +1091,14 @@ class JPM_Admin
             if (!is_array($form_data)) {
                 $form_data = [];
             }
+            $first_name = $this->get_first_form_value($form_data, ['first_name', 'firstname', 'fname', 'first-name', 'given_name', 'givenname', 'given-name', 'given name']);
+            $middle_name = $this->get_first_form_value($form_data, ['middle_name', 'middlename', 'mname', 'middle-name', 'middle name']);
+            $last_name = $this->get_first_form_value($form_data, ['last_name', 'lastname', 'lname', 'last-name', 'surname', 'family_name', 'familyname', 'family-name', 'family name']);
+            $full_name = trim(preg_replace('/\s+/', ' ', $first_name . ' ' . $middle_name . ' ' . $last_name));
+            if ($full_name === '' && $user && isset($user->display_name)) {
+                $full_name = sanitize_text_field((string) $user->display_name);
+            }
+            $application_number = $this->get_first_form_value($form_data, ['application_number']);
             $to_email = $this->get_first_form_value($form_data, ['email', 'email_address', 'e-mail', 'email-address']);
             $to_email = $to_email !== '' ? sanitize_email($to_email) : '';
             if ($to_email === '' && $user && isset($user->user_email)) {
@@ -1057,6 +1106,13 @@ class JPM_Admin
             }
             if (!is_email($to_email)) {
                 $batch_failed++;
+                $batch_failed_items[] = [
+                    'id' => (int) $application_id,
+                    'name' => $full_name,
+                    'email' => $to_email,
+                    'application_number' => $application_number,
+                    'reason' => __('Missing or invalid applicant email.', 'job-posting-manager'),
+                ];
                 continue;
             }
 
@@ -1065,6 +1121,13 @@ class JPM_Admin
                 $batch_sent++;
             } else {
                 $batch_failed++;
+                $batch_failed_items[] = [
+                    'id' => (int) $application_id,
+                    'name' => $full_name,
+                    'email' => $to_email,
+                    'application_number' => $application_number,
+                    'reason' => __('Email sending failed (wp_mail returned false).', 'job-posting-manager'),
+                ];
             }
         }
 
@@ -1075,6 +1138,7 @@ class JPM_Admin
                 $run_data = [
                     'sent_count' => 0,
                     'failed_count' => 0,
+                    'failed_items' => [],
                     'selected_count' => $total_count,
                     'from_email' => $from_email,
                     'subject' => $subject,
@@ -1084,6 +1148,8 @@ class JPM_Admin
             }
             $run_data['sent_count'] = (int) ($run_data['sent_count'] ?? 0) + $batch_sent;
             $run_data['failed_count'] = (int) ($run_data['failed_count'] ?? 0) + $batch_failed;
+            $existing_failed_items = isset($run_data['failed_items']) && is_array($run_data['failed_items']) ? $run_data['failed_items'] : [];
+            $run_data['failed_items'] = array_values(array_merge($existing_failed_items, $batch_failed_items));
             set_transient($history_transient_key, $run_data, 30 * MINUTE_IN_SECONDS);
 
             if ($processed_count >= $total_count) {
@@ -1102,6 +1168,7 @@ class JPM_Admin
                     'failed_count' => $total_failed,
                     'status' => $total_sent <= 0 ? 'failed' : ($total_failed > 0 ? 'partial' : 'success'),
                     'application_ids' => isset($run_data['application_ids']) && is_array($run_data['application_ids']) ? $run_data['application_ids'] : $application_ids,
+                    'failed_items' => isset($run_data['failed_items']) && is_array($run_data['failed_items']) ? $run_data['failed_items'] : [],
                 ]);
                 delete_transient($history_transient_key);
             }
@@ -5536,6 +5603,8 @@ class JPM_Admin
                                         $status = isset($history_item['status']) ? (string) $history_item['status'] : 'unknown';
                                         $history_applicant_ids = isset($history_item['application_ids']) && is_array($history_item['application_ids']) ? $history_item['application_ids'] : [];
                                         $history_applicants_payload = !empty($history_applicant_ids) ? wp_json_encode($this->get_bulk_email_history_applicants($history_applicant_ids)) : '[]';
+                                        $history_failed_items = isset($history_item['failed_items']) && is_array($history_item['failed_items']) ? $history_item['failed_items'] : [];
+                                        $history_failed_payload = !empty($history_failed_items) ? wp_json_encode($history_failed_items) : '[]';
                                         ?>
                                         <tr>
                                             <td><?php echo esc_html($sent_at_display); ?></td>
@@ -5557,15 +5626,28 @@ class JPM_Admin
                                                 ?>
                                             </td>
                                             <td>
-                                                <button type="button" class="button button-small jpm-open-bulk-email-applicants-modal"
-                                                    data-applicants="<?php echo esc_attr((string) $history_applicants_payload); ?>">
-                                                    <?php esc_html_e('View all applicants', 'job-posting-manager'); ?>
-                                                </button>
-                                                <button type="button" class="button button-small jpm-open-bulk-email-content-modal" style="margin-left:6px;"
-                                                    data-subject="<?php echo esc_attr($subject_line); ?>"
-                                                    data-content="<?php echo esc_attr($content_html); ?>">
-                                                    <?php esc_html_e('View content', 'job-posting-manager'); ?>
-                                                </button>
+                                                <div class="jpm-actions-menu">
+                                                    <button type="button" class="button button-small jpm-actions-menu__toggle" aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e('Open actions', 'job-posting-manager'); ?>">
+                                                        &bull;&bull;&bull;
+                                                    </button>
+                                                    <div class="jpm-actions-menu__dropdown">
+                                                        <button type="button" class="button button-small jpm-open-bulk-email-applicants-modal"
+                                                            data-applicants="<?php echo esc_attr((string) $history_applicants_payload); ?>">
+                                                            <?php esc_html_e('View all applicants', 'job-posting-manager'); ?>
+                                                        </button>
+                                                        <button type="button" class="button button-small jpm-open-bulk-email-content-modal"
+                                                            data-subject="<?php echo esc_attr($subject_line); ?>"
+                                                            data-content="<?php echo esc_attr($content_html); ?>">
+                                                            <?php esc_html_e('View content', 'job-posting-manager'); ?>
+                                                        </button>
+                                                        <?php if ($failed_count > 0): ?>
+                                                            <button type="button" class="button button-small jpm-open-bulk-email-failed-modal"
+                                                                data-failed="<?php echo esc_attr((string) $history_failed_payload); ?>">
+                                                                <?php esc_html_e('Show failed', 'job-posting-manager'); ?>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -5608,6 +5690,22 @@ class JPM_Admin
                     <div id="jpm-whitelist-bulk-email-content-body" style="max-height: 420px; overflow:auto; background:#fff; border:1px solid #ddd; border-radius:4px; padding:12px;"></div>
                     <div style="margin-top: 16px; text-align: right;">
                         <button type="button" class="button jpm-whitelist-bulk-email-content-close">
+                            <?php esc_html_e('Close', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jpm-whitelist-bulk-email-failed-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-whitelist-bulk-email-failed-title" style="max-width: 920px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-whitelist-bulk-email-failed-title"><?php esc_html_e('Failed applicants', 'job-posting-manager'); ?></h2>
+                    <div id="jpm-whitelist-bulk-email-failed-content" style="max-height: 420px; overflow:auto;"></div>
+                    <div style="margin-top: 16px; text-align: right;">
+                        <button type="button" class="button jpm-whitelist-bulk-email-failed-close">
                             <?php esc_html_e('Close', 'job-posting-manager'); ?>
                         </button>
                     </div>
@@ -5914,6 +6012,10 @@ class JPM_Admin
                         $('#jpm-whitelist-bulk-email-content-subject').text('');
                         $('#jpm-whitelist-bulk-email-content-body').empty();
                     }
+                    function closeWhitelistBulkEmailFailedModal() {
+                        $('#jpm-whitelist-bulk-email-failed-modal').hide();
+                        $('#jpm-whitelist-bulk-email-failed-content').empty();
+                    }
                     function resetWhitelistBulkEmailProgress() {
                         if (typeof tinymce !== 'undefined' && tinymce.get('jpm-whitelist-bulk-email-content')) {
                             tinymce.get('jpm-whitelist-bulk-email-content').setContent('');
@@ -6056,6 +6158,38 @@ class JPM_Admin
                     });
                     $(document).on('click', '.jpm-whitelist-bulk-email-content-close, #jpm-whitelist-bulk-email-content-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-content-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistBulkEmailContentModal();
+                    });
+                    $(document).on('click', '.jpm-open-bulk-email-failed-modal', function (e) {
+                        e.preventDefault();
+                        let failed = [];
+                        try {
+                            const raw = $(this).attr('data-failed') || '[]';
+                            failed = JSON.parse(raw);
+                        } catch (err) {
+                            failed = [];
+                        }
+                        const $content = $('#jpm-whitelist-bulk-email-failed-content');
+                        $content.empty();
+                        if (!Array.isArray(failed) || failed.length === 0) {
+                            $content.append($('<p>').text('<?php echo esc_js(__('No failed applicants data found.', 'job-posting-manager')); ?>'));
+                        } else {
+                            const $table = $('<table class="widefat striped"><thead><tr><th><?php echo esc_js(__('Application ID', 'job-posting-manager')); ?></th><th><?php echo esc_js(__('Name', 'job-posting-manager')); ?></th><th><?php echo esc_js(__('Email', 'job-posting-manager')); ?></th><th><?php echo esc_js(__('Application Number', 'job-posting-manager')); ?></th><th><?php echo esc_js(__('Reason', 'job-posting-manager')); ?></th></tr></thead><tbody></tbody></table>');
+                            const $tbody = $table.find('tbody');
+                            failed.forEach(function (item) {
+                                const $row = $('<tr></tr>');
+                                $row.append($('<td></td>').text(item.id || ''));
+                                $row.append($('<td></td>').text(item.name || '—'));
+                                $row.append($('<td></td>').text(item.email || '—'));
+                                $row.append($('<td></td>').text(item.application_number || '—'));
+                                $row.append($('<td></td>').text(item.reason || '—'));
+                                $tbody.append($row);
+                            });
+                            $content.append($table);
+                        }
+                        $('#jpm-whitelist-bulk-email-failed-modal').show();
+                    });
+                    $(document).on('click', '.jpm-whitelist-bulk-email-failed-close, #jpm-whitelist-bulk-email-failed-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-failed-modal .jpm-admin-modal__backdrop', function () {
+                        closeWhitelistBulkEmailFailedModal();
                     });
                     $('#jpm-whitelist-bulk-email-form').on('submit', function (e) {
                         e.preventDefault();
