@@ -958,11 +958,6 @@ class JPM_Admin
             return;
         }
 
-        $raw_ids = isset($_POST['application_ids']) ? sanitize_text_field(wp_unslash($_POST['application_ids'])) : '';
-        $application_ids = array_values(array_unique(array_filter(array_map('absint', explode(',', $raw_ids)))));
-        $from_email = isset($_POST['from_email']) ? sanitize_email(wp_unslash($_POST['from_email'])) : '';
-        $subject = isset($_POST['subject']) ? sanitize_text_field(wp_unslash($_POST['subject'])) : '';
-        $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';
         $offset = isset($_POST['offset']) ? absint(wp_unslash($_POST['offset'])) : 0;
         $batch_size = isset($_POST['batch_size']) ? absint(wp_unslash($_POST['batch_size'])) : 1;
         $request_id = isset($_POST['request_id']) ? sanitize_key(wp_unslash($_POST['request_id'])) : '';
@@ -970,24 +965,59 @@ class JPM_Admin
             $batch_size = 1;
         }
 
-        if (empty($application_ids) || !is_email($from_email) || $subject === '' || wp_strip_all_tags($content) === '') {
-            wp_send_json_error(['message' => __('Please select applications and provide valid email details.', 'job-posting-manager')]);
-            return;
-        }
-
-        $total_count = count($application_ids);
         $history_transient_key = 'jpm_bulk_email_run_' . get_current_user_id() . '_' . $request_id;
-        if ($request_id !== '' && $offset === 0) {
+        $application_ids = [];
+        $from_email = '';
+        $subject = '';
+        $content = '';
+
+        if ($offset === 0) {
+            $raw_ids = isset($_POST['application_ids']) ? sanitize_text_field(wp_unslash($_POST['application_ids'])) : '';
+            $application_ids = array_values(array_unique(array_filter(array_map('absint', explode(',', $raw_ids)))));
+            $from_email = isset($_POST['from_email']) ? sanitize_email(wp_unslash($_POST['from_email'])) : '';
+            $subject = isset($_POST['subject']) ? sanitize_text_field(wp_unslash($_POST['subject'])) : '';
+            $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';
+
+            if (empty($application_ids) || !is_email($from_email) || $subject === '' || wp_strip_all_tags($content) === '') {
+                wp_send_json_error(['message' => __('Please select applications and provide valid email details.', 'job-posting-manager')]);
+                return;
+            }
+
+            if ($request_id === '') {
+                $request_id = sanitize_key('run_' . get_current_user_id() . '_' . time());
+                $history_transient_key = 'jpm_bulk_email_run_' . get_current_user_id() . '_' . $request_id;
+            }
+
             set_transient($history_transient_key, [
                 'sent_count' => 0,
                 'failed_count' => 0,
-                'selected_count' => $total_count,
+                'selected_count' => count($application_ids),
                 'from_email' => $from_email,
                 'subject' => $subject,
                 'content' => $content,
                 'application_ids' => $application_ids,
             ], 30 * MINUTE_IN_SECONDS);
+        } else {
+            if ($request_id === '') {
+                wp_send_json_error(['message' => __('Bulk email session expired. Please submit again.', 'job-posting-manager')]);
+                return;
+            }
+            $run_data = get_transient($history_transient_key);
+            if (!is_array($run_data)) {
+                wp_send_json_error(['message' => __('Bulk email session expired. Please submit again.', 'job-posting-manager')]);
+                return;
+            }
+            $application_ids = isset($run_data['application_ids']) && is_array($run_data['application_ids']) ? array_values(array_unique(array_filter(array_map('absint', $run_data['application_ids'])))) : [];
+            $from_email = isset($run_data['from_email']) ? sanitize_email((string) $run_data['from_email']) : '';
+            $subject = isset($run_data['subject']) ? sanitize_text_field((string) $run_data['subject']) : '';
+            $content = isset($run_data['content']) ? wp_kses_post((string) $run_data['content']) : '';
+            if (empty($application_ids) || !is_email($from_email) || $subject === '' || wp_strip_all_tags($content) === '') {
+                wp_send_json_error(['message' => __('Bulk email session expired. Please submit again.', 'job-posting-manager')]);
+                return;
+            }
         }
+
+        $total_count = count($application_ids);
         if ($offset >= $total_count) {
             wp_send_json_success([
                 'processed_count' => $total_count,
@@ -1083,6 +1113,7 @@ class JPM_Admin
             'batch_sent' => $batch_sent,
             'batch_failed' => $batch_failed,
             'done' => $processed_count >= $total_count,
+            'request_id' => $request_id,
         ]);
     }
 
@@ -6048,12 +6079,18 @@ class JPM_Admin
                         $submit.prop('disabled', true).text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
 
                         function runChunk(offset) {
-                            const chunkPayload = payload.map(function (item) { return item; });
-                            chunkPayload.forEach(function (item) {
-                                if (item.name === 'offset') {
-                                    item.value = String(offset);
-                                }
-                            });
+                            let chunkPayload = [];
+                            if (offset === 0) {
+                                chunkPayload = payload.map(function (item) { return { name: item.name, value: item.value }; });
+                            } else {
+                                chunkPayload = [
+                                    { name: 'action', value: 'jpm_bulk_email_whitelisted_applications_ajax' },
+                                    { name: 'jpm_bulk_email_whitelisted_nonce', value: $('#jpm-whitelist-bulk-email-form input[name="jpm_bulk_email_whitelisted_nonce"]').val() || '' },
+                                    { name: 'offset', value: String(offset) },
+                                    { name: 'batch_size', value: '1' },
+                                    { name: 'request_id', value: requestId }
+                                ];
+                            }
                             $.ajax({
                                 url: ajaxurl,
                                 type: 'POST',
