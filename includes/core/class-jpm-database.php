@@ -63,6 +63,7 @@ class JPM_Database
     {
         global $wpdb;
         $table_name = $wpdb->prefix . 'job_applications';
+        $history_table = $wpdb->prefix . 'jpm_employer_email_history';
         $charset_collate = $wpdb->get_charset_collate();
 
         $sql = "CREATE TABLE $table_name (
@@ -85,6 +86,21 @@ class JPM_Database
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+
+        $history_sql = "CREATE TABLE $history_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            application_id mediumint(9) NOT NULL,
+            employer_email varchar(191) NOT NULL,
+            from_email varchar(191) NOT NULL,
+            subject varchar(255) NOT NULL,
+            content longtext NOT NULL,
+            sent_by_user_id bigint(20) NOT NULL DEFAULT 0,
+            sent_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY application_id (application_id),
+            KEY employer_email (employer_email)
+        ) $charset_collate;";
+        dbDelta($history_sql);
     }
 
     /**
@@ -94,6 +110,7 @@ class JPM_Database
     {
         global $wpdb;
         $table = self::get_validated_applications_table();
+        $history_table = $wpdb->prefix . 'jpm_employer_email_history';
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from validated prefix + literal.
         $exists = $wpdb->get_results("SHOW COLUMNS FROM `{$table}` LIKE 'whitelisted'", ARRAY_A);
         if (empty($exists)) {
@@ -115,6 +132,27 @@ class JPM_Database
                 // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $wpdb->query("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
             }
+        }
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- validated table name.
+        $history_exists = $wpdb->get_var("SHOW TABLES LIKE '{$history_table}'");
+        if ($history_exists !== $history_table) {
+            $charset_collate = $wpdb->get_charset_collate();
+            $history_sql = "CREATE TABLE $history_table (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                application_id mediumint(9) NOT NULL,
+                employer_email varchar(191) NOT NULL,
+                from_email varchar(191) NOT NULL,
+                subject varchar(255) NOT NULL,
+                content longtext NOT NULL,
+                sent_by_user_id bigint(20) NOT NULL DEFAULT 0,
+                sent_at datetime NOT NULL,
+                PRIMARY KEY (id),
+                KEY application_id (application_id),
+                KEY employer_email (employer_email)
+            ) $charset_collate;";
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($history_sql);
         }
     }
 
@@ -654,5 +692,119 @@ class JPM_Database
             ['%d']
         );
         return $deleted;
+    }
+
+    /**
+     * Save employer contact email history entry.
+     *
+     * @param int    $application_id Application ID.
+     * @param string $employer_email Recipient email.
+     * @param string $from_email     Sender email.
+     * @param string $subject        Email subject.
+     * @param string $content        Email body content.
+     * @param int    $sent_by_user   Admin user ID.
+     * @return bool
+     */
+    public static function add_employer_email_history($application_id, $employer_email, $from_email, $subject, $content, $sent_by_user = 0)
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'jpm_employer_email_history';
+        $application_id = absint($application_id);
+        $sent_by_user = absint($sent_by_user);
+        $employer_email = sanitize_email((string) $employer_email);
+        $from_email = sanitize_email((string) $from_email);
+        $subject = sanitize_text_field((string) $subject);
+        $content = wp_kses_post((string) $content);
+
+        if ($application_id <= 0 || !is_email($employer_email) || !is_email($from_email) || $subject === '' || wp_strip_all_tags($content) === '') {
+            return false;
+        }
+
+        $result = $wpdb->insert(
+            $table,
+            [
+                'application_id' => $application_id,
+                'employer_email' => $employer_email,
+                'from_email' => $from_email,
+                'subject' => $subject,
+                'content' => $content,
+                'sent_by_user_id' => $sent_by_user,
+                'sent_at' => current_time('mysql'),
+            ],
+            ['%d', '%s', '%s', '%s', '%s', '%d', '%s']
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Get employer contact history for an application.
+     *
+     * @param int         $application_id Application ID.
+     * @param string|null $employer_email Optional employer email filter.
+     * @return array<int, array<string, mixed>>
+     */
+    public static function get_employer_email_history($application_id, $employer_email = null)
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'jpm_employer_email_history';
+        $application_id = absint($application_id);
+        if ($application_id <= 0) {
+            return [];
+        }
+
+        if ($employer_email !== null && $employer_email !== '') {
+            $email = sanitize_email((string) $employer_email);
+            if (!is_email($email)) {
+                return [];
+            }
+            $rows = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM {$table} WHERE application_id = %d AND employer_email = %s ORDER BY sent_at DESC, id DESC",
+                    $application_id,
+                    $email
+                ),
+                ARRAY_A
+            );
+        } else {
+            $rows = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM {$table} WHERE application_id = %d ORDER BY sent_at DESC, id DESC",
+                    $application_id
+                ),
+                ARRAY_A
+            );
+        }
+
+        if (!is_array($rows) || empty($rows)) {
+            return [];
+        }
+
+        return array_map(function ($row) {
+            $sent_by = isset($row['sent_by_user_id']) ? absint($row['sent_by_user_id']) : 0;
+            $sent_by_name = '';
+            if ($sent_by > 0) {
+                $user = get_userdata($sent_by);
+                $sent_by_name = $user ? (string) $user->display_name : '';
+            }
+
+            return [
+                'id' => isset($row['id']) ? absint($row['id']) : 0,
+                'application_id' => isset($row['application_id']) ? absint($row['application_id']) : 0,
+                'employer_email' => isset($row['employer_email']) ? sanitize_email((string) $row['employer_email']) : '',
+                'from_email' => isset($row['from_email']) ? sanitize_email((string) $row['from_email']) : '',
+                'subject' => isset($row['subject']) ? sanitize_text_field((string) $row['subject']) : '',
+                'content' => isset($row['content']) ? wp_kses_post((string) $row['content']) : '',
+                'sent_by_user_id' => $sent_by,
+                'sent_by_name' => $sent_by_name,
+                'sent_at' => isset($row['sent_at']) ? sanitize_text_field((string) $row['sent_at']) : '',
+                'sent_at_display' => (isset($row['sent_at']) && (string) $row['sent_at'] !== '')
+                    ? date_i18n(
+                        get_option('date_format') . ' ' . get_option('time_format'),
+                        strtotime((string) $row['sent_at'])
+                    )
+                    : '',
+            ];
+        }, $rows);
     }
 }

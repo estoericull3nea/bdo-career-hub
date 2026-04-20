@@ -624,6 +624,15 @@ class JPM_Admin
             exit;
         }
 
+        JPM_Database::add_employer_email_history(
+            $application_id,
+            $to_email,
+            $from_email,
+            $subject,
+            $content,
+            get_current_user_id()
+        );
+
         unset($redirect_args['employer_contact_error']);
         $redirect_args['employer_contact_sent'] = '1';
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
@@ -3596,6 +3605,11 @@ class JPM_Admin
                                 $emp_ln = isset($application->employer_last_name) ? trim((string) $application->employer_last_name) : '';
                                 $emp_phone = isset($application->employer_phone) ? trim((string) $application->employer_phone) : '';
                                 $emp_email = isset($application->employer_email) ? trim((string) $application->employer_email) : '';
+                                $employer_history = [];
+                                if ($emp_email !== '') {
+                                    $employer_history = JPM_Database::get_employer_email_history((int) $application->id, $emp_email);
+                                }
+                                $employer_history_payload = !empty($employer_history) ? wp_json_encode($employer_history) : '';
                                 ?>
                                 <tr>
                                     <td><?php echo esc_html($application->id); ?></td>
@@ -3651,6 +3665,15 @@ class JPM_Admin
                                                 echo '>';
                                                 echo esc_html__('Contact', 'job-posting-manager');
                                                 echo '</button>';
+                                                if (!empty($employer_history_payload)) {
+                                                    echo '<button type="button" class="button button-small jpm-open-employer-history-modal" style="margin-top:6px;margin-left:6px;"';
+                                                    echo ' data-application-id="' . esc_attr((string) (int) $application->id) . '"';
+                                                    echo ' data-employer-email="' . esc_attr($emp_email) . '"';
+                                                    echo ' data-history="' . esc_attr($employer_history_payload) . '"';
+                                                    echo '>';
+                                                    echo esc_html__('History', 'job-posting-manager');
+                                                    echo '</button>';
+                                                }
                                             }
                                         } else {
                                             echo '&mdash;';
@@ -3827,6 +3850,23 @@ class JPM_Admin
                 </div>
             </div>
 
+            <div id="jpm-employer-history-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-employer-history-modal-title" style="max-width: 760px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-employer-history-modal-title"><?php esc_html_e('Employer email history', 'job-posting-manager'); ?></h2>
+                    <p id="jpm-employer-history-app-ref" class="description" style="margin-bottom: 10px;"></p>
+                    <div id="jpm-employer-history-content" style="max-height: 420px; overflow: auto; padding-right: 4px;"></div>
+                    <div style="margin-top: 16px; text-align: right;">
+                        <button type="button" class="button jpm-employer-history-cancel">
+                            <?php esc_html_e('Close', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div id="jpm-whitelist-report-modal" class="jpm-admin-modal" style="display:none;">
                 <div class="jpm-admin-modal__backdrop"></div>
                 <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
@@ -3963,6 +4003,59 @@ class JPM_Admin
 
                     $(document).on('click', '.jpm-employer-contact-cancel, #jpm-employer-contact-modal .jpm-admin-modal__close, #jpm-employer-contact-modal .jpm-admin-modal__backdrop', function () {
                         closeEmployerContactModal();
+                    });
+
+                    function closeEmployerHistoryModal() {
+                        $('#jpm-employer-history-modal').hide();
+                        $('#jpm-employer-history-content').empty();
+                    }
+
+                    $(document).on('click', '.jpm-open-employer-history-modal', function (e) {
+                        e.preventDefault();
+                        const $btn = $(this);
+                        const appId = $btn.attr('data-application-id') || '';
+                        const employerEmail = $btn.attr('data-employer-email') || '';
+                        const refTpl = '<?php echo esc_js(__('Application #%1$s · Employer: %2$s', 'job-posting-manager')); ?>';
+                        const noDataText = '<?php echo esc_js(__('No email history found.', 'job-posting-manager')); ?>';
+                        let history = [];
+
+                        try {
+                            const raw = $btn.attr('data-history') || '[]';
+                            history = JSON.parse(raw);
+                        } catch (err) {
+                            history = [];
+                        }
+
+                        const $content = $('#jpm-employer-history-content');
+                        $content.empty();
+                        $('#jpm-employer-history-app-ref').text(refTpl.replace('%1$s', appId).replace('%2$s', employerEmail));
+
+                        if (!Array.isArray(history) || history.length === 0) {
+                            $content.append($('<p>').text(noDataText));
+                        } else {
+                            history.forEach(function (item, idx) {
+                                const sentAt = item.sent_at_display || item.sent_at || '';
+                                const sentBy = item.sent_by_name || '';
+                                const fromEmail = item.from_email || '';
+                                const subject = item.subject || '';
+                                const body = item.content || '';
+                                const $card = $('<div style="border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:10px;background:#fff;"></div>');
+                                $card.append($('<div style="font-weight:600;margin-bottom:6px;"></div>').text('#' + (idx + 1) + ' - ' + subject));
+                                $card.append($('<div style="font-size:12px;color:#555;margin-bottom:2px;"></div>').text('<?php echo esc_js(__('Sent at:', 'job-posting-manager')); ?> ' + sentAt));
+                                $card.append($('<div style="font-size:12px;color:#555;margin-bottom:2px;"></div>').text('<?php echo esc_js(__('From:', 'job-posting-manager')); ?> ' + fromEmail));
+                                if (sentBy !== '') {
+                                    $card.append($('<div style="font-size:12px;color:#555;margin-bottom:8px;"></div>').text('<?php echo esc_js(__('Sent by:', 'job-posting-manager')); ?> ' + sentBy));
+                                }
+                                $card.append($('<div style="font-size:12px;color:#111;white-space:pre-wrap;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:4px;"></div>').text(body));
+                                $content.append($card);
+                            });
+                        }
+
+                        $('#jpm-employer-history-modal').show();
+                    });
+
+                    $(document).on('click', '.jpm-employer-history-cancel, #jpm-employer-history-modal .jpm-admin-modal__close, #jpm-employer-history-modal .jpm-admin-modal__backdrop', function () {
+                        closeEmployerHistoryModal();
                     });
 
                     function closeWhitelistReportModal() {
