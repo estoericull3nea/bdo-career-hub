@@ -392,6 +392,24 @@ class JPM_Admin
         if (isset($_POST['jpm_return_location']) && $_POST['jpm_return_location'] !== '') {
             $redirect_args['location'] = sanitize_text_field(wp_unslash($_POST['jpm_return_location']));
         }
+        if (isset($_POST['jpm_return_submitted_on']) && $_POST['jpm_return_submitted_on'] !== '') {
+            $on = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_on']));
+            if ($on !== '') {
+                $redirect_args['submitted_on'] = $on;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_from']) && $_POST['jpm_return_submitted_from'] !== '') {
+            $from = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_from']));
+            if ($from !== '') {
+                $redirect_args['submitted_from'] = $from;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_to']) && $_POST['jpm_return_submitted_to'] !== '') {
+            $to = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_to']));
+            if ($to !== '') {
+                $redirect_args['submitted_to'] = $to;
+            }
+        }
 
         if ($application_id <= 0) {
             wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
@@ -2988,12 +3006,18 @@ class JPM_Admin
             'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
             'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
             'location' => isset($_GET['location']) ? sanitize_text_field(wp_unslash($_GET['location'])) : '',
+            'submitted_on' => isset($_GET['submitted_on']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_on'])) : '',
+            'submitted_from' => isset($_GET['submitted_from']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_from'])) : '',
+            'submitted_to' => isset($_GET['submitted_to']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_to'])) : '',
             'whitelisted_only' => true,
         ];
 
         $base_filters = [
             'job_id' => $filters['job_id'],
             'search' => $filters['search'],
+            'submitted_on' => $filters['submitted_on'],
+            'submitted_from' => $filters['submitted_from'],
+            'submitted_to' => $filters['submitted_to'],
             'whitelisted_only' => true,
         ];
         $location_options = JPM_Database::list_distinct_locations_from_applications(
@@ -3015,7 +3039,14 @@ class JPM_Admin
 
         $applications = JPM_DB::get_applications($filters);
         $has_applications = !empty($applications);
-        $has_filters = ($filters['search'] !== '' || $filters['job_id'] > 0 || $filters['location'] !== '');
+        $has_filters = (
+            $filters['search'] !== '' ||
+            $filters['job_id'] > 0 ||
+            $filters['location'] !== '' ||
+            $filters['submitted_on'] !== '' ||
+            $filters['submitted_from'] !== '' ||
+            $filters['submitted_to'] !== ''
+        );
 
         $jobs = get_posts([
             'post_type' => 'job_posting',
@@ -3085,6 +3116,32 @@ class JPM_Admin
                             </a>
                         <?php endif; ?>
                     </div>
+                    <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 4px;">
+                                <?php esc_html_e('Submitted on (exact date)', 'job-posting-manager'); ?>
+                            </label>
+                            <input type="date" name="submitted_on" class="regular-text"
+                                value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                        </div>
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 4px;">
+                                <?php esc_html_e('Submitted from', 'job-posting-manager'); ?>
+                            </label>
+                            <input type="date" name="submitted_from" class="regular-text"
+                                value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                        </div>
+                        <div>
+                            <label style="display: block; font-weight: bold; margin-bottom: 4px;">
+                                <?php esc_html_e('Submitted to', 'job-posting-manager'); ?>
+                            </label>
+                            <input type="date" name="submitted_to" class="regular-text"
+                                value="<?php echo esc_attr($filters['submitted_to']); ?>">
+                        </div>
+                    </div>
+                    <p class="description" style="margin-top: 10px; margin-bottom: 0;">
+                        <?php esc_html_e('If you set an exact "Submitted on" date, the from/to range is ignored. Otherwise use from and/or to for a range.', 'job-posting-manager'); ?>
+                    </p>
                 </form>
             </div>
 
@@ -3183,6 +3240,9 @@ class JPM_Admin
                                                 <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
                                                 <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
                                                 <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
+                                                <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                                                <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                                                <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
                                                 <button type="submit" class="button button-small"
                                                     onclick="return confirm('<?php echo esc_js(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>');">
                                                     <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>

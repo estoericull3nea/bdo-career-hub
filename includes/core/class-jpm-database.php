@@ -227,9 +227,29 @@ class JPM_Database
     }
 
     /**
+     * Validate and normalize a Y-m-d date string for SQL filters and form fields.
+     *
+     * @param mixed $raw Raw input (typically from GET/POST).
+     * @return string Empty string if invalid, otherwise Y-m-d.
+     */
+    public static function normalize_application_filter_date($raw)
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return '';
+        }
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d', $raw);
+        if ($dt === false) {
+            return '';
+        }
+
+        return $dt->format('Y-m-d');
+    }
+
+    /**
      * Get applications with filters
      * 
-     * @param array $filters Filter options (status, job_id, user_id, search, whitelisted_only, location). When set, location matches the job posting meta key "location" (Job Listings), not applicant form fields.
+     * @param array $filters Filter options (status, job_id, user_id, search, whitelisted_only, location, submitted_on, submitted_from, submitted_to). Location matches job posting meta "location". Dates are Y-m-d on application_date (calendar day in DB). If submitted_on is set, submitted_from/to are ignored.
      * @return array Array of application objects
      */
     public static function get_applications($filters = [])
@@ -244,6 +264,9 @@ class JPM_Database
             'search' => isset($filters['search']) ? sanitize_text_field((string) $filters['search']) : '',
             'whitelisted_only' => !empty($filters['whitelisted_only']),
             'location' => isset($filters['location']) ? sanitize_text_field((string) $filters['location']) : '',
+            'submitted_on' => self::normalize_application_filter_date(isset($filters['submitted_on']) ? $filters['submitted_on'] : ''),
+            'submitted_from' => self::normalize_application_filter_date(isset($filters['submitted_from']) ? $filters['submitted_from'] : ''),
+            'submitted_to' => self::normalize_application_filter_date(isset($filters['submitted_to']) ? $filters['submitted_to'] : ''),
         ];
 
         $where = [];
@@ -266,6 +289,20 @@ class JPM_Database
 
         if (!empty($normalized_filters['whitelisted_only'])) {
             $where[] = 'whitelisted = 1';
+        }
+
+        if ($normalized_filters['submitted_on'] !== '') {
+            $where[] = 'DATE(application_date) = %s';
+            $where_values[] = $normalized_filters['submitted_on'];
+        } else {
+            if ($normalized_filters['submitted_from'] !== '') {
+                $where[] = 'DATE(application_date) >= %s';
+                $where_values[] = $normalized_filters['submitted_from'];
+            }
+            if ($normalized_filters['submitted_to'] !== '') {
+                $where[] = 'DATE(application_date) <= %s';
+                $where_values[] = $normalized_filters['submitted_to'];
+            }
         }
 
         if (!empty($where)) {
