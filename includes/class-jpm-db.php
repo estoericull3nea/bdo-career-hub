@@ -1124,12 +1124,19 @@ class JPM_Admin
                                     </td>
                                     <td class="jpm-td-actions"
                                         data-label="<?php echo esc_attr(__('Actions', 'job-posting-manager')); ?>">
-                                        <a href="<?php echo esc_url($edit_url); ?>" class="button button-small">
-                                            <?php esc_html_e('Edit', 'job-posting-manager'); ?>
-                                        </a>
-                                        <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank">
-                                            <?php esc_html_e('View', 'job-posting-manager'); ?>
-                                        </a>
+                                        <div class="jpm-actions-menu" style="position: relative; display: inline-block;">
+                                            <button type="button" class="button button-small jpm-actions-menu__toggle" aria-haspopup="true" aria-expanded="false" title="<?php esc_attr_e('Open actions', 'job-posting-manager'); ?>" style="min-width:34px;text-align:center;padding:0 8px;line-height:1.2;font-size:18px;">
+                                                &bull;&bull;&bull;
+                                            </button>
+                                            <div class="jpm-actions-menu__dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:30; min-width:180px; background:#fff; border:1px solid #ccd0d4; border-radius:4px; box-shadow:0 4px 16px rgba(0,0,0,0.14); padding:8px;">
+                                                <a href="<?php echo esc_url($edit_url); ?>" class="button button-small" style="display:block;width:100%;box-sizing:border-box;margin:0 0 8px;text-align:left;">
+                                                    <?php esc_html_e('Edit', 'job-posting-manager'); ?>
+                                                </a>
+                                                <a href="<?php echo esc_url($view_url); ?>" class="button button-small" target="_blank" style="display:block;width:100%;box-sizing:border-box;margin:0;text-align:left;">
+                                                    <?php esc_html_e('View', 'job-posting-manager'); ?>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1153,6 +1160,33 @@ class JPM_Admin
 
                     $toggleDashboardFiltersBtn.on('click', function () {
                         $dashboardFiltersPanel.stop(true, true).slideToggle(120, updateDashboardFiltersToggleLabel);
+                    });
+
+                    function closeAllDashboardActionMenus() {
+                        $('.jpm-dashboard-page .jpm-actions-menu__dropdown').hide();
+                        $('.jpm-dashboard-page .jpm-actions-menu__toggle').attr('aria-expanded', 'false');
+                    }
+
+                    $(document).on('click', '.jpm-dashboard-page .jpm-actions-menu__toggle', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const $toggle = $(this);
+                        const $menu = $toggle.closest('.jpm-actions-menu');
+                        const $dropdown = $menu.find('.jpm-actions-menu__dropdown').first();
+                        const isOpen = $dropdown.is(':visible');
+                        closeAllDashboardActionMenus();
+                        if (!isOpen) {
+                            $dropdown.show();
+                            $toggle.attr('aria-expanded', 'true');
+                        }
+                    });
+
+                    $(document).on('click', function () {
+                        closeAllDashboardActionMenus();
+                    });
+
+                    $(document).on('click', '.jpm-dashboard-page .jpm-actions-menu__dropdown', function (e) {
+                        e.stopPropagation();
                     });
 
                     updateDashboardFiltersToggleLabel();
