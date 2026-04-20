@@ -4236,7 +4236,7 @@ class JPM_Admin
                                                     data-custom-status-abbr="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['abbr']) ? (string) $custom_status['abbr'] : ''); ?>"
                                                     data-custom-status-bg-color="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['bg_color']) ? (string) $custom_status['bg_color'] : (is_array($custom_status) && isset($custom_status['color']) ? (string) $custom_status['color'] : '#2271b1')); ?>"
                                                     data-custom-status-text-color="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['text_color']) ? (string) $custom_status['text_color'] : '#ffffff'); ?>">
-                                                    <?php esc_html_e('Custom status', 'job-posting-manager'); ?>
+                                                    <?php echo is_array($custom_status) ? esc_html__('Update status', 'job-posting-manager') : esc_html__('Custom status', 'job-posting-manager'); ?>
                                                 </button>
                                                 <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
                                                     target="_blank" class="button button-small" style="text-decoration: none;">
