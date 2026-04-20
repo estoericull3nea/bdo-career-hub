@@ -1884,8 +1884,8 @@ class JPM_Admin
                                                     <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
                                                     <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
                                                     <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
-                                                    <button type="submit" class="button button-small"
-                                                        onclick="return confirm('<?php echo esc_js(__('Add this applicant to the whitelist?', 'job-posting-manager')); ?>');">
+                                                    <button type="button" class="button button-small jpm-open-pending-form-confirm"
+                                                        data-confirm-message="<?php echo esc_attr(__('Add this applicant to the whitelist?', 'job-posting-manager')); ?>">
                                                         <?php esc_html_e('Whitelist', 'job-posting-manager'); ?>
                                                     </button>
                                                 </form>
@@ -2174,6 +2174,25 @@ class JPM_Admin
             </div>
         </div>
 
+        <div id="jpm-pending-form-confirm-modal" class="jpm-admin-modal" style="display:none;">
+            <div class="jpm-admin-modal__backdrop"></div>
+            <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                aria-labelledby="jpm-pending-form-confirm-title" style="max-width: 480px;">
+                <button type="button" class="jpm-admin-modal__close"
+                    aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                <h2 id="jpm-pending-form-confirm-title"><?php esc_html_e('Please confirm', 'job-posting-manager'); ?></h2>
+                <p id="jpm-pending-form-confirm-text" class="description" style="margin-bottom: 16px;"></p>
+                <div style="text-align: right;">
+                    <button type="button" class="button jpm-pending-form-confirm-cancel">
+                        <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                    </button>
+                    <button type="button" class="button button-primary jpm-pending-form-confirm-ok">
+                        <?php esc_html_e('Confirm', 'job-posting-manager'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <style>
             .jpm-status-badge {
                 display: inline-block;
@@ -2377,6 +2396,29 @@ class JPM_Admin
                 let activeRow = null;
                 let previousStatus = null;
                 let activeApplicationId = null;
+                let jpmPendingConfirmForm = null;
+
+                function closePendingFormConfirmModal() {
+                    $('#jpm-pending-form-confirm-modal').hide();
+                    jpmPendingConfirmForm = null;
+                }
+
+                $(document).on('click', '.jpm-open-pending-form-confirm', function (e) {
+                    e.preventDefault();
+                    const msg = $(this).attr('data-confirm-message') || '';
+                    jpmPendingConfirmForm = $(this).closest('form').get(0);
+                    $('#jpm-pending-form-confirm-text').text(msg);
+                    $('#jpm-pending-form-confirm-modal').show();
+                });
+                $(document).on('click', '.jpm-pending-form-confirm-cancel, #jpm-pending-form-confirm-modal .jpm-admin-modal__close, #jpm-pending-form-confirm-modal .jpm-admin-modal__backdrop', function () {
+                    closePendingFormConfirmModal();
+                });
+                $(document).on('click', '.jpm-pending-form-confirm-ok', function () {
+                    if (jpmPendingConfirmForm) {
+                        jpmPendingConfirmForm.submit();
+                    }
+                    closePendingFormConfirmModal();
+                });
 
                 $('.jpm-application-status-select').each(function () {
                     $(this).data('previous', $(this).val());
@@ -3002,6 +3044,11 @@ class JPM_Admin
 
     public function whitelisted_applications_page()
     {
+        $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : '';
+        $report_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
+        $report_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
+        $report_format = isset($_GET['report_format']) ? sanitize_key(wp_unslash($_GET['report_format'])) : 'csv';
+
         $filters = [
             'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
             'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
@@ -3056,11 +3103,138 @@ class JPM_Admin
 
         ?>
         <div class="wrap jpm-applications-page">
-            <h1 style="margin:0 0 8px;"><?php esc_html_e('Whitelisted applications', 'job-posting-manager'); ?></h1>
-            <p class="description" style="margin-top:0;">
+            <style>
+                .jpm-status-badge {
+                    display: inline-block;
+                    padding: 4px 8px;
+                    border-radius: 3px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                }
+
+                .jpm-empty-state {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 60px 0;
+                }
+
+                .jpm-empty-card {
+                    text-align: center;
+                    max-width: 520px;
+                    padding: 40px 32px;
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+                }
+
+                .jpm-empty-icon {
+                    font-size: 48px;
+                    margin-bottom: 16px;
+                }
+
+                .jpm-empty-card h2 {
+                    margin: 0 0 12px;
+                }
+
+                .jpm-empty-card p {
+                    margin: 0 0 20px;
+                    color: #555d66;
+                }
+
+                .jpm-empty-actions {
+                    display: flex;
+                    justify-content: center;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+
+                .jpm-admin-modal {
+                    position: fixed;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 99999;
+                }
+
+                .jpm-admin-modal__backdrop {
+                    position: absolute;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.45);
+                }
+
+                .jpm-admin-modal__dialog {
+                    position: relative;
+                    background: #fff;
+                    padding: 24px;
+                    border-radius: 6px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    width: 100%;
+                    max-width: 560px;
+                    z-index: 2;
+                }
+
+                .jpm-admin-modal__close {
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    border: none;
+                    background: none;
+                    font-size: 22px;
+                    cursor: pointer;
+                }
+
+                .jpm-admin-field {
+                    margin-bottom: 14px;
+                }
+
+                .jpm-admin-field label {
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 6px;
+                }
+
+                .jpm-admin-field textarea,
+                .jpm-admin-field input[type="text"],
+                .jpm-admin-field input[type="date"],
+                .jpm-admin-field input[type="time"] {
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                .jpm-admin-field--inline {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                    gap: 12px;
+                }
+            </style>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <h1 style="margin:0;"><?php esc_html_e('Whitelisted applications', 'job-posting-manager'); ?></h1>
+                <button type="button" class="button button-primary" id="jpm-open-whitelist-report-modal">
+                    <?php esc_html_e('Generate Report', 'job-posting-manager'); ?>
+                </button>
+            </div>
+            <p class="description" style="margin-top:8px;">
                 <?php esc_html_e('Applicants you marked as whitelisted from the Applications screen (accepted status only).', 'job-posting-manager'); ?>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>"><?php esc_html_e('Back to all applications', 'job-posting-manager'); ?></a>
             </p>
+
+            <?php if (!empty($report_range)): ?>
+                <div class="notice notice-info is-dismissible" style="margin-top: 12px;">
+                    <p>
+                        <?php
+                        if ($report_range === 'custom' && !empty($report_start) && !empty($report_end)) {
+                            echo esc_html(sprintf(__('Report range selected: %1$s to %2$s', 'job-posting-manager'), $report_start, $report_end));
+                        } else {
+                            echo esc_html(sprintf(__('Report range selected: %s', 'job-posting-manager'), ucfirst(str_replace('_', ' ', $report_range))));
+                        }
+                        ?>
+                    </p>
+                </div>
+            <?php endif; ?>
 
             <?php if (!empty($_GET['whitelist_removed'])): ?>
                 <div class="notice notice-success is-dismissible">
@@ -3245,8 +3419,8 @@ class JPM_Admin
                                                 <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
                                                 <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
                                                 <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
-                                                <button type="submit" class="button button-small"
-                                                    onclick="return confirm('<?php echo esc_js(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>');">
+                                                <button type="button" class="button button-small jpm-open-pending-form-confirm"
+                                                    data-confirm-message="<?php echo esc_attr(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>">
                                                     <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>
                                                 </button>
                                             </form>
@@ -3258,6 +3432,155 @@ class JPM_Admin
                     </table>
                 </div>
             <?php endif; ?>
+
+            <div id="jpm-pending-form-confirm-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-pending-form-confirm-title" style="max-width: 480px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-pending-form-confirm-title"><?php esc_html_e('Please confirm', 'job-posting-manager'); ?></h2>
+                    <p id="jpm-pending-form-confirm-text" class="description" style="margin-bottom: 16px;"></p>
+                    <div style="text-align: right;">
+                        <button type="button" class="button jpm-pending-form-confirm-cancel">
+                            <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                        </button>
+                        <button type="button" class="button button-primary jpm-pending-form-confirm-ok">
+                            <?php esc_html_e('Confirm', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jpm-whitelist-report-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-whitelist-report-modal-title" style="max-width: 520px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-whitelist-report-modal-title"><?php esc_html_e('Generate whitelisted applications report', 'job-posting-manager'); ?></h2>
+                    <p class="description" style="margin-bottom: 16px;">
+                        <?php esc_html_e('Select a date range for the report. Current list filters (job, search, location, submitted dates) are applied.', 'job-posting-manager'); ?>
+                    </p>
+                    <form method="get" action="" id="jpm-whitelist-report-form">
+                        <input type="hidden" name="page" value="jpm-whitelisted-applications">
+                        <input type="hidden" name="report_generate" value="1">
+                        <input type="hidden" name="job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                        <input type="hidden" name="search" value="<?php echo esc_attr($filters['search']); ?>">
+                        <input type="hidden" name="location" value="<?php echo esc_attr($filters['location']); ?>">
+                        <input type="hidden" name="submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                        <input type="hidden" name="submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                        <input type="hidden" name="submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
+                        <?php wp_nonce_field('jpm_generate_whitelist_report', 'jpm_report_nonce'); ?>
+
+                        <div class="jpm-admin-field">
+                            <label style="margin-bottom: 10px;"><?php esc_html_e('Date Range', 'job-posting-manager'); ?></label>
+                            <div style="display:grid;gap:8px;">
+                                <label><input type="radio" name="report_range" value="today" <?php checked($report_range === '' || $report_range === 'today'); ?>> <?php esc_html_e('Today', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_range" value="last_week" <?php checked($report_range, 'last_week'); ?>> <?php esc_html_e('Last Week', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_range" value="last_month" <?php checked($report_range, 'last_month'); ?>> <?php esc_html_e('Last Month', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_range" value="last_3_months" <?php checked($report_range, 'last_3_months'); ?>> <?php esc_html_e('Last 3 Months', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_range" value="last_6_months" <?php checked($report_range, 'last_6_months'); ?>> <?php esc_html_e('Last 6 Months', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_range" value="last_year" <?php checked($report_range, 'last_year'); ?>> <?php esc_html_e('Last Year', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_range" value="custom" <?php checked($report_range, 'custom'); ?>> <?php esc_html_e('Custom Range', 'job-posting-manager'); ?></label>
+                            </div>
+                        </div>
+
+                        <div id="jpm-whitelist-report-custom-range" class="jpm-admin-field jpm-admin-field--inline" style="display:none;">
+                            <div>
+                                <label for="jpm-whitelist-report-start"><?php esc_html_e('Start Date', 'job-posting-manager'); ?></label>
+                                <input type="date" id="jpm-whitelist-report-start" name="report_start" value="<?php echo esc_attr($report_start); ?>">
+                            </div>
+                            <div>
+                                <label for="jpm-whitelist-report-end"><?php esc_html_e('End Date', 'job-posting-manager'); ?></label>
+                                <input type="date" id="jpm-whitelist-report-end" name="report_end" value="<?php echo esc_attr($report_end); ?>">
+                            </div>
+                        </div>
+
+                        <div class="jpm-admin-field">
+                            <label style="margin-bottom: 10px;"><?php esc_html_e('Report Format', 'job-posting-manager'); ?></label>
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                                <label><input type="radio" name="report_format" value="pdf" <?php checked($report_format, 'pdf'); ?>> <?php esc_html_e('PDF', 'job-posting-manager'); ?></label>
+                                <label><input type="radio" name="report_format" value="csv" <?php checked($report_format !== 'pdf'); ?>> <?php esc_html_e('CSV', 'job-posting-manager'); ?></label>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="button jpm-whitelist-report-cancel">
+                                <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                            </button>
+                            <button type="submit" class="button button-primary">
+                                <?php esc_html_e('Generate Report', 'job-posting-manager'); ?>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <script>
+                jQuery(function ($) {
+                    let jpmPendingConfirmForm = null;
+
+                    function closePendingFormConfirmModal() {
+                        $('#jpm-pending-form-confirm-modal').hide();
+                        jpmPendingConfirmForm = null;
+                    }
+
+                    $(document).on('click', '.jpm-open-pending-form-confirm', function (e) {
+                        e.preventDefault();
+                        const msg = $(this).attr('data-confirm-message') || '';
+                        jpmPendingConfirmForm = $(this).closest('form').get(0);
+                        $('#jpm-pending-form-confirm-text').text(msg);
+                        $('#jpm-pending-form-confirm-modal').show();
+                    });
+                    $(document).on('click', '.jpm-pending-form-confirm-cancel, #jpm-pending-form-confirm-modal .jpm-admin-modal__close, #jpm-pending-form-confirm-modal .jpm-admin-modal__backdrop', function () {
+                        closePendingFormConfirmModal();
+                    });
+                    $(document).on('click', '.jpm-pending-form-confirm-ok', function () {
+                        if (jpmPendingConfirmForm) {
+                            jpmPendingConfirmForm.submit();
+                        }
+                        closePendingFormConfirmModal();
+                    });
+
+                    function closeWhitelistReportModal() {
+                        $('#jpm-whitelist-report-modal').hide();
+                    }
+                    function toggleWhitelistCustomReportRange() {
+                        const selectedRange = $('#jpm-whitelist-report-form input[name="report_range"]:checked').val();
+                        const isCustom = selectedRange === 'custom';
+                        $('#jpm-whitelist-report-custom-range').toggle(isCustom);
+                        $('#jpm-whitelist-report-start, #jpm-whitelist-report-end').prop('required', isCustom);
+                    }
+                    $('#jpm-open-whitelist-report-modal').on('click', function () {
+                        $('#jpm-whitelist-report-modal').show();
+                        toggleWhitelistCustomReportRange();
+                    });
+                    $(document).on('change', '#jpm-whitelist-report-form input[name="report_range"]', function () {
+                        toggleWhitelistCustomReportRange();
+                    });
+                    $('#jpm-whitelist-report-form').on('submit', function (e) {
+                        const selectedRange = $('#jpm-whitelist-report-form input[name="report_range"]:checked').val();
+                        if (selectedRange !== 'custom') {
+                            return;
+                        }
+                        const start = $('#jpm-whitelist-report-start').val();
+                        const end = $('#jpm-whitelist-report-end').val();
+                        if (!start || !end) {
+                            e.preventDefault();
+                            alert('<?php echo esc_js(__('Please select both start and end dates.', 'job-posting-manager')); ?>');
+                            return;
+                        }
+                        if (start > end) {
+                            e.preventDefault();
+                            alert('<?php echo esc_js(__('Start date cannot be later than end date.', 'job-posting-manager')); ?>');
+                        }
+                    });
+                    $(document).on('click', '.jpm-whitelist-report-cancel, #jpm-whitelist-report-modal .jpm-admin-modal__close, #jpm-whitelist-report-modal .jpm-admin-modal__backdrop', function () {
+                        closeWhitelistReportModal();
+                    });
+                });
+            </script>
         </div>
         <?php
     }
@@ -5581,6 +5904,11 @@ class JPM_Admin
             exit;
         }
 
+        if ($page === 'jpm-whitelisted-applications' && isset($_GET['report_generate'])) {
+            $this->handle_whitelist_report_export();
+            exit;
+        }
+
         // Applications export (existing)
         if ($page === 'jpm-applications') {
             // Check user capabilities (admin or editor)
@@ -5779,6 +6107,75 @@ class JPM_Admin
     }
 
     /**
+     * Whitelisted applications report (same formats as Applications report).
+     */
+    private function handle_whitelist_report_export()
+    {
+        if (!current_user_can('edit_posts')) {
+            wp_die(__('You do not have permission to generate reports.', 'job-posting-manager'));
+        }
+
+        if (
+            !isset($_GET['jpm_report_nonce']) ||
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['jpm_report_nonce'])), 'jpm_generate_whitelist_report')
+        ) {
+            wp_die(__('Security check failed.', 'job-posting-manager'));
+        }
+
+        $report_format = isset($_GET['report_format']) ? sanitize_key(wp_unslash($_GET['report_format'])) : 'csv';
+        if (!in_array($report_format, ['csv', 'pdf'], true)) {
+            wp_die(__('Invalid report format.', 'job-posting-manager'));
+        }
+
+        $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : 'today';
+        $custom_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
+        $custom_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
+
+        $range = $this->resolve_report_date_range($report_range, $custom_start, $custom_end);
+        if (!$range) {
+            wp_die(__('Invalid date range.', 'job-posting-manager'));
+        }
+
+        $filters = [
+            'whitelisted_only' => true,
+            'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
+            'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+            'location' => isset($_GET['location']) ? sanitize_text_field(wp_unslash($_GET['location'])) : '',
+            'submitted_on' => isset($_GET['submitted_on']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_on'])) : '',
+            'submitted_from' => isset($_GET['submitted_from']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_from'])) : '',
+            'submitted_to' => isset($_GET['submitted_to']) ? JPM_Database::normalize_application_filter_date(wp_unslash($_GET['submitted_to'])) : '',
+            'status' => '',
+        ];
+
+        $applications = JPM_DB::get_applications($filters);
+        $from_ts = strtotime($range['start']);
+        $to_ts = strtotime($range['end']);
+
+        $applications = array_values(array_filter($applications, function ($app) use ($from_ts, $to_ts) {
+            $app_ts = strtotime((string) $app->application_date);
+            if (!$app_ts) {
+                return false;
+            }
+            return $app_ts >= $from_ts && $app_ts <= $to_ts;
+        }));
+
+        $report_context = [
+            'range_label' => $range['label'],
+            'range_start' => $range['start'],
+            'range_end' => $range['end'],
+            'filters' => $filters,
+            'is_whitelist_report' => true,
+        ];
+
+        if ($report_format === 'pdf') {
+            $this->export_applications_report_pdf_html($applications, $report_context);
+            return;
+        }
+
+        $this->export_applications_report_csv($applications, $report_context);
+    }
+
+    /**
      * Resolve report date range into start/end datetime strings.
      *
      * @return array|null
@@ -5924,8 +6321,14 @@ class JPM_Admin
      */
     private function export_applications_report_csv($applications, $context)
     {
+        $is_whitelist = !empty($context['is_whitelist_report']);
+        $report_title = $is_whitelist
+            ? __('Whitelisted applications report', 'job-posting-manager')
+            : __('Detailed Applications Report', 'job-posting-manager');
+        $file_prefix = $is_whitelist ? 'whitelisted-applications-report-' : 'applications-report-';
+
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=applications-report-' . date('Y-m-d-H-i-s') . '.csv');
+        header('Content-Disposition: attachment; filename=' . $file_prefix . date('Y-m-d-H-i-s') . '.csv');
         header('Pragma: no-cache');
         header('Expires: 0');
 
@@ -5958,14 +6361,25 @@ class JPM_Admin
         arsort($status_counts);
         arsort($job_counts);
 
-        fputcsv($output, [__('Detailed Applications Report', 'job-posting-manager')]);
+        fputcsv($output, [$report_title]);
         fputcsv($output, [__('Generated At', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format'))]);
         fputcsv($output, [__('Date Range', 'job-posting-manager'), $context['range_label']]);
         fputcsv($output, [__('Range Start', 'job-posting-manager'), $context['range_start']]);
         fputcsv($output, [__('Range End', 'job-posting-manager'), $context['range_end']]);
-        fputcsv($output, [__('Filter: Status', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager')]);
-        fputcsv($output, [__('Filter: Job ID', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager')]);
-        fputcsv($output, [__('Filter: Search', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager')]);
+        if ($is_whitelist) {
+            $f = $context['filters'];
+            fputcsv($output, [__('Scope', 'job-posting-manager'), __('Whitelisted applications only', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Job ID', 'job-posting-manager'), !empty($f['job_id']) ? (string) (int) $f['job_id'] : __('All', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Search', 'job-posting-manager'), !empty($f['search']) ? $f['search'] : __('None', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Job location', 'job-posting-manager'), !empty($f['location']) ? $f['location'] : __('All', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Submitted on', 'job-posting-manager'), !empty($f['submitted_on']) ? $f['submitted_on'] : __('None', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Submitted from', 'job-posting-manager'), !empty($f['submitted_from']) ? $f['submitted_from'] : __('None', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Submitted to', 'job-posting-manager'), !empty($f['submitted_to']) ? $f['submitted_to'] : __('None', 'job-posting-manager')]);
+        } else {
+            fputcsv($output, [__('Filter: Status', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Job ID', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager')]);
+            fputcsv($output, [__('Filter: Search', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager')]);
+        }
         fputcsv($output, [__('Total Matching Applications', 'job-posting-manager'), count($rows)]);
         fputcsv($output, [__('Registered Users', 'job-posting-manager'), $registered_count]);
         fputcsv($output, [__('Guest Applications', 'job-posting-manager'), $guest_count]);
@@ -6091,6 +6505,11 @@ class JPM_Admin
     {
         header('Content-Type: text/html; charset=utf-8');
 
+        $is_whitelist = !empty($context['is_whitelist_report']);
+        $report_heading = $is_whitelist
+            ? __('Whitelisted applications report', 'job-posting-manager')
+            : __('Detailed Applications Report', 'job-posting-manager');
+
         $rows = [];
         $status_counts = [];
         $job_counts = [];
@@ -6122,7 +6541,7 @@ class JPM_Admin
 
         <head>
             <meta charset="utf-8">
-            <title><?php esc_html_e('Detailed Applications Report', 'job-posting-manager'); ?></title>
+            <title><?php echo esc_html($report_heading); ?></title>
             <style>
                 body { font-family: Arial, sans-serif; margin: 20px; color: #111; }
                 h1, h2, h3 { margin: 0 0 10px; }
@@ -6147,11 +6566,18 @@ class JPM_Admin
         </head>
 
         <body>
-            <h1><?php esc_html_e('Detailed Applications Report', 'job-posting-manager'); ?></h1>
+            <h1><?php echo esc_html($report_heading); ?></h1>
             <div class="meta">
                 <div><?php echo esc_html(sprintf(__('Generated: %s', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format')))); ?></div>
                 <div><?php echo esc_html(sprintf(__('Range: %1$s (%2$s to %3$s)', 'job-posting-manager'), $context['range_label'], $range_start_display, $range_end_display)); ?></div>
-                <div><?php echo esc_html(sprintf(__('Filters - Status: %1$s | Job ID: %2$s | Search: %3$s', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager'))); ?></div>
+                <?php if ($is_whitelist): ?>
+                    <?php $wf = $context['filters']; ?>
+                    <div><?php echo esc_html(sprintf(__('Scope: %s', 'job-posting-manager'), __('Whitelisted applications only', 'job-posting-manager'))); ?></div>
+                    <div><?php echo esc_html(sprintf(__('List filters — Job ID: %1$s | Search: %2$s | Job location: %3$s', 'job-posting-manager'), !empty($wf['job_id']) ? (string) (int) $wf['job_id'] : __('All', 'job-posting-manager'), !empty($wf['search']) ? $wf['search'] : __('None', 'job-posting-manager'), !empty($wf['location']) ? $wf['location'] : __('All', 'job-posting-manager'))); ?></div>
+                    <div><?php echo esc_html(sprintf(__('List filters — Submitted on: %1$s | From: %2$s | To: %3$s', 'job-posting-manager'), !empty($wf['submitted_on']) ? $wf['submitted_on'] : __('None', 'job-posting-manager'), !empty($wf['submitted_from']) ? $wf['submitted_from'] : __('None', 'job-posting-manager'), !empty($wf['submitted_to']) ? $wf['submitted_to'] : __('None', 'job-posting-manager'))); ?></div>
+                <?php else: ?>
+                    <div><?php echo esc_html(sprintf(__('Filters - Status: %1$s | Job ID: %2$s | Search: %3$s', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager'))); ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="grid">
