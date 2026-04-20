@@ -139,6 +139,14 @@ function jpm_load_textdomain()
     load_plugin_textdomain('job-posting-manager', false, dirname(plugin_basename(__FILE__)) . '/languages/');
 }
 
+add_action('plugins_loaded', 'jpm_maybe_upgrade_db', 5);
+function jpm_maybe_upgrade_db()
+{
+    if (class_exists('JPM_Database')) {
+        JPM_Database::maybe_upgrade_schema();
+    }
+}
+
 // Initialize SMTP settings on plugin load
 add_action('plugins_loaded', 'jpm_init_smtp_settings');
 function jpm_init_smtp_settings()

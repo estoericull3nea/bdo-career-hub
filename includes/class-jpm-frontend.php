@@ -54,35 +54,6 @@ class JPM_Frontend
     }
 
     /**
-     * Format salary with currency icon.
-     * Prefers `salary_currency` meta, otherwise infers from stored `salary` string.
-     */
-    private function format_salary($job_id, $salary_value = '')
-    {
-        $salary_value = $salary_value !== '' ? $salary_value : get_post_meta($job_id, 'salary', true);
-        if (empty($salary_value)) {
-            return '';
-        }
-
-        $currency = get_post_meta($job_id, 'salary_currency', true);
-        if (!in_array($currency, ['php', 'usd'], true)) {
-            if (strpos((string) $salary_value, '₱') !== false) {
-                $currency = 'php';
-            } elseif (strpos((string) $salary_value, '$') !== false) {
-                $currency = 'usd';
-            } else {
-                $currency = 'php';
-            }
-        }
-
-        $symbol = $currency === 'usd' ? '$' : '₱';
-        $amount = str_replace(['₱', '$'], '', (string) $salary_value);
-        $amount = trim($amount);
-
-        return !empty($amount) ? $symbol . $amount : '';
-    }
-
-    /**
      * Get saved job IDs for a user.
      *
      * @param int $user_id User ID.
@@ -129,6 +100,112 @@ class JPM_Frontend
             esc_attr($title),
             esc_html($label)
         );
+    }
+
+    /**
+     * Supported salary currency symbols.
+     *
+     * @return array<string, string>
+     */
+    private function get_salary_currency_symbols()
+    {
+        return [
+            'usd' => '$',
+            'eur' => '€',
+            'gbp' => '£',
+            'jpy' => '¥',
+            'php' => '₱',
+            'aud' => 'A$',
+            'cad' => 'C$',
+            'sgd' => 'S$',
+            'hkd' => 'HK$',
+            'nzd' => 'NZ$',
+            'chf' => 'CHF ',
+            'sek' => 'kr',
+            'nok' => 'kr',
+            'dkk' => 'kr',
+            'pln' => 'zł',
+            'try' => '₺',
+            'mxn' => 'MX$',
+            'brl' => 'R$',
+            'zar' => 'R',
+            'inr' => '₹',
+            'idr' => 'Rp',
+            'myr' => 'RM',
+            'thb' => '฿',
+            'vnd' => '₫',
+            'krw' => '₩',
+            'cny' => '¥',
+            'aed' => 'AED ',
+            'sar' => 'SAR ',
+            'qar' => 'QAR ',
+            'kwd' => 'KWD ',
+            'bhd' => 'BHD ',
+            'omr' => 'OMR ',
+            'rub' => '₽',
+            'uah' => '₴',
+            'ils' => '₪',
+            'egp' => 'E£',
+            'ngn' => '₦',
+            'kes' => 'KSh',
+            'huf' => 'Ft ',
+            'czk' => 'Kč',
+            'ron' => 'lei ',
+            'bdt' => '৳',
+            'pkr' => 'PKR ',
+        ];
+    }
+
+    /**
+     * Get currency symbol text for a job's salary currency.
+     *
+     * @param int $job_id Job post ID.
+     * @return string
+     */
+    private function get_salary_currency_symbol($job_id)
+    {
+        $currency = strtolower(sanitize_key((string) get_post_meta(absint($job_id), 'salary_currency', true)));
+        $symbols = $this->get_salary_currency_symbols();
+
+        if (isset($symbols[$currency])) {
+            return $symbols[$currency];
+        }
+
+        return strtoupper($currency) !== '' ? strtoupper($currency) . ' ' : '₱';
+    }
+
+    /**
+     * Build salary display parts for frontend cards and modal.
+     *
+     * Uses the symbol from the saved salary value when present so the left
+     * salary icon/symbol always matches the displayed amount currency.
+     *
+     * @param int $job_id Job post ID.
+     * @return array{0:string,1:string}
+     */
+    private function get_salary_display_parts($job_id)
+    {
+        $salary = trim((string) get_post_meta(absint($job_id), 'salary', true));
+        $currency_symbol = $this->get_salary_currency_symbol($job_id);
+
+        if ($salary === '') {
+            return [$currency_symbol, ''];
+        }
+
+        $known_symbols = array_values($this->get_salary_currency_symbols());
+        usort($known_symbols, static function ($left, $right) {
+            return strlen($right) - strlen($left);
+        });
+
+        foreach ($known_symbols as $symbol) {
+            if ($symbol !== '' && strpos($salary, $symbol) === 0) {
+                $currency_symbol = $symbol;
+                $salary = ltrim(substr($salary, strlen($symbol)));
+                break;
+            }
+        }
+
+        return [$currency_symbol, $salary];
     }
 
     public function __construct()
@@ -264,7 +341,6 @@ class JPM_Frontend
             $delay_seconds = 120;
         }
 
-        $company_name = get_post_meta($job_id, 'company_name', true);
         $location = get_post_meta($job_id, 'location', true);
         $job_description_raw = trim((string) $job->post_content);
         if ($job_description_raw === '') {
@@ -283,9 +359,6 @@ class JPM_Frontend
                     &times;
                 </button>
                 <div class="jpm-homepage-hiring-popup__hero">
-                    <?php if (!empty($company_name)): ?>
-                        <div class="jpm-homepage-hiring-popup__company"><?php echo esc_html($company_name); ?></div>
-                    <?php endif; ?>
                     <div class="jpm-homepage-hiring-popup__hiring-line">
                         <span class="jpm-homepage-hiring-popup__ribbon jpm-homepage-hiring-popup__ribbon--red"><?php esc_html_e('WE ARE', 'job-posting-manager'); ?></span>
                         <span class="jpm-homepage-hiring-popup__ribbon jpm-homepage-hiring-popup__ribbon--yellow"><?php esc_html_e('HIRING!', 'job-posting-manager'); ?></span>
@@ -674,9 +747,8 @@ class JPM_Frontend
         ?>
         <div class="jpm-latest-jobs">
             <?php foreach ($jobs as $job):
-                $company_name = get_post_meta($job->ID, 'company_name', true);
                 $location = get_post_meta($job->ID, 'location', true);
-                $salary = get_post_meta($job->ID, 'salary', true);
+                list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job->ID);
                 $duration = get_post_meta($job->ID, 'duration', true);
                 $company_image_id = get_post_meta($job->ID, 'company_image', true);
                 $company_image_url = '';
@@ -700,7 +772,7 @@ class JPM_Frontend
                     <?php if ($company_image_url): ?>
                         <div class="jpm-job-card-image">
                             <img src="<?php echo esc_url($company_image_url); ?>"
-                                alt="<?php echo esc_attr($company_name ?: get_the_title($job->ID)); ?>">
+                                alt="<?php echo esc_attr(get_the_title($job->ID)); ?>">
                         </div>
                     <?php endif; ?>
                     <div class="jpm-job-card-content">
@@ -713,18 +785,14 @@ class JPM_Frontend
                                 <?php echo wp_kses_post($status_badge); ?>
                             <?php endif; ?>
                         </div>
-                        <?php if (!empty($company_name)): ?>
-                            <div class="jpm-job-card-meta"><span class="jpm-job-company"><i class="dashicons dashicons-building"></i>
-                                    <?php echo esc_html($company_name); ?></span>
-                            </div>
-                        <?php endif; ?>
                         <div class="jpm-job-card-info">
                             <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
                             <?php endif; ?>
-                            <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
-                                        class="dashicons dashicons-money-alt"></i>
-                                    <?php echo esc_html($this->format_salary($job->ID, $salary)); ?> </span>
+                            <?php if (!empty($salary)): ?><span class="jpm-job-info-item">
+                                    <span class="jpm-salary-currency-symbol"><?php echo esc_html($salary_currency_symbol); ?></span>
+                                    <?php echo esc_html($salary); ?>
+                                </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
@@ -805,9 +873,8 @@ class JPM_Frontend
             wp_send_json_error(['message' => __('Job not found.', 'job-posting-manager')]);
         }
 
-        $company_name = get_post_meta($job_id, 'company_name', true);
         $location = get_post_meta($job_id, 'location', true);
-        $salary = get_post_meta($job_id, 'salary', true);
+        list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job_id);
         $duration = get_post_meta($job_id, 'duration', true);
         $company_image_id = get_post_meta($job_id, 'company_image', true);
         $company_image_url = '';
@@ -823,14 +890,11 @@ class JPM_Frontend
             <?php if ($company_image_url): ?>
                 <div class="jpm-modal-job-image">
                     <img src="<?php echo esc_url($company_image_url); ?>"
-                        alt="<?php echo esc_attr($company_name ?: get_the_title($job_id)); ?>">
+                        alt="<?php echo esc_attr(get_the_title($job_id)); ?>">
                 </div>
             <?php endif; ?>
             <div class="jpm-modal-job-title-section">
                 <h2><?php echo esc_html(get_the_title($job_id)); ?></h2>
-                <?php if (!empty($company_name)): ?>
-                    <p class="jpm-modal-job-company"><?php echo esc_html($company_name); ?></p>
-                <?php endif; ?>
             </div>
         </div>
 
@@ -846,7 +910,7 @@ class JPM_Frontend
                 <?php if (!empty($salary)): ?>
                     <li>
                         <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($this->format_salary($job_id, $salary)); ?></span>
+                        <span><?php echo esc_html($salary_currency_symbol . $salary); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
@@ -910,7 +974,6 @@ class JPM_Frontend
         // Get filter values
         $search = isset($_GET['jpm_search']) ? sanitize_text_field(wp_unslash($_GET['jpm_search'])) : '';
         $location_filter = isset($_GET['jpm_location']) ? sanitize_text_field(wp_unslash($_GET['jpm_location'])) : '';
-        $company_filter = isset($_GET['jpm_company']) ? sanitize_text_field(wp_unslash($_GET['jpm_company'])) : '';
 
         // Query jobs with filters
         $args = [
@@ -934,20 +997,13 @@ class JPM_Frontend
         }
         $args['post__in'] = $unexpired_job_ids;
 
-        // Add meta query for location/company filters only.
+        // Add meta query for location filter only.
         $meta_query = [];
 
         if (!empty($location_filter)) {
             $meta_query[] = [
                 'key' => 'location',
                 'value' => $location_filter,
-                'compare' => 'LIKE'
-            ];
-        }
-        if (!empty($company_filter)) {
-            $meta_query[] = [
-                'key' => 'company_name',
-                'value' => $company_filter,
                 'compare' => 'LIKE'
             ];
         }
@@ -968,7 +1024,7 @@ class JPM_Frontend
         $is_logged_in = is_user_logged_in();
         $saved_job_ids = $is_logged_in ? $this->get_user_saved_job_ids(get_current_user_id()) : [];
 
-        // Get unique locations and companies for filter dropdowns (non-expired jobs only)
+        // Get unique locations for filter dropdown (non-expired jobs only)
         // Optimized: Use direct SQL query instead of fetching all posts.
         global $wpdb;
         $now_timestamp = (string) current_time('timestamp');
@@ -989,23 +1045,6 @@ class JPM_Frontend
         );
         $location_results = $wpdb->get_col($locations_query);
         $locations = array_filter(array_map('trim', $location_results));
-
-        $companies_query = $wpdb->prepare(
-            "
-            SELECT DISTINCT pm_comp.meta_value as company
-            FROM {$wpdb->posts} p
-            INNER JOIN {$wpdb->postmeta} pm_comp ON p.ID = pm_comp.post_id AND pm_comp.meta_key = 'company_name'
-            LEFT JOIN {$wpdb->postmeta} pm_exp ON p.ID = pm_exp.post_id AND pm_exp.meta_key = 'expiration_date'
-            WHERE p.post_type = 'job_posting'
-            AND p.post_status = 'publish'
-            AND pm_comp.meta_value != ''
-            AND pm_comp.meta_value IS NOT NULL
-            AND (pm_exp.meta_value IS NULL OR pm_exp.meta_value = '' OR CAST(pm_exp.meta_value AS UNSIGNED) >= %d)
-            ORDER BY pm_comp.meta_value ASC",
-            $now_timestamp
-        );
-        $company_results = $wpdb->get_col($companies_query);
-        $companies = array_filter(array_map('trim', $company_results));
 
         ob_start();
         ?>
@@ -1036,21 +1075,10 @@ class JPM_Frontend
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="jpm-filter-group">
-                            <label for="jpm_company"><?php esc_html_e('Company', 'job-posting-manager'); ?></label>
-                            <select id="jpm_company" name="jpm_company" class="jpm-filter-select">
-                                <option value=""><?php esc_html_e('All Companies', 'job-posting-manager'); ?></option>
-                                <?php foreach ($companies as $comp): ?>
-                                    <option value="<?php echo esc_attr($comp); ?>" <?php selected($company_filter, $comp); ?>>
-                                        <?php echo esc_html($comp); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
                         <div class="jpm-filter-group jpm-filter-actions">
                             <button type="submit"
                                 class="jpm-btn jpm-btn-filter"><?php esc_html_e('Filter', 'job-posting-manager'); ?></button>
-                            <?php if (!empty($search) || !empty($location_filter) || !empty($company_filter)): ?>
+                            <?php if (!empty($search) || !empty($location_filter)): ?>
                                 <a href="<?php echo esc_url(remove_query_arg(['jpm_search', 'jpm_location', 'jpm_company', 'jpm_page'])); ?>"
                                     class="jpm-btn jpm-btn-reset">
                                     <?php esc_html_e('Reset', 'job-posting-manager'); ?>
@@ -1098,9 +1126,8 @@ class JPM_Frontend
                     <?php while ($jobs_query->have_posts()):
                         $jobs_query->the_post();
                         $job_id = get_the_ID();
-                        $company_name = get_post_meta($job_id, 'company_name', true);
                         $location = get_post_meta($job_id, 'location', true);
-                        $salary = get_post_meta($job_id, 'salary', true);
+                        list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job_id);
                         $duration = get_post_meta($job_id, 'duration', true);
                         $company_image_id = get_post_meta($job_id, 'company_image', true);
                         $company_image_url = '';
@@ -1124,7 +1151,7 @@ class JPM_Frontend
                             <?php if ($company_image_url): ?>
                                 <div class="jpm-job-card-image">
                                     <img src="<?php echo esc_url($company_image_url); ?>"
-                                        alt="<?php echo esc_attr($company_name ?: get_the_title()); ?>">
+                                        alt="<?php echo esc_attr(get_the_title()); ?>">
                                 </div>
                             <?php endif; ?>
                             <div class="jpm-job-card-content">
@@ -1137,18 +1164,14 @@ class JPM_Frontend
                                         <?php echo wp_kses_post($status_badge); ?>
                                     <?php endif; ?>
                                 </div>
-                                <?php if (!empty($company_name)): ?>
-                                    <div class="jpm-job-card-meta"><span class="jpm-job-company"> <i
-                                                class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?> </span>
-                                    </div>
-                                <?php endif; ?>
                                 <div class="jpm-job-card-info">
                                     <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
                                     <?php endif; ?>
-                                    <?php if (!empty($salary)): ?> <span class="jpm-job-info-item"> <i
-                                                class="dashicons dashicons-money-alt"></i>
-                                            <?php echo esc_html($this->format_salary($job_id, $salary)); ?> </span>
+                                    <?php if (!empty($salary)): ?><span class="jpm-job-info-item">
+                                            <span class="jpm-salary-currency-symbol"><?php echo esc_html($salary_currency_symbol); ?></span>
+                                            <?php echo esc_html($salary); ?>
+                                        </span>
                                     <?php endif; ?>
                                     <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
@@ -1334,7 +1357,6 @@ class JPM_Frontend
         $paged = isset($_POST['paged']) ? max(1, absint(wp_unslash($_POST['paged']))) : 1;
         $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
         $location_filter = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
-        $company_filter = isset($_POST['company']) ? sanitize_text_field(wp_unslash($_POST['company'])) : '';
 
         $args = [
             'post_type' => 'job_posting',
@@ -1362,13 +1384,6 @@ class JPM_Frontend
             $meta_query[] = [
                 'key' => 'location',
                 'value' => $location_filter,
-                'compare' => 'LIKE'
-            ];
-        }
-        if (!empty($company_filter)) {
-            $meta_query[] = [
-                'key' => 'company_name',
-                'value' => $company_filter,
                 'compare' => 'LIKE'
             ];
         }
@@ -1403,9 +1418,8 @@ class JPM_Frontend
             while ($jobs_query->have_posts()):
                 $jobs_query->the_post();
                 $job_id = get_the_ID();
-                $company_name = get_post_meta($job_id, 'company_name', true);
                 $location = get_post_meta($job_id, 'location', true);
-                $salary = get_post_meta($job_id, 'salary', true);
+                list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job_id);
                 $duration = get_post_meta($job_id, 'duration', true);
                 $company_image_id = get_post_meta($job_id, 'company_image', true);
                 $company_image_url = '';
@@ -1424,7 +1438,7 @@ class JPM_Frontend
                     <?php if ($company_image_url): ?>
                         <div class="jpm-job-card-image">
                             <img src="<?php echo esc_url($company_image_url); ?>"
-                                alt="<?php echo esc_attr($company_name ?: get_the_title()); ?>">
+                                alt="<?php echo esc_attr(get_the_title()); ?>">
                         </div>
                     <?php endif; ?>
                     <div class="jpm-job-card-content">
@@ -1434,11 +1448,6 @@ class JPM_Frontend
                             </h3>
                             <?php echo $this->render_bookmark_button($job_id, $is_saved, $is_logged_in); ?>
                         </div>
-                        <?php if (!empty($company_name)): ?>
-                            <div class="jpm-job-card-meta"><span class="jpm-job-company"><i
-                                        class="dashicons dashicons-building"></i><?php echo esc_html($company_name); ?></span>
-                            </div>
-                        <?php endif; ?>
                         <div class="jpm-job-card-info">
                             <?php if (!empty($location)): ?>
                                 <span class="jpm-job-info-item">
@@ -1448,8 +1457,8 @@ class JPM_Frontend
                             <?php endif; ?>
                             <?php if (!empty($salary)): ?>
                                 <span class="jpm-job-info-item">
-                                    <i class="dashicons dashicons-money-alt"></i>
-                                    <?php echo esc_html($this->format_salary($job_id, $salary)); ?>
+                                    <span class="jpm-salary-currency-symbol"><?php echo esc_html($salary_currency_symbol); ?></span>
+                                    <?php echo esc_html($salary); ?>
                                 </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?>
@@ -5958,9 +5967,7 @@ class JPM_Frontend
                             <div class="jpm-applications-list jpm-saved-jobs-list">
                                 <?php foreach ($saved_jobs as $saved_job):
                                     $saved_job_id = absint($saved_job->ID);
-                                    $saved_company = get_post_meta($saved_job_id, 'company_name', true);
                                     $saved_location = get_post_meta($saved_job_id, 'location', true);
-                                    $saved_salary = get_post_meta($saved_job_id, 'salary', true);
                                     $saved_duration = get_post_meta($saved_job_id, 'duration', true);
                                     $saved_link = get_permalink($saved_job_id);
                                     ?>
@@ -5968,9 +5975,6 @@ class JPM_Frontend
                                         <div class="jpm-application-header">
                                             <div class="jpm-application-job-title">
                                                 <h4><a href="<?php echo esc_url($saved_link); ?>"><?php echo esc_html(get_the_title($saved_job_id)); ?></a></h4>
-                                                <?php if (!empty($saved_company)): ?>
-                                                    <span class="jpm-job-company"><?php echo esc_html($saved_company); ?></span>
-                                                <?php endif; ?>
                                             </div>
                                             <?php echo $this->render_bookmark_button($saved_job_id, true, true); ?>
                                         </div>
@@ -5979,12 +5983,6 @@ class JPM_Frontend
                                                 <div class="jpm-application-detail-item">
                                                     <span class="jpm-detail-label"><?php esc_html_e('Location:', 'job-posting-manager'); ?></span>
                                                     <span class="jpm-detail-value"><?php echo esc_html($saved_location); ?></span>
-                                                </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($saved_salary)): ?>
-                                                <div class="jpm-application-detail-item">
-                                                    <span class="jpm-detail-label"><?php esc_html_e('Salary:', 'job-posting-manager'); ?></span>
-                                                    <span class="jpm-detail-value"><?php echo esc_html($this->format_salary($saved_job_id, $saved_salary)); ?></span>
                                                 </div>
                                             <?php endif; ?>
                                             <?php if (!empty($saved_duration)): ?>

@@ -57,6 +57,30 @@ class JPM_DB
     }
 
     /**
+     * Set whitelist flag on an application.
+     *
+     * @param int  $id          Application ID.
+     * @param bool $whitelisted Whitelist on or off.
+     * @return bool|int|false
+     */
+    public static function set_whitelisted($id, $whitelisted)
+    {
+        return JPM_Database::set_whitelisted($id, $whitelisted);
+    }
+
+    /**
+     * Save employer welfare-check details on a whitelisted application.
+     *
+     * @param int   $application_id Application ID.
+     * @param array $fields         employer_* field keys.
+     * @return true|WP_Error
+     */
+    public static function update_application_employer_welfare($application_id, array $fields)
+    {
+        return JPM_Database::update_application_employer_welfare($application_id, $fields);
+    }
+
+    /**
      * Get all statuses with full information
      * Delegates to JPM_Status_Manager
      */
