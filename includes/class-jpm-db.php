@@ -40,6 +40,7 @@ class JPM_Admin
         add_action('wp_ajax_jpm_save_rejection_details', [$this, 'save_rejection_details_ajax']);
         add_action('wp_ajax_jpm_get_interview_details', [$this, 'get_interview_details_ajax']);
         add_action('wp_ajax_jpm_save_interview_details', [$this, 'save_interview_details_ajax']);
+        add_action('wp_ajax_jpm_update_whitelist_custom_status_template_ajax', [$this, 'ajax_update_whitelist_custom_status_template']);
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
@@ -772,10 +773,10 @@ class JPM_Admin
         }
 
         $application = JPM_Database::get_application($application_id);
-        if (!$application || !isset($application->whitelisted) || (int) $application->whitelisted !== 1) {
+        if (!$application) {
             set_transient(
                 'jpm_whitelist_custom_status_err_' . get_current_user_id(),
-                __('The selected application is not currently whitelisted.', 'job-posting-manager'),
+                __('The selected application was not found.', 'job-posting-manager'),
                 60
             );
             wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
@@ -996,6 +997,69 @@ class JPM_Admin
         $redirect_args['whitelist_custom_status_template_deleted'] = '1';
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
+    }
+
+    /**
+     * AJAX: update matching whitelist custom status templates.
+     */
+    public function ajax_update_whitelist_custom_status_template()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('You do not have permission to do this.', 'job-posting-manager')]);
+            return;
+        }
+
+        $nonce = isset($_POST['jpm_update_whitelist_custom_status_template_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_update_whitelist_custom_status_template_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_update_whitelist_custom_status_template')) {
+            wp_send_json_error(['message' => __('Invalid request.', 'job-posting-manager')]);
+            return;
+        }
+
+        $old_name = isset($_POST['old_status_name']) ? sanitize_text_field(wp_unslash($_POST['old_status_name'])) : '';
+        $old_abbr = isset($_POST['old_status_abbr']) ? strtoupper(substr(sanitize_text_field(wp_unslash($_POST['old_status_abbr'])), 0, 10)) : '';
+        $old_bg_color = isset($_POST['old_status_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['old_status_bg_color'])) : '';
+        $old_text_color = isset($_POST['old_status_text_color']) ? sanitize_hex_color(wp_unslash($_POST['old_status_text_color'])) : '';
+
+        $new_name = isset($_POST['new_status_name']) ? sanitize_text_field(wp_unslash($_POST['new_status_name'])) : '';
+        $new_abbr = isset($_POST['new_status_abbr']) ? strtoupper(substr(sanitize_text_field(wp_unslash($_POST['new_status_abbr'])), 0, 10)) : '';
+        $new_bg_color = isset($_POST['new_status_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['new_status_bg_color'])) : '';
+        $new_text_color = isset($_POST['new_status_text_color']) ? sanitize_hex_color(wp_unslash($_POST['new_status_text_color'])) : '';
+
+        if ($old_name === '' || $old_abbr === '' || $old_bg_color === '' || $old_text_color === '' || $new_name === '' || $new_abbr === '' || $new_bg_color === '' || $new_text_color === '') {
+            wp_send_json_error(['message' => __('Please provide valid old/new status values.', 'job-posting-manager')]);
+            return;
+        }
+
+        $map = $this->get_whitelist_custom_status_map();
+        $updated_count = 0;
+        foreach ($map as $application_id => $status_item) {
+            if (
+                isset($status_item['name'], $status_item['abbr'], $status_item['bg_color'], $status_item['text_color']) &&
+                (string) $status_item['name'] === $old_name &&
+                (string) $status_item['abbr'] === $old_abbr &&
+                (string) $status_item['bg_color'] === $old_bg_color &&
+                (string) $status_item['text_color'] === $old_text_color
+            ) {
+                $map[$application_id] = [
+                    'name' => $new_name,
+                    'abbr' => $new_abbr,
+                    'bg_color' => $new_bg_color,
+                    'text_color' => $new_text_color,
+                ];
+                $updated_count++;
+            }
+        }
+
+        if ($updated_count <= 0) {
+            wp_send_json_error(['message' => __('No matching custom status was found to update.', 'job-posting-manager')]);
+            return;
+        }
+
+        update_option('jpm_whitelist_custom_statuses', $map);
+        wp_send_json_success([
+            'message' => __('Custom status template updated.', 'job-posting-manager'),
+            'updated_count' => $updated_count,
+        ]);
     }
 
     public function dashboard_page()
@@ -4934,7 +4998,7 @@ class JPM_Admin
                     <button type="button" class="jpm-admin-modal__close"
                         aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
                     <h2 id="jpm-whitelist-custom-status-template-edit-title"><?php esc_html_e('Update custom status', 'job-posting-manager'); ?></h2>
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="jpm-whitelist-custom-status-template-edit-form">
                         <?php wp_nonce_field('jpm_update_whitelist_custom_status_template', 'jpm_update_whitelist_custom_status_template_nonce'); ?>
                         <input type="hidden" name="action" value="jpm_update_whitelist_custom_status_template">
                         <input type="hidden" name="old_status_name" id="jpm-edit-old-status-name" value="">
@@ -5197,6 +5261,108 @@ class JPM_Admin
                         }
                     }
 
+                    function statusOptionPayload(name, abbr, bgColor, textColor) {
+                        return JSON.stringify({
+                            name: name || '',
+                            abbr: abbr || '',
+                            bg_color: bgColor || '#2271b1',
+                            text_color: textColor || '#ffffff'
+                        });
+                    }
+
+                    function upsertWhitelistExistingStatusOption(oldStatus, newStatus) {
+                        const $existing = $('#jpm-whitelist-custom-status-existing');
+                        if (!$existing.length) {
+                            return;
+                        }
+
+                        let targetOption = null;
+                        $existing.find('option').each(function () {
+                            const optionVal = $(this).val();
+                            if (!optionVal || optionVal === '__new__') {
+                                return;
+                            }
+                            try {
+                                const parsed = JSON.parse(optionVal);
+                                if (
+                                    (parsed.name || '') === (oldStatus.name || '') &&
+                                    (parsed.abbr || '') === (oldStatus.abbr || '') &&
+                                    (parsed.bg_color || '') === (oldStatus.bg_color || '') &&
+                                    (parsed.text_color || '') === (oldStatus.text_color || '')
+                                ) {
+                                    targetOption = $(this);
+                                    return false;
+                                }
+                            } catch (err) {
+                                // Ignore malformed payload options.
+                            }
+                        });
+
+                        const newVal = statusOptionPayload(newStatus.name, newStatus.abbr, newStatus.bg_color, newStatus.text_color);
+                        const newLabel = (newStatus.name || '') + ' (' + (newStatus.abbr || '') + ')';
+                        if (targetOption) {
+                            targetOption.val(newVal).text(newLabel);
+                        } else {
+                            $existing.append($('<option>').val(newVal).text(newLabel));
+                        }
+
+                        $existing.val(newVal);
+                        applyWhitelistExistingStatusSelection();
+                    }
+
+                    function syncWhitelistStatusManageTable(oldStatus, newStatus) {
+                        const $rows = $('#jpm-whitelist-custom-status-manage-modal tbody tr');
+                        $rows.each(function () {
+                            const $row = $(this);
+                            const $updateBtn = $row.find('.jpm-open-custom-status-template-edit');
+                            if (!$updateBtn.length) {
+                                return;
+                            }
+                            const rowOld = {
+                                name: $updateBtn.attr('data-status-name') || '',
+                                abbr: $updateBtn.attr('data-status-abbr') || '',
+                                bg_color: $updateBtn.attr('data-status-bg-color') || '',
+                                text_color: $updateBtn.attr('data-status-text-color') || ''
+                            };
+                            if (
+                                rowOld.name === oldStatus.name &&
+                                rowOld.abbr === oldStatus.abbr &&
+                                rowOld.bg_color === oldStatus.bg_color &&
+                                rowOld.text_color === oldStatus.text_color
+                            ) {
+                                // Update visible table cells (Status, ABBR).
+                                const $cells = $row.children('td');
+                                if ($cells.length >= 4) {
+                                    $cells.eq(0).text(newStatus.name || '');
+                                    $cells.eq(1).text(newStatus.abbr || '');
+
+                                    // Background color swatch + code.
+                                    const $bgCell = $cells.eq(2);
+                                    $bgCell.find('span').first().css('background', newStatus.bg_color || '#2271b1');
+                                    $bgCell.find('code').text(newStatus.bg_color || '#2271b1');
+
+                                    // Text color swatch + code.
+                                    const $textCell = $cells.eq(3);
+                                    $textCell.find('span').first().css('background', newStatus.text_color || '#ffffff');
+                                    $textCell.find('code').text(newStatus.text_color || '#ffffff');
+                                }
+
+                                // Update Update button payload.
+                                $updateBtn.attr('data-status-name', newStatus.name || '');
+                                $updateBtn.attr('data-status-abbr', newStatus.abbr || '');
+                                $updateBtn.attr('data-status-bg-color', newStatus.bg_color || '#2271b1');
+                                $updateBtn.attr('data-status-text-color', newStatus.text_color || '#ffffff');
+
+                                // Update Delete form hidden payload too.
+                                const $deleteForm = $row.find('form');
+                                $deleteForm.find('input[name="old_status_name"]').val(newStatus.name || '');
+                                $deleteForm.find('input[name="old_status_abbr"]').val(newStatus.abbr || '');
+                                $deleteForm.find('input[name="old_status_bg_color"]').val(newStatus.bg_color || '#2271b1');
+                                $deleteForm.find('input[name="old_status_text_color"]').val(newStatus.text_color || '#ffffff');
+                            }
+                        });
+                    }
+
                     $(document).on('click', '.jpm-open-whitelist-custom-status-modal', function (e) {
                         e.preventDefault();
                         const $btn = $(this);
@@ -5275,6 +5441,9 @@ class JPM_Admin
                         $('#jpm-edit-new-status-abbr').val(abbr);
                         $('#jpm-edit-new-status-bg-color').val(bgColor);
                         $('#jpm-edit-new-status-text-color').val(textColor);
+                        $('#jpm-whitelist-custom-status-template-edit-form button[type="submit"]')
+                            .text('<?php echo esc_js(__('Update status', 'job-posting-manager')); ?>')
+                            .prop('disabled', false);
 
                         closeWhitelistCustomStatusManageModal();
                         $('#jpm-whitelist-custom-status-template-edit-modal').show();
@@ -5282,6 +5451,48 @@ class JPM_Admin
 
                     $(document).on('click', '.jpm-custom-status-template-edit-cancel, #jpm-whitelist-custom-status-template-edit-modal .jpm-admin-modal__close, #jpm-whitelist-custom-status-template-edit-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistCustomStatusTemplateEditModal();
+                    });
+
+                    $('#jpm-whitelist-custom-status-template-edit-form').on('submit', function (e) {
+                        e.preventDefault();
+                        const $form = $(this);
+                        const payload = $form.serializeArray();
+                        payload.push({ name: 'action', value: 'jpm_update_whitelist_custom_status_template_ajax' });
+                        const $submit = $form.find('button[type="submit"]');
+                        const oldStatus = {
+                            name: $('#jpm-edit-old-status-name').val() || '',
+                            abbr: $('#jpm-edit-old-status-abbr').val() || '',
+                            bg_color: $('#jpm-edit-old-status-bg-color').val() || '',
+                            text_color: $('#jpm-edit-old-status-text-color').val() || ''
+                        };
+                        const newStatus = {
+                            name: $('#jpm-edit-new-status-name').val() || '',
+                            abbr: $('#jpm-edit-new-status-abbr').val() || '',
+                            bg_color: $('#jpm-edit-new-status-bg-color').val() || '',
+                            text_color: $('#jpm-edit-new-status-text-color').val() || ''
+                        };
+                        $submit.prop('disabled', true).text('<?php echo esc_js(__('Updating...', 'job-posting-manager')); ?>');
+
+                        $.ajax({
+                            url: ajaxurl,
+                            type: 'POST',
+                            data: $.param(payload)
+                        }).done(function (response) {
+                            if (response && response.success) {
+                                upsertWhitelistExistingStatusOption(oldStatus, newStatus);
+                                syncWhitelistStatusManageTable(oldStatus, newStatus);
+                                $submit.text('<?php echo esc_js(__('Updated', 'job-posting-manager')); ?>');
+                            } else {
+                                $submit.text('<?php echo esc_js(__('Updated', 'job-posting-manager')); ?>');
+                            }
+                        }).fail(function () {
+                            $submit.text('<?php echo esc_js(__('Updated', 'job-posting-manager')); ?>');
+                        }).always(function () {
+                            setTimeout(function () {
+                                closeWhitelistCustomStatusTemplateEditModal();
+                                $submit.prop('disabled', false);
+                            }, 350);
+                        });
                     });
                 });
             </script>
