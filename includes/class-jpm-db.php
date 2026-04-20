@@ -2422,30 +2422,6 @@ class JPM_Admin
                                                 target="_blank" class="button button-small" style="text-decoration: none;">
                                                 <?php esc_html_e('View Details', 'job-posting-manager'); ?>
                                             </a>
-                                            <?php
-                                            $is_accepted = strtolower((string) $application->status) === 'accepted';
-                                            $is_whitelisted = isset($application->whitelisted) && (int) $application->whitelisted === 1;
-                                            ?>
-                                            <span class="jpm-whitelist-container<?php echo $is_accepted ? '' : ' jpm-whitelist-container--hidden'; ?>">
-                                                <?php if ($is_whitelisted): ?>
-                                                    <span class="button button-small" style="opacity:0.85;cursor:default;background:#f0f0f1;border-color:#c3c4c7;color:#2c3338;">
-                                                        <?php esc_html_e('Whitelisted', 'job-posting-manager'); ?>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                                        <?php wp_nonce_field('jpm_whitelist_application', 'jpm_whitelist_application_nonce'); ?>
-                                                        <input type="hidden" name="action" value="jpm_whitelist_application">
-                                                        <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
-                                                        <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
-                                                        <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
-                                                        <input type="hidden" name="jpm_return_status" value="<?php echo esc_attr($filters['status']); ?>">
-                                                        <button type="button" class="button button-small jpm-open-pending-form-confirm"
-                                                            data-confirm-message="<?php echo esc_attr(__('Add this applicant to the whitelist?', 'job-posting-manager')); ?>">
-                                                            <?php esc_html_e('Whitelist', 'job-posting-manager'); ?>
-                                                        </button>
-                                                    </form>
-                                                <?php endif; ?>
-                                            </span>
                                             <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
                                                 <button type="button" class="button button-small jpm-view-requirements-btn"
                                                     data-application-id="<?php echo esc_attr($application->id); ?>"
