@@ -6535,6 +6535,22 @@ class JPM_Admin
         $status_info = self::get_status_by_slug($application->status);
         $status_name = $status_info ? $status_info['name'] : ucfirst((string) $application->status);
 
+        $emp_fn = isset($application->employer_first_name) ? sanitize_text_field((string) $application->employer_first_name) : '';
+        $emp_ln = isset($application->employer_last_name) ? sanitize_text_field((string) $application->employer_last_name) : '';
+        $emp_phone = isset($application->employer_phone) ? sanitize_text_field((string) $application->employer_phone) : '';
+        $emp_email_raw = isset($application->employer_email) ? trim((string) $application->employer_email) : '';
+        $emp_email = $emp_email_raw !== '' ? sanitize_email($emp_email_raw) : '';
+        if ($emp_email !== '' && !is_email($emp_email)) {
+            $emp_email = '';
+        }
+        $emp_recorded = '';
+        if (!empty($application->employer_recorded_at)) {
+            $emp_ts = strtotime((string) $application->employer_recorded_at);
+            if ($emp_ts) {
+                $emp_recorded = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $emp_ts);
+            }
+        }
+
         return [
             'id' => (int) $application->id,
             'application_number' => $application_number,
@@ -6564,7 +6580,28 @@ class JPM_Admin
             'skills' => $skills,
             'cover_letter' => $cover_letter,
             'form_data' => $form_data,
+            'employer_first_name' => $emp_fn,
+            'employer_last_name' => $emp_ln,
+            'employer_phone' => $emp_phone,
+            'employer_email' => $emp_email,
+            'employer_recorded_at' => $emp_recorded,
         ];
+    }
+
+    /**
+     * Whether any row in a built report has employer welfare data (whitelist exports).
+     *
+     * @param array $rows Rows from build_application_report_row().
+     */
+    private function whitelist_report_includes_employer_data(array $rows): bool
+    {
+        foreach ($rows as $row) {
+            if (!empty($row['employer_email'])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -6612,6 +6649,8 @@ class JPM_Admin
         arsort($status_counts);
         arsort($job_counts);
 
+        $include_employer_columns = $is_whitelist && $this->whitelist_report_includes_employer_data($rows);
+
         fputcsv($output, [$report_title]);
         fputcsv($output, [__('Generated At', 'job-posting-manager'), date_i18n(get_option('date_format') . ' ' . get_option('time_format'))]);
         fputcsv($output, [__('Date Range', 'job-posting-manager'), $context['range_label']]);
@@ -6626,6 +6665,23 @@ class JPM_Admin
             fputcsv($output, [__('Filter: Submitted on', 'job-posting-manager'), !empty($f['submitted_on']) ? $f['submitted_on'] : __('None', 'job-posting-manager')]);
             fputcsv($output, [__('Filter: Submitted from', 'job-posting-manager'), !empty($f['submitted_from']) ? $f['submitted_from'] : __('None', 'job-posting-manager')]);
             fputcsv($output, [__('Filter: Submitted to', 'job-posting-manager'), !empty($f['submitted_to']) ? $f['submitted_to'] : __('None', 'job-posting-manager')]);
+            if ($include_employer_columns) {
+                $with_emp = 0;
+                foreach ($rows as $r) {
+                    if (!empty($r['employer_email'])) {
+                        $with_emp++;
+                    }
+                }
+                fputcsv($output, [
+                    __('Employer welfare', 'job-posting-manager'),
+                    sprintf(
+                        /* translators: 1: count with employer on file, 2: total applications in report. */
+                        __('%1$d of %2$d applications include employer contact', 'job-posting-manager'),
+                        $with_emp,
+                        count($rows)
+                    ),
+                ]);
+            }
         } else {
             fputcsv($output, [__('Filter: Status', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager')]);
             fputcsv($output, [__('Filter: Job ID', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager')]);
@@ -6659,7 +6715,7 @@ class JPM_Admin
         }
         fputcsv($output, []);
 
-        fputcsv($output, [
+        $detail_header = [
             __('ID', 'job-posting-manager'),
             __('Application Number', 'job-posting-manager'),
             __('Application Date', 'job-posting-manager'),
@@ -6687,7 +6743,20 @@ class JPM_Admin
             __('Skills', 'job-posting-manager'),
             __('Cover Letter / Message', 'job-posting-manager'),
             __('Additional Form Data (Readable)', 'job-posting-manager'),
-        ]);
+        ];
+        if ($include_employer_columns) {
+            $detail_header = array_merge(
+                $detail_header,
+                [
+                    __('Employer first name', 'job-posting-manager'),
+                    __('Employer last name', 'job-posting-manager'),
+                    __('Employer phone', 'job-posting-manager'),
+                    __('Employer email', 'job-posting-manager'),
+                    __('Employer recorded at', 'job-posting-manager'),
+                ]
+            );
+        }
+        fputcsv($output, $detail_header);
 
         foreach ($rows as $row) {
             $readable_form_data = [];
@@ -6715,7 +6784,7 @@ class JPM_Admin
                 }
             }
 
-            fputcsv($output, [
+            $detail_row = [
                 $row['id'],
                 $row['application_number'],
                 $row['application_date'],
@@ -6743,7 +6812,15 @@ class JPM_Admin
                 $row['skills'],
                 $row['cover_letter'],
                 !empty($readable_form_data) ? implode(' | ', $readable_form_data) : __('No additional form data.', 'job-posting-manager'),
-            ]);
+            ];
+            if ($include_employer_columns) {
+                $detail_row[] = $row['employer_first_name'];
+                $detail_row[] = $row['employer_last_name'];
+                $detail_row[] = $row['employer_phone'];
+                $detail_row[] = $row['employer_email'];
+                $detail_row[] = $row['employer_recorded_at'];
+            }
+            fputcsv($output, $detail_row);
         }
 
         exit;
@@ -6786,6 +6863,8 @@ class JPM_Admin
         arsort($status_counts);
         arsort($job_counts);
 
+        $include_employer_columns = $is_whitelist && $this->whitelist_report_includes_employer_data($rows);
+
         ?>
         <!doctype html>
         <html>
@@ -6826,6 +6905,22 @@ class JPM_Admin
                     <div><?php echo esc_html(sprintf(__('Scope: %s', 'job-posting-manager'), __('Whitelisted applications only', 'job-posting-manager'))); ?></div>
                     <div><?php echo esc_html(sprintf(__('List filters — Job ID: %1$s | Search: %2$s | Job location: %3$s', 'job-posting-manager'), !empty($wf['job_id']) ? (string) (int) $wf['job_id'] : __('All', 'job-posting-manager'), !empty($wf['search']) ? $wf['search'] : __('None', 'job-posting-manager'), !empty($wf['location']) ? $wf['location'] : __('All', 'job-posting-manager'))); ?></div>
                     <div><?php echo esc_html(sprintf(__('List filters — Submitted on: %1$s | From: %2$s | To: %3$s', 'job-posting-manager'), !empty($wf['submitted_on']) ? $wf['submitted_on'] : __('None', 'job-posting-manager'), !empty($wf['submitted_from']) ? $wf['submitted_from'] : __('None', 'job-posting-manager'), !empty($wf['submitted_to']) ? $wf['submitted_to'] : __('None', 'job-posting-manager'))); ?></div>
+                    <?php if ($include_employer_columns): ?>
+                        <?php
+                        $with_emp = 0;
+                        foreach ($rows as $r) {
+                            if (!empty($r['employer_email'])) {
+                                $with_emp++;
+                            }
+                        }
+                        ?>
+                        <div><?php echo esc_html(sprintf(
+                            /* translators: 1: count with employer on file, 2: total applications in report. */
+                            __('Employer welfare: %1$d of %2$d applications include employer contact', 'job-posting-manager'),
+                            $with_emp,
+                            count($rows)
+                        )); ?></div>
+                    <?php endif; ?>
                 <?php else: ?>
                     <div><?php echo esc_html(sprintf(__('Filters - Status: %1$s | Job ID: %2$s | Search: %3$s', 'job-posting-manager'), $context['filters']['status'] !== '' ? $context['filters']['status'] : __('All', 'job-posting-manager'), $context['filters']['job_id'] > 0 ? (string) $context['filters']['job_id'] : __('All', 'job-posting-manager'), $context['filters']['search'] !== '' ? $context['filters']['search'] : __('None', 'job-posting-manager'))); ?></div>
                 <?php endif; ?>
@@ -6906,6 +7001,14 @@ class JPM_Admin
                         <div class="row"><strong><?php esc_html_e('Work Experience', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['work_experience']); ?></div>
                         <div class="row"><strong><?php esc_html_e('Skills', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['skills']); ?></div>
                         <div class="row"><strong><?php esc_html_e('Cover Letter / Message', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['cover_letter']); ?></div>
+                        <?php if ($include_employer_columns && !empty($row['employer_email'])): ?>
+                            <h4 style="margin:12px 0 6px;font-size:13px;"><?php esc_html_e('Employer (welfare check)', 'job-posting-manager'); ?></h4>
+                            <div class="row"><strong><?php esc_html_e('Employer first name', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['employer_first_name']); ?></div>
+                            <div class="row"><strong><?php esc_html_e('Employer last name', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['employer_last_name']); ?></div>
+                            <div class="row"><strong><?php esc_html_e('Employer phone', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['employer_phone']); ?></div>
+                            <div class="row"><strong><?php esc_html_e('Employer email', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['employer_email']); ?></div>
+                            <div class="row"><strong><?php esc_html_e('Employer recorded at', 'job-posting-manager'); ?>:</strong> <?php echo esc_html($row['employer_recorded_at']); ?></div>
+                        <?php endif; ?>
                         <div class="row"><strong><?php esc_html_e('Raw Form Data', 'job-posting-manager'); ?>:</strong></div>
                         <div class="raw-data-list">
                             <?php if (empty($row['form_data'])): ?>
