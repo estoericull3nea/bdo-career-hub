@@ -2683,6 +2683,13 @@ class JPM_Admin
             exit;
         }
 
+        if (function_exists('wp_enqueue_editor')) {
+            wp_enqueue_editor();
+        }
+
+        if (function_exists('wp_enqueue_editor')) {
+            wp_enqueue_editor();
+        }
         $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : '';
         $report_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
         $report_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
@@ -4356,6 +4363,10 @@ class JPM_Admin
 
     public function whitelisted_applications_page()
     {
+        if (function_exists('wp_enqueue_editor')) {
+            wp_enqueue_editor();
+        }
+
         $report_range = isset($_GET['report_range']) ? sanitize_key(wp_unslash($_GET['report_range'])) : '';
         $report_start = isset($_GET['report_start']) ? sanitize_text_field(wp_unslash($_GET['report_start'])) : '';
         $report_end = isset($_GET['report_end']) ? sanitize_text_field(wp_unslash($_GET['report_end'])) : '';
@@ -5411,8 +5422,18 @@ class JPM_Admin
                         </div>
                         <div class="jpm-admin-field">
                             <label for="jpm-whitelist-bulk-email-content"><?php esc_html_e('Content', 'job-posting-manager'); ?></label>
-                            <textarea id="jpm-whitelist-bulk-email-content" name="content" rows="8" required
-                                placeholder="<?php esc_attr_e('Write your message to selected applicants here.', 'job-posting-manager'); ?>"></textarea>
+                            <?php
+                            wp_editor(
+                                '',
+                                'jpm-whitelist-bulk-email-content',
+                                [
+                                    'textarea_name' => 'content',
+                                    'textarea_rows' => 8,
+                                    'media_buttons' => false,
+                                    'teeny' => true,
+                                ]
+                            );
+                            ?>
                         </div>
                         <div id="jpm-whitelist-bulk-email-progress-wrap" style="display:none;margin-top:12px;">
                             <div class="description" id="jpm-whitelist-bulk-email-progress-text" style="margin-bottom:6px;">
@@ -5830,6 +5851,14 @@ class JPM_Admin
                         $('#jpm-whitelist-bulk-email-applicants-content').empty();
                     }
                     function resetWhitelistBulkEmailProgress() {
+                        if (typeof tinymce !== 'undefined' && tinymce.get('jpm-whitelist-bulk-email-content')) {
+                            tinymce.get('jpm-whitelist-bulk-email-content').setContent('');
+                            if (typeof tinymce.triggerSave === 'function') {
+                                tinymce.triggerSave();
+                            }
+                        } else {
+                            $('#jpm-whitelist-bulk-email-content').val('');
+                        }
                         $('#jpm-whitelist-bulk-email-progress-wrap').hide();
                         $('#jpm-whitelist-bulk-email-progress-bar').css('width', '0%');
                         $('#jpm-whitelist-bulk-email-progress-text').text('<?php echo esc_js(__('Sending... 0%', 'job-posting-manager')); ?>');
@@ -5949,6 +5978,9 @@ class JPM_Admin
                     });
                     $('#jpm-whitelist-bulk-email-form').on('submit', function (e) {
                         e.preventDefault();
+                        if (typeof tinymce !== 'undefined' && typeof tinymce.triggerSave === 'function') {
+                            tinymce.triggerSave();
+                        }
                         const $form = $(this);
                         const $submit = $form.find('button[type="submit"]');
                         const payload = $form.serializeArray();
