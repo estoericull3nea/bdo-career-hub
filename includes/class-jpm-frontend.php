@@ -102,6 +102,112 @@ class JPM_Frontend
         );
     }
 
+    /**
+     * Supported salary currency symbols.
+     *
+     * @return array<string, string>
+     */
+    private function get_salary_currency_symbols()
+    {
+        return [
+            'usd' => '$',
+            'eur' => '€',
+            'gbp' => '£',
+            'jpy' => '¥',
+            'php' => '₱',
+            'aud' => 'A$',
+            'cad' => 'C$',
+            'sgd' => 'S$',
+            'hkd' => 'HK$',
+            'nzd' => 'NZ$',
+            'chf' => 'CHF ',
+            'sek' => 'kr',
+            'nok' => 'kr',
+            'dkk' => 'kr',
+            'pln' => 'zł',
+            'try' => '₺',
+            'mxn' => 'MX$',
+            'brl' => 'R$',
+            'zar' => 'R',
+            'inr' => '₹',
+            'idr' => 'Rp',
+            'myr' => 'RM',
+            'thb' => '฿',
+            'vnd' => '₫',
+            'krw' => '₩',
+            'cny' => '¥',
+            'aed' => 'AED ',
+            'sar' => 'SAR ',
+            'qar' => 'QAR ',
+            'kwd' => 'KWD ',
+            'bhd' => 'BHD ',
+            'omr' => 'OMR ',
+            'rub' => '₽',
+            'uah' => '₴',
+            'ils' => '₪',
+            'egp' => 'E£',
+            'ngn' => '₦',
+            'kes' => 'KSh',
+            'huf' => 'Ft ',
+            'czk' => 'Kč',
+            'ron' => 'lei ',
+            'bdt' => '৳',
+            'pkr' => 'PKR ',
+        ];
+    }
+
+    /**
+     * Get currency symbol text for a job's salary currency.
+     *
+     * @param int $job_id Job post ID.
+     * @return string
+     */
+    private function get_salary_currency_symbol($job_id)
+    {
+        $currency = strtolower(sanitize_key((string) get_post_meta(absint($job_id), 'salary_currency', true)));
+        $symbols = $this->get_salary_currency_symbols();
+
+        if (isset($symbols[$currency])) {
+            return $symbols[$currency];
+        }
+
+        return strtoupper($currency) !== '' ? strtoupper($currency) . ' ' : '₱';
+    }
+
+    /**
+     * Build salary display parts for frontend cards and modal.
+     *
+     * Uses the symbol from the saved salary value when present so the left
+     * salary icon/symbol always matches the displayed amount currency.
+     *
+     * @param int $job_id Job post ID.
+     * @return array{0:string,1:string}
+     */
+    private function get_salary_display_parts($job_id)
+    {
+        $salary = trim((string) get_post_meta(absint($job_id), 'salary', true));
+        $currency_symbol = $this->get_salary_currency_symbol($job_id);
+
+        if ($salary === '') {
+            return [$currency_symbol, ''];
+        }
+
+        $known_symbols = array_values($this->get_salary_currency_symbols());
+        usort($known_symbols, static function ($left, $right) {
+            return strlen($right) - strlen($left);
+        });
+
+        foreach ($known_symbols as $symbol) {
+            if ($symbol !== '' && strpos($salary, $symbol) === 0) {
+                $currency_symbol = $symbol;
+                $salary = ltrim(substr($salary, strlen($symbol)));
+                break;
+            }
+        }
+
+        return [$currency_symbol, $salary];
+    }
+
     public function __construct()
     {
         add_shortcode('job_listings', [$this, 'job_listings_shortcode']);
@@ -642,7 +748,7 @@ class JPM_Frontend
         <div class="jpm-latest-jobs">
             <?php foreach ($jobs as $job):
                 $location = get_post_meta($job->ID, 'location', true);
-                $salary = get_post_meta($job->ID, 'salary', true);
+                list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job->ID);
                 $duration = get_post_meta($job->ID, 'duration', true);
                 $company_image_id = get_post_meta($job->ID, 'company_image', true);
                 $company_image_url = '';
@@ -683,8 +789,10 @@ class JPM_Frontend
                             <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-location"></i><?php echo esc_html($location); ?> </span>
                             <?php endif; ?>
-                            <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
-                                        class="dashicons dashicons-money-alt"></i><?php echo esc_html($salary); ?> </span>
+                            <?php if (!empty($salary)): ?><span class="jpm-job-info-item">
+                                    <span class="jpm-salary-currency-symbol"><?php echo esc_html($salary_currency_symbol); ?></span>
+                                    <?php echo esc_html($salary); ?>
+                                </span>
                             <?php endif; ?>
                             <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                         class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?></span>
@@ -766,7 +874,7 @@ class JPM_Frontend
         }
 
         $location = get_post_meta($job_id, 'location', true);
-        $salary = get_post_meta($job_id, 'salary', true);
+        list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job_id);
         $duration = get_post_meta($job_id, 'duration', true);
         $company_image_id = get_post_meta($job_id, 'company_image', true);
         $company_image_url = '';
@@ -802,7 +910,7 @@ class JPM_Frontend
                 <?php if (!empty($salary)): ?>
                     <li>
                         <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($salary); ?></span>
+                        <span><?php echo esc_html($salary_currency_symbol . $salary); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>
@@ -1019,7 +1127,7 @@ class JPM_Frontend
                         $jobs_query->the_post();
                         $job_id = get_the_ID();
                         $location = get_post_meta($job_id, 'location', true);
-                        $salary = get_post_meta($job_id, 'salary', true);
+                        list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job_id);
                         $duration = get_post_meta($job_id, 'duration', true);
                         $company_image_id = get_post_meta($job_id, 'company_image', true);
                         $company_image_url = '';
@@ -1060,8 +1168,10 @@ class JPM_Frontend
                                     <?php if (!empty($location)): ?><span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-location"></i> <?php echo esc_html($location); ?> </span>
                                     <?php endif; ?>
-                                    <?php if (!empty($salary)): ?><span class="jpm-job-info-item"> <i
-                                                class="dashicons dashicons-money-alt"></i> <?php echo esc_html($salary); ?> </span>
+                                    <?php if (!empty($salary)): ?><span class="jpm-job-info-item">
+                                            <span class="jpm-salary-currency-symbol"><?php echo esc_html($salary_currency_symbol); ?></span>
+                                            <?php echo esc_html($salary); ?>
+                                        </span>
                                     <?php endif; ?>
                                     <?php if (!empty($duration)): ?> <span class="jpm-job-info-item"> <i
                                                 class="dashicons dashicons-clock"></i> <?php echo esc_html($duration); ?> </span>
@@ -1309,7 +1419,7 @@ class JPM_Frontend
                 $jobs_query->the_post();
                 $job_id = get_the_ID();
                 $location = get_post_meta($job_id, 'location', true);
-                $salary = get_post_meta($job_id, 'salary', true);
+                list($salary_currency_symbol, $salary) = $this->get_salary_display_parts($job_id);
                 $duration = get_post_meta($job_id, 'duration', true);
                 $company_image_id = get_post_meta($job_id, 'company_image', true);
                 $company_image_url = '';
@@ -1347,7 +1457,7 @@ class JPM_Frontend
                             <?php endif; ?>
                             <?php if (!empty($salary)): ?>
                                 <span class="jpm-job-info-item">
-                                    <i class="dashicons dashicons-money-alt"></i>
+                                    <span class="jpm-salary-currency-symbol"><?php echo esc_html($salary_currency_symbol); ?></span>
                                     <?php echo esc_html($salary); ?>
                                 </span>
                             <?php endif; ?>
