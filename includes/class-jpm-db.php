@@ -1852,7 +1852,7 @@ class JPM_Admin
                                         $is_accepted = strtolower((string) $application->status) === 'accepted';
                                         $is_whitelisted = isset($application->whitelisted) && (int) $application->whitelisted === 1;
                                         ?>
-                                        <?php if ($is_accepted): ?>
+                                        <span class="jpm-whitelist-container<?php echo $is_accepted ? '' : ' jpm-whitelist-container--hidden'; ?>">
                                             <?php if ($is_whitelisted): ?>
                                                 <span class="button button-small" style="opacity:0.85;cursor:default;background:#f0f0f1;border-color:#c3c4c7;color:#2c3338;">
                                                     <?php esc_html_e('Whitelisted', 'job-posting-manager'); ?>
@@ -1872,7 +1872,7 @@ class JPM_Admin
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
-                                        <?php endif; ?>
+                                        </span>
                                         <?php if ($medical_status_slug && $application->status === $medical_status_slug): ?>
                                             <button type="button" class="button button-small jpm-view-requirements-btn"
                                                 data-application-id="<?php echo esc_attr($application->id); ?>"
@@ -2193,6 +2193,14 @@ class JPM_Admin
                 font-size: 13px;
             }
 
+            .jpm-whitelist-container {
+                display: inline-block;
+            }
+
+            .jpm-whitelist-container.jpm-whitelist-container--hidden {
+                display: none !important;
+            }
+
             .jpm-empty-state {
                 display: flex;
                 justify-content: center;
@@ -2380,6 +2388,18 @@ class JPM_Admin
                     $badge.attr('style', 'background-color: ' + bg + '; color: ' + fg + ';');
                 }
 
+                function syncWhitelistVisibility($row, statusSlug) {
+                    const $wl = $row.find('.jpm-whitelist-container');
+                    if (!$wl.length) {
+                        return;
+                    }
+                    if (String(statusSlug).toLowerCase() === 'accepted') {
+                        $wl.removeClass('jpm-whitelist-container--hidden');
+                    } else {
+                        $wl.addClass('jpm-whitelist-container--hidden');
+                    }
+                }
+
                 function showSuccess($select) {
                     $select.next('.jpm-status-update-success').remove();
                     $select.after('<span class="jpm-status-update-success">&#10003; <?php echo esc_js(__('Updated', 'job-posting-manager')); ?></span>');
@@ -2404,6 +2424,7 @@ class JPM_Admin
                     }).done(function (response) {
                         if (response.success) {
                             updateBadge($row, newStatus);
+                            syncWhitelistVisibility($row, newStatus);
                             $select.data('previous', newStatus);
                             showSuccess($select);
                         } else {
@@ -2633,6 +2654,7 @@ class JPM_Admin
                             }
                             if (activeRow) {
                                 updateBadge(activeRow, statusSlug);
+                                syncWhitelistVisibility(activeRow, statusSlug);
                             }
                             if (activeSelect) {
                                 showSuccess(activeSelect);
@@ -2692,6 +2714,7 @@ class JPM_Admin
                             }
                             if (activeRow) {
                                 updateBadge(activeRow, statusSlug);
+                                syncWhitelistVisibility(activeRow, statusSlug);
                             }
                             if (activeSelect) {
                                 showSuccess(activeSelect);
@@ -2765,6 +2788,7 @@ class JPM_Admin
                             }
                             if (activeRow) {
                                 updateBadge(activeRow, statusSlug);
+                                syncWhitelistVisibility(activeRow, statusSlug);
                             }
                             if (activeSelect) {
                                 showSuccess(activeSelect);
