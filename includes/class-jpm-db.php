@@ -903,6 +903,7 @@ class JPM_Admin
                 'sent_by_name' => wp_get_current_user()->display_name,
                 'from_email' => $from_email,
                 'subject' => $subject,
+                'content' => $content,
                 'selected_count' => count($application_ids),
                 'sent_count' => $sent_count,
                 'failed_count' => $failed_count,
@@ -924,6 +925,7 @@ class JPM_Admin
             'sent_by_name' => wp_get_current_user()->display_name,
             'from_email' => $from_email,
             'subject' => $subject,
+            'content' => $content,
             'selected_count' => count($application_ids),
             'sent_count' => $sent_count,
             'failed_count' => $failed_count,
@@ -982,6 +984,7 @@ class JPM_Admin
                 'selected_count' => $total_count,
                 'from_email' => $from_email,
                 'subject' => $subject,
+                'content' => $content,
                 'application_ids' => $application_ids,
             ], 30 * MINUTE_IN_SECONDS);
         }
@@ -1045,6 +1048,7 @@ class JPM_Admin
                     'selected_count' => $total_count,
                     'from_email' => $from_email,
                     'subject' => $subject,
+                        'content' => $content,
                         'application_ids' => $application_ids,
                 ];
             }
@@ -1062,6 +1066,7 @@ class JPM_Admin
                     'sent_by_name' => $current_user ? $current_user->display_name : '',
                     'from_email' => (string) ($run_data['from_email'] ?? $from_email),
                     'subject' => (string) ($run_data['subject'] ?? $subject),
+                    'content' => (string) ($run_data['content'] ?? $content),
                     'selected_count' => (int) ($run_data['selected_count'] ?? $total_count),
                     'sent_count' => $total_sent,
                     'failed_count' => $total_failed,
@@ -5493,6 +5498,7 @@ class JPM_Admin
                                         $sent_by_name = isset($history_item['sent_by_name']) ? (string) $history_item['sent_by_name'] : '';
                                         $from_email = isset($history_item['from_email']) ? (string) $history_item['from_email'] : '';
                                         $subject_line = isset($history_item['subject']) ? (string) $history_item['subject'] : '';
+                                        $content_html = isset($history_item['content']) ? (string) $history_item['content'] : '';
                                         $selected_count = isset($history_item['selected_count']) ? (int) $history_item['selected_count'] : 0;
                                         $sent_count = isset($history_item['sent_count']) ? (int) $history_item['sent_count'] : 0;
                                         $failed_count = isset($history_item['failed_count']) ? (int) $history_item['failed_count'] : 0;
@@ -5524,6 +5530,11 @@ class JPM_Admin
                                                     data-applicants="<?php echo esc_attr((string) $history_applicants_payload); ?>">
                                                     <?php esc_html_e('View all applicants', 'job-posting-manager'); ?>
                                                 </button>
+                                                <button type="button" class="button button-small jpm-open-bulk-email-content-modal" style="margin-left:6px;"
+                                                    data-subject="<?php echo esc_attr($subject_line); ?>"
+                                                    data-content="<?php echo esc_attr($content_html); ?>">
+                                                    <?php esc_html_e('View content', 'job-posting-manager'); ?>
+                                                </button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -5549,6 +5560,23 @@ class JPM_Admin
                     <div id="jpm-whitelist-bulk-email-applicants-content" style="max-height: 420px; overflow:auto;"></div>
                     <div style="margin-top: 16px; text-align: right;">
                         <button type="button" class="button jpm-whitelist-bulk-email-applicants-close">
+                            <?php esc_html_e('Close', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jpm-whitelist-bulk-email-content-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-whitelist-bulk-email-content-title" style="max-width: 820px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-whitelist-bulk-email-content-title"><?php esc_html_e('Bulk email content', 'job-posting-manager'); ?></h2>
+                    <p id="jpm-whitelist-bulk-email-content-subject" class="description" style="margin-bottom: 10px;"></p>
+                    <div id="jpm-whitelist-bulk-email-content-body" style="max-height: 420px; overflow:auto; background:#fff; border:1px solid #ddd; border-radius:4px; padding:12px;"></div>
+                    <div style="margin-top: 16px; text-align: right;">
+                        <button type="button" class="button jpm-whitelist-bulk-email-content-close">
                             <?php esc_html_e('Close', 'job-posting-manager'); ?>
                         </button>
                     </div>
@@ -5850,6 +5878,11 @@ class JPM_Admin
                         $('#jpm-whitelist-bulk-email-applicants-modal').hide();
                         $('#jpm-whitelist-bulk-email-applicants-content').empty();
                     }
+                    function closeWhitelistBulkEmailContentModal() {
+                        $('#jpm-whitelist-bulk-email-content-modal').hide();
+                        $('#jpm-whitelist-bulk-email-content-subject').text('');
+                        $('#jpm-whitelist-bulk-email-content-body').empty();
+                    }
                     function resetWhitelistBulkEmailProgress() {
                         if (typeof tinymce !== 'undefined' && tinymce.get('jpm-whitelist-bulk-email-content')) {
                             tinymce.get('jpm-whitelist-bulk-email-content').setContent('');
@@ -5975,6 +6008,23 @@ class JPM_Admin
                     });
                     $(document).on('click', '.jpm-whitelist-bulk-email-applicants-close, #jpm-whitelist-bulk-email-applicants-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-applicants-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistBulkEmailApplicantsModal();
+                    });
+                    $(document).on('click', '.jpm-open-bulk-email-content-modal', function (e) {
+                        e.preventDefault();
+                        const subject = $(this).attr('data-subject') || '';
+                        const content = $(this).attr('data-content') || '';
+                        $('#jpm-whitelist-bulk-email-content-subject').text(
+                            '<?php echo esc_js(__('Subject: %s', 'job-posting-manager')); ?>'.replace('%s', subject || '—')
+                        );
+                        if (content) {
+                            $('#jpm-whitelist-bulk-email-content-body').html(content);
+                        } else {
+                            $('#jpm-whitelist-bulk-email-content-body').html('<p><?php echo esc_js(__('No content available for this history item.', 'job-posting-manager')); ?></p>');
+                        }
+                        $('#jpm-whitelist-bulk-email-content-modal').show();
+                    });
+                    $(document).on('click', '.jpm-whitelist-bulk-email-content-close, #jpm-whitelist-bulk-email-content-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-content-modal .jpm-admin-modal__backdrop', function () {
+                        closeWhitelistBulkEmailContentModal();
                     });
                     $('#jpm-whitelist-bulk-email-form').on('submit', function (e) {
                         e.preventDefault();
