@@ -229,7 +229,7 @@ class JPM_Database
     /**
      * Get applications with filters
      * 
-     * @param array $filters Filter options (status, job_id, user_id, search)
+     * @param array $filters Filter options (status, job_id, user_id, search, whitelisted_only, location)
      * @return array Array of application objects
      */
     public static function get_applications($filters = [])
@@ -243,6 +243,7 @@ class JPM_Database
             'user_id' => isset($filters['user_id']) ? absint($filters['user_id']) : 0,
             'search' => isset($filters['search']) ? sanitize_text_field((string) $filters['search']) : '',
             'whitelisted_only' => !empty($filters['whitelisted_only']),
+            'location' => isset($filters['location']) ? sanitize_text_field((string) $filters['location']) : '',
         ];
 
         $where = [];
@@ -283,7 +284,121 @@ class JPM_Database
             $applications = self::filter_applications_by_search($applications, $normalized_filters['search']);
         }
 
+        if ($normalized_filters['location'] !== '') {
+            $applications = self::filter_applications_by_location($applications, $normalized_filters['location']);
+        }
+
         return $applications;
+    }
+
+    /**
+     * Best-effort location value from stored application form data (notes JSON).
+     *
+     * @param array $form_data Decoded form payload.
+     * @return string Non-empty location or empty string.
+     */
+    public static function extract_application_location_from_form_data($form_data)
+    {
+        if (!is_array($form_data)) {
+            return '';
+        }
+
+        $priority_keys = [
+            'location',
+            'current_location',
+            'desired_location',
+            'place_of_residence',
+            'placeofresidence',
+            'work_location',
+            'worklocation',
+            'job_location',
+            'joblocation',
+            'site_location',
+            'city',
+            'current_city',
+            'currentcity',
+            'address',
+            'current_address',
+            'currentaddress',
+        ];
+
+        foreach ($priority_keys as $key) {
+            if (!isset($form_data[$key]) || $form_data[$key] === '' || $form_data[$key] === null) {
+                continue;
+            }
+            if (is_scalar($form_data[$key])) {
+                return trim((string) $form_data[$key]);
+            }
+        }
+
+        foreach ($form_data as $key => $value) {
+            if (!is_scalar($value) || (string) $value === '') {
+                continue;
+            }
+            $key_norm = strtolower(str_replace([' ', '-'], '_', (string) $key));
+            if (strpos($key_norm, 'location') !== false) {
+                return trim((string) $value);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Sorted list of distinct location strings from a set of application rows.
+     *
+     * @param array $applications Objects from get_results.
+     * @return string[]
+     */
+    public static function list_distinct_locations_from_applications($applications)
+    {
+        if (!is_array($applications) || empty($applications)) {
+            return [];
+        }
+
+        $by_lower = [];
+        foreach ($applications as $application) {
+            $form_data = json_decode($application->notes, true);
+            $location = self::extract_application_location_from_form_data(is_array($form_data) ? $form_data : []);
+            if ($location === '') {
+                continue;
+            }
+            $lower = strtolower($location);
+            if (!isset($by_lower[$lower])) {
+                $by_lower[$lower] = $location;
+            }
+        }
+
+        $list = array_values($by_lower);
+        usort($list, 'strnatcasecmp');
+
+        return $list;
+    }
+
+    /**
+     * @param array  $applications Application objects.
+     * @param string $location     Selected location (matched case-insensitively).
+     * @return array
+     */
+    private static function filter_applications_by_location($applications, $location)
+    {
+        $location = trim((string) $location);
+        if ($location === '' || !is_array($applications)) {
+            return $applications;
+        }
+
+        $want = strtolower($location);
+        $filtered = [];
+
+        foreach ($applications as $application) {
+            $form_data = json_decode($application->notes, true);
+            $app_location = self::extract_application_location_from_form_data(is_array($form_data) ? $form_data : []);
+            if ($want === strtolower($app_location)) {
+                $filtered[] = $application;
+            }
+        }
+
+        return $filtered;
     }
 
     /**

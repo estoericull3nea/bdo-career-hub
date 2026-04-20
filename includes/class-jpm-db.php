@@ -389,6 +389,9 @@ class JPM_Admin
                 $redirect_args['job_id'] = $rj;
             }
         }
+        if (isset($_POST['jpm_return_location']) && $_POST['jpm_return_location'] !== '') {
+            $redirect_args['location'] = sanitize_text_field(wp_unslash($_POST['jpm_return_location']));
+        }
 
         if ($application_id <= 0) {
             wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
@@ -2960,12 +2963,35 @@ class JPM_Admin
         $filters = [
             'job_id' => isset($_GET['job_id']) ? absint(wp_unslash($_GET['job_id'])) : 0,
             'search' => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+            'location' => isset($_GET['location']) ? sanitize_text_field(wp_unslash($_GET['location'])) : '',
             'whitelisted_only' => true,
         ];
 
+        $base_filters = [
+            'job_id' => $filters['job_id'],
+            'search' => $filters['search'],
+            'whitelisted_only' => true,
+        ];
+        $location_options = JPM_Database::list_distinct_locations_from_applications(
+            JPM_DB::get_applications($base_filters)
+        );
+        if ($filters['location'] !== '') {
+            $in_list = false;
+            foreach ($location_options as $opt) {
+                if (strtolower((string) $opt) === strtolower($filters['location'])) {
+                    $in_list = true;
+                    break;
+                }
+            }
+            if (!$in_list) {
+                $location_options[] = $filters['location'];
+                usort($location_options, 'strnatcasecmp');
+            }
+        }
+
         $applications = JPM_DB::get_applications($filters);
         $has_applications = !empty($applications);
-        $has_filters = ($filters['search'] !== '' || $filters['job_id'] > 0);
+        $has_filters = ($filters['search'] !== '' || $filters['job_id'] > 0 || $filters['location'] !== '');
 
         $jobs = get_posts([
             'post_type' => 'job_posting',
@@ -3016,6 +3042,17 @@ class JPM_Admin
                                 <?php endforeach; ?>
                             </select>
                         </label>
+                        <label>
+                            <?php esc_html_e('Filter by Location:', 'job-posting-manager'); ?>
+                            <select name="location" style="min-width: 200px;">
+                                <option value="" <?php selected($filters['location'], ''); ?>><?php esc_html_e('All locations', 'job-posting-manager'); ?></option>
+                                <?php foreach ($location_options as $location_opt): ?>
+                                    <option value="<?php echo esc_attr($location_opt); ?>" <?php selected(strtolower((string) $filters['location']), strtolower((string) $location_opt)); ?>>
+                                        <?php echo esc_html($location_opt); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
                         <input type="submit" class="button button-primary"
                             value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
                         <?php if ($has_filters): ?>
@@ -3055,6 +3092,7 @@ class JPM_Admin
                                 <th><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('User', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Application Number', 'job-posting-manager'); ?></th>
+                                <th><?php esc_html_e('Location', 'job-posting-manager'); ?></th>
                                 <th><?php esc_html_e('Actions', 'job-posting-manager'); ?></th>
                             </tr>
                         </thead>
@@ -3063,7 +3101,11 @@ class JPM_Admin
                                 $job = get_post($application->job_id);
                                 $user = $application->user_id > 0 ? get_userdata($application->user_id) : null;
                                 $form_data = json_decode($application->notes, true);
+                                if (!is_array($form_data)) {
+                                    $form_data = [];
+                                }
                                 $application_number = isset($form_data['application_number']) ? $form_data['application_number'] : '';
+                                $row_location = JPM_Database::extract_application_location_from_form_data($form_data);
                                 ?>
                                 <tr>
                                     <td><?php echo esc_html($application->id); ?></td>
@@ -3102,6 +3144,7 @@ class JPM_Admin
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html($application_number); ?></td>
+                                    <td><?php echo $row_location !== '' ? esc_html($row_location) : '&mdash;'; ?></td>
                                     <td>
                                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                             <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
@@ -3115,6 +3158,7 @@ class JPM_Admin
                                                 <input type="hidden" name="application_id" value="<?php echo esc_attr($application->id); ?>">
                                                 <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
                                                 <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                                                <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
                                                 <button type="submit" class="button button-small"
                                                     onclick="return confirm('<?php echo esc_js(__('Remove this applicant from the whitelist?', 'job-posting-manager')); ?>');">
                                                     <?php esc_html_e('Remove from whitelist', 'job-posting-manager'); ?>
