@@ -42,6 +42,7 @@ class JPM_Admin
         add_action('wp_ajax_jpm_save_interview_details', [$this, 'save_interview_details_ajax']);
         add_action('wp_ajax_jpm_update_whitelist_custom_status_template_ajax', [$this, 'ajax_update_whitelist_custom_status_template']);
         add_action('wp_ajax_jpm_delete_whitelist_custom_status_template_ajax', [$this, 'ajax_delete_whitelist_custom_status_template']);
+        add_action('wp_ajax_jpm_bulk_email_whitelisted_applications_ajax', [$this, 'ajax_bulk_email_whitelisted_applications']);
         add_action('admin_init', [$this, 'handle_export']);
         add_action('admin_init', [$this, 'handle_import']);
         add_action('admin_init', [$this, 'handle_print'], 1); // Priority 1 to run early
@@ -831,6 +832,99 @@ class JPM_Admin
         }
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
+    }
+
+    /**
+     * AJAX: send bulk email in chunks for progress updates.
+     */
+    public function ajax_bulk_email_whitelisted_applications()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('You do not have permission to do this.', 'job-posting-manager')]);
+            return;
+        }
+
+        $nonce = isset($_POST['jpm_bulk_email_whitelisted_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_bulk_email_whitelisted_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_bulk_email_whitelisted')) {
+            wp_send_json_error(['message' => __('Invalid request.', 'job-posting-manager')]);
+            return;
+        }
+
+        $raw_ids = isset($_POST['application_ids']) ? sanitize_text_field(wp_unslash($_POST['application_ids'])) : '';
+        $application_ids = array_values(array_unique(array_filter(array_map('absint', explode(',', $raw_ids)))));
+        $from_email = isset($_POST['from_email']) ? sanitize_email(wp_unslash($_POST['from_email'])) : '';
+        $subject = isset($_POST['subject']) ? sanitize_text_field(wp_unslash($_POST['subject'])) : '';
+        $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';
+        $offset = isset($_POST['offset']) ? absint(wp_unslash($_POST['offset'])) : 0;
+        $batch_size = isset($_POST['batch_size']) ? absint(wp_unslash($_POST['batch_size'])) : 1;
+        if ($batch_size <= 0) {
+            $batch_size = 1;
+        }
+
+        if (empty($application_ids) || !is_email($from_email) || $subject === '' || wp_strip_all_tags($content) === '') {
+            wp_send_json_error(['message' => __('Please select applications and provide valid email details.', 'job-posting-manager')]);
+            return;
+        }
+
+        $total_count = count($application_ids);
+        if ($offset >= $total_count) {
+            wp_send_json_success([
+                'processed_count' => $total_count,
+                'total_count' => $total_count,
+                'batch_sent' => 0,
+                'batch_failed' => 0,
+                'done' => true,
+            ]);
+            return;
+        }
+
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . $from_email . '>',
+            'Reply-To: ' . $from_email,
+        ];
+
+        $batch_ids = array_slice($application_ids, $offset, $batch_size);
+        $batch_sent = 0;
+        $batch_failed = 0;
+        foreach ($batch_ids as $application_id) {
+            $application = JPM_Database::get_application($application_id);
+            if (!$application) {
+                $batch_failed++;
+                continue;
+            }
+
+            $user = !empty($application->user_id) ? get_userdata((int) $application->user_id) : null;
+            $form_data = json_decode((string) ($application->notes ?? ''), true);
+            if (!is_array($form_data)) {
+                $form_data = [];
+            }
+            $to_email = $this->get_first_form_value($form_data, ['email', 'email_address', 'e-mail', 'email-address']);
+            $to_email = $to_email !== '' ? sanitize_email($to_email) : '';
+            if ($to_email === '' && $user && isset($user->user_email)) {
+                $to_email = sanitize_email($user->user_email);
+            }
+            if (!is_email($to_email)) {
+                $batch_failed++;
+                continue;
+            }
+
+            $sent = wp_mail($to_email, $subject, wpautop($content), $headers);
+            if ($sent) {
+                $batch_sent++;
+            } else {
+                $batch_failed++;
+            }
+        }
+
+        $processed_count = min($offset + count($batch_ids), $total_count);
+        wp_send_json_success([
+            'processed_count' => $processed_count,
+            'total_count' => $total_count,
+            'batch_sent' => $batch_sent,
+            'batch_failed' => $batch_failed,
+            'done' => $processed_count >= $total_count,
+        ]);
     }
 
     /**
@@ -5165,6 +5259,14 @@ class JPM_Admin
                             <textarea id="jpm-whitelist-bulk-email-content" name="content" rows="8" required
                                 placeholder="<?php esc_attr_e('Write your message to selected applicants here.', 'job-posting-manager'); ?>"></textarea>
                         </div>
+                        <div id="jpm-whitelist-bulk-email-progress-wrap" style="display:none;margin-top:12px;">
+                            <div class="description" id="jpm-whitelist-bulk-email-progress-text" style="margin-bottom:6px;">
+                                <?php esc_html_e('Sending... 0%', 'job-posting-manager'); ?>
+                            </div>
+                            <div style="width:100%;height:10px;background:#e5e5e5;border-radius:999px;overflow:hidden;">
+                                <div id="jpm-whitelist-bulk-email-progress-bar" style="height:100%;width:0%;background:#2271b1;transition:width .2s ease;"></div>
+                            </div>
+                        </div>
                         <div style="margin-top: 20px; text-align: right;">
                             <button type="button" class="button jpm-whitelist-bulk-email-cancel">
                                 <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
@@ -5465,6 +5567,12 @@ class JPM_Admin
                     function closeWhitelistBulkEmailModal() {
                         $('#jpm-whitelist-bulk-email-modal').hide();
                     }
+                    function resetWhitelistBulkEmailProgress() {
+                        $('#jpm-whitelist-bulk-email-progress-wrap').hide();
+                        $('#jpm-whitelist-bulk-email-progress-bar').css('width', '0%');
+                        $('#jpm-whitelist-bulk-email-progress-text').text('<?php echo esc_js(__('Sending... 0%', 'job-posting-manager')); ?>');
+                        $('#jpm-whitelist-bulk-email-form button[type="submit"]').prop('disabled', false).text('<?php echo esc_js(__('Send Email', 'job-posting-manager')); ?>');
+                    }
                     function closeWhitelistCustomStatusModal() {
                         $('#jpm-whitelist-custom-status-modal').hide();
                     }
@@ -5532,10 +5640,80 @@ class JPM_Admin
                         $('#jpm-whitelist-bulk-email-ref').text(
                             '<?php echo esc_js(__('Selected applicants: %d', 'job-posting-manager')); ?>'.replace('%d', selectedIds.length)
                         );
+                        resetWhitelistBulkEmailProgress();
                         $('#jpm-whitelist-bulk-email-modal').show();
                     });
                     $(document).on('click', '.jpm-whitelist-bulk-email-cancel, #jpm-whitelist-bulk-email-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistBulkEmailModal();
+                    });
+                    $('#jpm-whitelist-bulk-email-form').on('submit', function (e) {
+                        e.preventDefault();
+                        const $form = $(this);
+                        const $submit = $form.find('button[type="submit"]');
+                        const payload = $form.serializeArray();
+                        payload.push({ name: 'action', value: 'jpm_bulk_email_whitelisted_applications_ajax' });
+                        payload.push({ name: 'offset', value: '0' });
+                        payload.push({ name: 'batch_size', value: '1' });
+
+                        let sentTotal = 0;
+                        let failedTotal = 0;
+                        $('#jpm-whitelist-bulk-email-progress-wrap').show();
+                        $('#jpm-whitelist-bulk-email-progress-bar').css('width', '0%');
+                        $('#jpm-whitelist-bulk-email-progress-text').text('<?php echo esc_js(__('Sending... 0%', 'job-posting-manager')); ?>');
+                        $submit.prop('disabled', true).text('<?php echo esc_js(__('Sending...', 'job-posting-manager')); ?>');
+
+                        function runChunk(offset) {
+                            const chunkPayload = payload.map(function (item) { return item; });
+                            chunkPayload.forEach(function (item) {
+                                if (item.name === 'offset') {
+                                    item.value = String(offset);
+                                }
+                            });
+                            $.ajax({
+                                url: ajaxurl,
+                                type: 'POST',
+                                data: $.param(chunkPayload)
+                            }).done(function (response) {
+                                if (!(response && response.success && response.data)) {
+                                    const errMsg = response && response.data && response.data.message ? response.data.message : '<?php echo esc_js(__('Bulk email failed. Please try again.', 'job-posting-manager')); ?>';
+                                    $('#jpm-whitelist-bulk-email-progress-text').text(errMsg);
+                                    $submit.prop('disabled', false).text('<?php echo esc_js(__('Send Email', 'job-posting-manager')); ?>');
+                                    return;
+                                }
+
+                                const data = response.data;
+                                sentTotal += parseInt(data.batch_sent || 0, 10);
+                                failedTotal += parseInt(data.batch_failed || 0, 10);
+                                const processed = parseInt(data.processed_count || 0, 10);
+                                const total = Math.max(1, parseInt(data.total_count || 1, 10));
+                                const percent = Math.min(100, Math.round((processed / total) * 100));
+                                $('#jpm-whitelist-bulk-email-progress-bar').css('width', percent + '%');
+                                $('#jpm-whitelist-bulk-email-progress-text').text(
+                                    '<?php echo esc_js(__('Sending... %d%', 'job-posting-manager')); ?>'.replace('%d', String(percent))
+                                );
+
+                                if (data.done) {
+                                    const doneText = failedTotal > 0
+                                        ? '<?php echo esc_js(__('Done. Sent: %1$d, Failed: %2$d', 'job-posting-manager')); ?>'
+                                            .replace('%1$d', String(sentTotal)).replace('%2$d', String(failedTotal))
+                                        : '<?php echo esc_js(__('Done. Sent: %d', 'job-posting-manager')); ?>'
+                                            .replace('%d', String(sentTotal));
+                                    $('#jpm-whitelist-bulk-email-progress-text').text(doneText);
+                                    $submit.text('<?php echo esc_js(__('Sent', 'job-posting-manager')); ?>');
+                                    setTimeout(function () {
+                                        window.location.reload();
+                                    }, 500);
+                                    return;
+                                }
+
+                                runChunk(processed);
+                            }).fail(function () {
+                                $('#jpm-whitelist-bulk-email-progress-text').text('<?php echo esc_js(__('Bulk email failed. Please try again.', 'job-posting-manager')); ?>');
+                                $submit.prop('disabled', false).text('<?php echo esc_js(__('Send Email', 'job-posting-manager')); ?>');
+                            });
+                        }
+
+                        runChunk(0);
                     });
 
                     function applyWhitelistExistingStatusSelection() {
