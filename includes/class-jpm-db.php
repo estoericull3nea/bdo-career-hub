@@ -1398,7 +1398,13 @@ class JPM_Admin
                 </div>
             <?php endif; ?>
 
-            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+            <div style="margin: 16px 0 8px;">
+                <button type="button" class="button" id="jpm-toggle-job-listings-filters" aria-expanded="false">
+                    <?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>
+                </button>
+            </div>
+
+            <div class="jpm-filters" id="jpm-job-listings-filters-panel" style="display:none; margin: 12px 0 20px; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
                     <input type="hidden" name="page" value="jpm-job-listings">
 
@@ -1444,7 +1450,7 @@ class JPM_Admin
                         </div>
                         <div>
                             <input type="submit" class="button button-primary"
-                                value="<?php esc_attr_e('Search/Filter', 'job-posting-manager'); ?>">
+                                value="<?php esc_attr_e('Apply Filters', 'job-posting-manager'); ?>">
                             <?php if (!empty($search) || !empty($status_filter) || !empty($expired_filter)): ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-job-listings')); ?>" class="button">
                                     <?php esc_html_e('Clear', 'job-posting-manager'); ?>
@@ -1637,6 +1643,27 @@ class JPM_Admin
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
+            <script>
+                jQuery(function ($) {
+                    const $jobListingsFiltersPanel = $('#jpm-job-listings-filters-panel');
+                    const $toggleJobListingsFiltersBtn = $('#jpm-toggle-job-listings-filters');
+
+                    function updateJobListingsFiltersToggleLabel() {
+                        const isVisible = $jobListingsFiltersPanel.is(':visible');
+                        $toggleJobListingsFiltersBtn
+                            .attr('aria-expanded', isVisible ? 'true' : 'false')
+                            .text(isVisible
+                                ? '<?php echo esc_js(__('Hide Search/Filter', 'job-posting-manager')); ?>'
+                                : '<?php echo esc_js(__('Search/Filter', 'job-posting-manager')); ?>');
+                    }
+
+                    $toggleJobListingsFiltersBtn.on('click', function () {
+                        $jobListingsFiltersPanel.stop(true, true).slideToggle(120, updateJobListingsFiltersToggleLabel);
+                    });
+
+                    updateJobListingsFiltersToggleLabel();
+                });
+            </script>
         </div>
         <?php
     }
@@ -1876,7 +1903,13 @@ class JPM_Admin
             </div>
 
             <?php if ($has_applications): ?>
-                <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+                <div style="margin: 16px 0 8px;">
+                    <button type="button" class="button" id="jpm-toggle-applications-filters" aria-expanded="false">
+                        <?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>
+                    </button>
+                </div>
+
+                <div class="jpm-filters" id="jpm-applications-filters-panel" style="display:none; margin: 12px 0 20px; padding: 15px; background: #fff; border: 1px solid #ccc;">
                     <form method="get" action="">
                         <input type="hidden" name="page" value="jpm-applications">
 
@@ -1920,7 +1953,7 @@ class JPM_Admin
                                 </select>
                             </label>
                             <input type="submit" class="button button-primary"
-                                value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
+                                value="<?php esc_html_e('Apply Filters', 'job-posting-manager'); ?>">
                             <?php if (!empty($filters['search']) || !empty($filters['job_id']) || !empty($filters['status'])): ?>
                                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>" class="button">
                                     <?php esc_html_e('Clear', 'job-posting-manager'); ?>
@@ -2602,6 +2635,22 @@ class JPM_Admin
                 let previousStatus = null;
                 let activeApplicationId = null;
                 let jpmPendingConfirmForm = null;
+                const $applicationsFiltersPanel = $('#jpm-applications-filters-panel');
+                const $toggleApplicationsFiltersBtn = $('#jpm-toggle-applications-filters');
+
+                function updateApplicationsFiltersToggleLabel() {
+                    const isVisible = $applicationsFiltersPanel.is(':visible');
+                    $toggleApplicationsFiltersBtn
+                        .attr('aria-expanded', isVisible ? 'true' : 'false')
+                        .text(isVisible
+                            ? '<?php echo esc_js(__('Hide Search/Filter', 'job-posting-manager')); ?>'
+                            : '<?php echo esc_js(__('Search/Filter', 'job-posting-manager')); ?>');
+                }
+
+                $toggleApplicationsFiltersBtn.on('click', function () {
+                    $applicationsFiltersPanel.stop(true, true).slideToggle(120, updateApplicationsFiltersToggleLabel);
+                });
+                updateApplicationsFiltersToggleLabel();
 
                 function closePendingFormConfirmModal() {
                     $('#jpm-pending-form-confirm-modal').hide();
@@ -3484,7 +3533,13 @@ class JPM_Admin
                 </div>
             <?php } ?>
 
-            <div class="jpm-filters" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ccc;">
+            <div style="margin: 16px 0 8px;">
+                <button type="button" class="button" id="jpm-toggle-whitelist-filters" aria-expanded="false">
+                    <?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>
+                </button>
+            </div>
+
+            <div class="jpm-filters" id="jpm-whitelist-filters-panel" style="display:none; margin: 12px 0 20px; padding: 15px; background: #fff; border: 1px solid #ccc;">
                 <form method="get" action="">
                     <input type="hidden" name="page" value="jpm-whitelisted-applications">
                     <div style="margin-bottom: 15px;">
@@ -3548,7 +3603,7 @@ class JPM_Admin
                     </p>
                     <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <input type="submit" class="button button-primary"
-                            value="<?php esc_html_e('Search/Filter', 'job-posting-manager'); ?>">
+                            value="<?php esc_html_e('Apply Filters', 'job-posting-manager'); ?>">
                         <?php if ($has_filters): ?>
                             <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-whitelisted-applications')); ?>" class="button">
                                 <?php esc_html_e('Clear', 'job-posting-manager'); ?>
@@ -3935,6 +3990,22 @@ class JPM_Admin
             <script>
                 jQuery(function ($) {
                     let jpmPendingConfirmForm = null;
+                    const $whitelistFiltersPanel = $('#jpm-whitelist-filters-panel');
+                    const $toggleWhitelistFiltersBtn = $('#jpm-toggle-whitelist-filters');
+
+                    function updateWhitelistFiltersToggleLabel() {
+                        const isVisible = $whitelistFiltersPanel.is(':visible');
+                        $toggleWhitelistFiltersBtn
+                            .attr('aria-expanded', isVisible ? 'true' : 'false')
+                            .text(isVisible
+                                ? '<?php echo esc_js(__('Hide Search/Filter', 'job-posting-manager')); ?>'
+                                : '<?php echo esc_js(__('Search/Filter', 'job-posting-manager')); ?>');
+                    }
+
+                    $toggleWhitelistFiltersBtn.on('click', function () {
+                        $whitelistFiltersPanel.stop(true, true).slideToggle(120, updateWhitelistFiltersToggleLabel);
+                    });
+                    updateWhitelistFiltersToggleLabel();
 
                     function closePendingFormConfirmModal() {
                         $('#jpm-pending-form-confirm-modal').hide();
