@@ -3592,6 +3592,99 @@ class JPM_Admin
         add_meta_box('jpm_job_applications', __('Applications', 'job-posting-manager'), [$this, 'job_applications_meta_box'], 'job_posting', 'normal');
     }
 
+    /**
+     * Salary currencies for job postings (admin). Symbol is stored as a prefix on the salary meta value.
+     *
+     * @return array<string, array{symbol: string, label: string}>
+     */
+    private static function jpm_job_salary_currency_definitions(): array
+    {
+        return [
+            'php' => ['symbol' => '₱', 'label' => __('PHP — Philippine peso', 'job-posting-manager')],
+            'usd' => ['symbol' => '$', 'label' => __('USD — US dollar', 'job-posting-manager')],
+            'eur' => ['symbol' => '€', 'label' => __('EUR — Euro', 'job-posting-manager')],
+            'gbp' => ['symbol' => '£', 'label' => __('GBP — British pound', 'job-posting-manager')],
+            'jpy' => ['symbol' => '¥', 'label' => __('JPY — Japanese yen', 'job-posting-manager')],
+            'cny' => ['symbol' => '¥', 'label' => __('CNY — Chinese yuan', 'job-posting-manager')],
+            'inr' => ['symbol' => '₹', 'label' => __('INR — Indian rupee', 'job-posting-manager')],
+            'aud' => ['symbol' => 'A$', 'label' => __('AUD — Australian dollar', 'job-posting-manager')],
+            'cad' => ['symbol' => 'C$', 'label' => __('CAD — Canadian dollar', 'job-posting-manager')],
+            'chf' => ['symbol' => 'CHF ', 'label' => __('CHF — Swiss franc', 'job-posting-manager')],
+            'sek' => ['symbol' => 'SEK ', 'label' => __('SEK — Swedish krona', 'job-posting-manager')],
+            'nok' => ['symbol' => 'NOK ', 'label' => __('NOK — Norwegian krone', 'job-posting-manager')],
+            'dkk' => ['symbol' => 'DKK ', 'label' => __('DKK — Danish krone', 'job-posting-manager')],
+            'pln' => ['symbol' => 'zł', 'label' => __('PLN — Polish złoty', 'job-posting-manager')],
+            'try' => ['symbol' => '₺', 'label' => __('TRY — Turkish lira', 'job-posting-manager')],
+            'ils' => ['symbol' => '₪', 'label' => __('ILS — Israeli new shekel', 'job-posting-manager')],
+            'aed' => ['symbol' => 'AED ', 'label' => __('AED — UAE dirham', 'job-posting-manager')],
+            'sar' => ['symbol' => 'SAR ', 'label' => __('SAR — Saudi riyal', 'job-posting-manager')],
+            'qar' => ['symbol' => 'QAR ', 'label' => __('QAR — Qatari riyal', 'job-posting-manager')],
+            'sgd' => ['symbol' => 'S$', 'label' => __('SGD — Singapore dollar', 'job-posting-manager')],
+            'hkd' => ['symbol' => 'HK$', 'label' => __('HKD — Hong Kong dollar', 'job-posting-manager')],
+            'twd' => ['symbol' => 'NT$', 'label' => __('TWD — New Taiwan dollar', 'job-posting-manager')],
+            'krw' => ['symbol' => '₩', 'label' => __('KRW — South Korean won', 'job-posting-manager')],
+            'thb' => ['symbol' => '฿', 'label' => __('THB — Thai baht', 'job-posting-manager')],
+            'myr' => ['symbol' => 'RM ', 'label' => __('MYR — Malaysian ringgit', 'job-posting-manager')],
+            'idr' => ['symbol' => 'Rp ', 'label' => __('IDR — Indonesian rupiah', 'job-posting-manager')],
+            'vnd' => ['symbol' => '₫', 'label' => __('VND — Vietnamese đồng', 'job-posting-manager')],
+            'nzd' => ['symbol' => 'NZ$', 'label' => __('NZD — New Zealand dollar', 'job-posting-manager')],
+            'mxn' => ['symbol' => 'MX$', 'label' => __('MXN — Mexican peso', 'job-posting-manager')],
+            'brl' => ['symbol' => 'R$', 'label' => __('BRL — Brazilian real', 'job-posting-manager')],
+            'ars' => ['symbol' => 'AR$', 'label' => __('ARS — Argentine peso', 'job-posting-manager')],
+            'clp' => ['symbol' => 'CL$', 'label' => __('CLP — Chilean peso', 'job-posting-manager')],
+            'cop' => ['symbol' => 'COL$', 'label' => __('COP — Colombian peso', 'job-posting-manager')],
+            'pen' => ['symbol' => 'S/', 'label' => __('PEN — Peruvian sol', 'job-posting-manager')],
+            'zar' => ['symbol' => 'R ', 'label' => __('ZAR — South African rand', 'job-posting-manager')],
+            'egp' => ['symbol' => 'EGP ', 'label' => __('EGP — Egyptian pound', 'job-posting-manager')],
+            'ngn' => ['symbol' => '₦', 'label' => __('NGN — Nigerian naira', 'job-posting-manager')],
+            'kes' => ['symbol' => 'KSh', 'label' => __('KES — Kenyan shilling', 'job-posting-manager')],
+            'huf' => ['symbol' => 'Ft ', 'label' => __('HUF — Hungarian forint', 'job-posting-manager')],
+            'czk' => ['symbol' => 'Kč', 'label' => __('CZK — Czech koruna', 'job-posting-manager')],
+            'ron' => ['symbol' => 'lei ', 'label' => __('RON — Romanian leu', 'job-posting-manager')],
+            'bdt' => ['symbol' => '৳', 'label' => __('BDT — Bangladeshi taka', 'job-posting-manager')],
+            'pkr' => ['symbol' => 'PKR ', 'label' => __('PKR — Pakistani rupee', 'job-posting-manager')],
+        ];
+    }
+
+    private static function jpm_normalize_job_salary_currency(string $code): string
+    {
+        $code = strtolower(sanitize_key($code));
+        return array_key_exists($code, self::jpm_job_salary_currency_definitions()) ? $code : 'php';
+    }
+
+    private static function jpm_job_salary_currency_symbol(string $code): string
+    {
+        $code = self::jpm_normalize_job_salary_currency($code);
+
+        return self::jpm_job_salary_currency_definitions()[$code]['symbol'];
+    }
+
+    /**
+     * Remove known currency glyphs/prefixes from a salary string for editing (amount only).
+     */
+    private static function jpm_strip_salary_amount_symbols(string $amount): string
+    {
+        $symbols = [];
+        foreach (self::jpm_job_salary_currency_definitions() as $def) {
+            if ($def['symbol'] !== '') {
+                $symbols[] = $def['symbol'];
+            }
+        }
+        $symbols = array_values(array_unique($symbols, SORT_STRING));
+        usort(
+            $symbols,
+            static function ($a, $b) {
+                return strlen($b) <=> strlen($a);
+            }
+        );
+        $out = $amount;
+        foreach ($symbols as $sym) {
+            $out = str_replace($sym, '', $out);
+        }
+
+        return trim($out);
+    }
+
     public function job_meta_box($post)
     {
         // Add nonce field for validation when saving the post
@@ -3601,11 +3694,8 @@ class JPM_Admin
         $company_name = get_post_meta($post->ID, 'company_name', true);
         $location = get_post_meta($post->ID, 'location', true);
         $salary = get_post_meta($post->ID, 'salary', true);
-        $salary_currency = get_post_meta($post->ID, 'salary_currency', true);
-        if (!in_array($salary_currency, ['php', 'usd'], true)) {
-            $salary_currency = 'php';
-        }
-        $salary_amount = str_replace(['₱', '$'], '', (string) $salary);
+        $salary_currency = self::jpm_normalize_job_salary_currency((string) get_post_meta($post->ID, 'salary_currency', true));
+        $salary_amount = self::jpm_strip_salary_amount_symbols((string) $salary);
         $duration = get_post_meta($post->ID, 'duration', true);
         $expiration_duration = get_post_meta($post->ID, 'expiration_duration', true);
         $expiration_unit = get_post_meta($post->ID, 'expiration_unit', true);
@@ -3641,13 +3731,13 @@ class JPM_Admin
                     <label for="salary"><?php esc_html_e('Salary', 'job-posting-manager'); ?></label>
                 </th>
                 <td>
-                    <select id="salary_currency" name="salary_currency">
-                        <option value="php" <?php selected($salary_currency, 'php'); ?>>
-                            <?php esc_html_e('₱', 'job-posting-manager'); ?>
-                        </option>
-                        <option value="usd" <?php selected($salary_currency, 'usd'); ?>>
-                            <?php esc_html_e('$', 'job-posting-manager'); ?>
-                        </option>
+                    <select id="salary_currency" name="salary_currency" class="regular-text"
+                        style="min-width: min(420px, 100%); max-width: 100%;">
+                        <?php foreach (self::jpm_job_salary_currency_definitions() as $code => $def): ?>
+                            <option value="<?php echo esc_attr($code); ?>" <?php selected($salary_currency, $code); ?>>
+                                <?php echo esc_html(trim($def['symbol'] . ' ' . $def['label'])); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <input type="text" id="salary" name="salary" class="regular-text"
                         value="<?php echo esc_attr($salary_amount); ?>"
@@ -3761,14 +3851,12 @@ class JPM_Admin
             }
 
             if (isset($_POST['salary'])) {
-                $salary_currency = isset($_POST['salary_currency']) ? sanitize_text_field(wp_unslash($_POST['salary_currency'])) : 'php';
-                if (!in_array($salary_currency, ['php', 'usd'], true)) {
-                    $salary_currency = 'php';
-                }
-
-                $salary_symbol = $salary_currency === 'usd' ? '$' : '₱';
+                $salary_currency = self::jpm_normalize_job_salary_currency(
+                    isset($_POST['salary_currency']) ? (string) wp_unslash($_POST['salary_currency']) : 'php'
+                );
+                $salary_symbol = self::jpm_job_salary_currency_symbol($salary_currency);
                 $salary_amount = sanitize_text_field(wp_unslash($_POST['salary']));
-                $salary_amount = str_replace(['₱', '$'], '', $salary_amount);
+                $salary_amount = self::jpm_strip_salary_amount_symbols($salary_amount);
                 $salary_amount = trim($salary_amount);
 
                 if (!empty($salary_amount)) {
