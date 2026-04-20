@@ -55,8 +55,66 @@ class JPM_Admin
         add_action('admin_post_jpm_unwhitelist_application', [$this, 'handle_unwhitelist_application']);
         add_action('admin_post_jpm_save_employer_welfare', [$this, 'handle_save_employer_welfare']);
         add_action('admin_post_jpm_contact_employer_welfare', [$this, 'handle_contact_employer_welfare']);
+        add_action('admin_post_jpm_save_whitelist_custom_status', [$this, 'handle_save_whitelist_custom_status']);
 
         // Removed cache-related hooks
+    }
+
+    /**
+     * Get custom statuses used only on the Whitelisted Applications screen.
+     *
+     * @return array<int, array{name:string,abbr:string,bg_color:string,text_color:string}>
+     */
+    private function get_whitelist_custom_status_map()
+    {
+        $raw = get_option('jpm_whitelist_custom_statuses', []);
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $clean = [];
+        foreach ($raw as $application_id => $status) {
+            $app_id = absint($application_id);
+            if ($app_id <= 0 || !is_array($status)) {
+                continue;
+            }
+            $name = isset($status['name']) ? sanitize_text_field((string) $status['name']) : '';
+            $abbr = isset($status['abbr']) ? sanitize_text_field((string) $status['abbr']) : '';
+            $bg_color_raw = isset($status['bg_color']) ? (string) $status['bg_color'] : (isset($status['color']) ? (string) $status['color'] : '');
+            $bg_color = sanitize_hex_color($bg_color_raw);
+            $text_color = isset($status['text_color']) ? sanitize_hex_color((string) $status['text_color']) : '';
+            if ($name === '' || $bg_color === '') {
+                continue;
+            }
+            $clean[$app_id] = [
+                'name' => $name,
+                'abbr' => strtoupper(substr($abbr, 0, 10)),
+                'bg_color' => $bg_color,
+                'text_color' => $text_color !== '' ? $text_color : $this->get_badge_text_color_from_hex($bg_color),
+            ];
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Pick black/white text color for readable status badges.
+     *
+     * @param string $hex Background hex color.
+     * @return string
+     */
+    private function get_badge_text_color_from_hex($hex)
+    {
+        $hex = ltrim((string) $hex, '#');
+        if (!preg_match('/^[0-9a-fA-F]{6}$/', $hex)) {
+            return '#000000';
+        }
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        $luminance = (0.299 * $r) + (0.587 * $g) + (0.114 * $b);
+
+        return $luminance >= 150 ? '#000000' : '#ffffff';
     }
 
     /**
@@ -430,6 +488,12 @@ class JPM_Admin
             exit;
         }
 
+        $custom_status_map = $this->get_whitelist_custom_status_map();
+        if (isset($custom_status_map[$application_id])) {
+            unset($custom_status_map[$application_id]);
+            update_option('jpm_whitelist_custom_statuses', $custom_status_map);
+        }
+
         unset($redirect_args['whitelist_error']);
         $redirect_args['whitelist_removed'] = '1';
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
@@ -635,6 +699,98 @@ class JPM_Admin
 
         unset($redirect_args['employer_contact_error']);
         $redirect_args['employer_contact_sent'] = '1';
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
+    /**
+     * Save a custom status used only on Whitelisted Applications.
+     */
+    public function handle_save_whitelist_custom_status()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to do this.', 'job-posting-manager'));
+        }
+
+        $nonce = isset($_POST['jpm_save_whitelist_custom_status_nonce']) ? sanitize_text_field(wp_unslash($_POST['jpm_save_whitelist_custom_status_nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'jpm_save_whitelist_custom_status')) {
+            wp_die(__('Invalid request.', 'job-posting-manager'));
+        }
+
+        $redirect_args = [
+            'page' => 'jpm-whitelisted-applications',
+            'whitelist_custom_status_error' => '1',
+        ];
+        if (isset($_POST['jpm_return_search']) && $_POST['jpm_return_search'] !== '') {
+            $redirect_args['search'] = sanitize_text_field(wp_unslash($_POST['jpm_return_search']));
+        }
+        if (isset($_POST['jpm_return_job_id'])) {
+            $return_job_id = absint(wp_unslash($_POST['jpm_return_job_id']));
+            if ($return_job_id > 0) {
+                $redirect_args['job_id'] = $return_job_id;
+            }
+        }
+        if (isset($_POST['jpm_return_location']) && $_POST['jpm_return_location'] !== '') {
+            $redirect_args['location'] = sanitize_text_field(wp_unslash($_POST['jpm_return_location']));
+        }
+        if (isset($_POST['jpm_return_submitted_on']) && $_POST['jpm_return_submitted_on'] !== '') {
+            $on = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_on']));
+            if ($on !== '') {
+                $redirect_args['submitted_on'] = $on;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_from']) && $_POST['jpm_return_submitted_from'] !== '') {
+            $from = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_from']));
+            if ($from !== '') {
+                $redirect_args['submitted_from'] = $from;
+            }
+        }
+        if (isset($_POST['jpm_return_submitted_to']) && $_POST['jpm_return_submitted_to'] !== '') {
+            $to = JPM_Database::normalize_application_filter_date(wp_unslash($_POST['jpm_return_submitted_to']));
+            if ($to !== '') {
+                $redirect_args['submitted_to'] = $to;
+            }
+        }
+
+        $application_id = isset($_POST['application_id']) ? absint(wp_unslash($_POST['application_id'])) : 0;
+        $custom_status_name = isset($_POST['custom_status_name']) ? sanitize_text_field(wp_unslash($_POST['custom_status_name'])) : '';
+        $custom_status_abbr = isset($_POST['custom_status_abbr']) ? sanitize_text_field(wp_unslash($_POST['custom_status_abbr'])) : '';
+        $custom_status_abbr = strtoupper(substr($custom_status_abbr, 0, 10));
+        $custom_status_bg_color = isset($_POST['custom_status_bg_color']) ? sanitize_hex_color(wp_unslash($_POST['custom_status_bg_color'])) : '';
+        $custom_status_text_color = isset($_POST['custom_status_text_color']) ? sanitize_hex_color(wp_unslash($_POST['custom_status_text_color'])) : '';
+
+        if ($application_id <= 0 || $custom_status_name === '' || $custom_status_abbr === '' || $custom_status_bg_color === '' || $custom_status_text_color === '') {
+            set_transient(
+                'jpm_whitelist_custom_status_err_' . get_current_user_id(),
+                __('Please provide a valid status name, ABBR, background color, and text color.', 'job-posting-manager'),
+                60
+            );
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $application = JPM_Database::get_application($application_id);
+        if (!$application || !isset($application->whitelisted) || (int) $application->whitelisted !== 1) {
+            set_transient(
+                'jpm_whitelist_custom_status_err_' . get_current_user_id(),
+                __('The selected application is not currently whitelisted.', 'job-posting-manager'),
+                60
+            );
+            wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+            exit;
+        }
+
+        $map = $this->get_whitelist_custom_status_map();
+        $map[$application_id] = [
+            'name' => $custom_status_name,
+            'abbr' => $custom_status_abbr,
+            'bg_color' => $custom_status_bg_color,
+            'text_color' => $custom_status_text_color,
+        ];
+        update_option('jpm_whitelist_custom_statuses', $map);
+
+        unset($redirect_args['whitelist_custom_status_error']);
+        $redirect_args['whitelist_custom_status_saved'] = '1';
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
         exit;
     }
@@ -3551,6 +3707,7 @@ class JPM_Admin
         }
 
         $applications = JPM_DB::get_applications($filters);
+        $whitelist_custom_status_map = $this->get_whitelist_custom_status_map();
         $has_applications = !empty($applications);
         $total_whitelisted = count($applications);
         $registered_count = 0;
@@ -3803,6 +3960,11 @@ class JPM_Admin
                     <p><?php esc_html_e('Employer contact email sent successfully.', 'job-posting-manager'); ?></p>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($_GET['whitelist_custom_status_saved'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Custom status saved for this whitelisted application.', 'job-posting-manager'); ?></p>
+                </div>
+            <?php endif; ?>
             <?php
             $employer_err_transient = 'jpm_employer_welfare_err_' . get_current_user_id();
             $employer_err_msg = get_transient($employer_err_transient);
@@ -3821,6 +3983,16 @@ class JPM_Admin
                 ?>
                 <div class="notice notice-error is-dismissible">
                     <p><?php echo esc_html((string) $employer_contact_err_msg); ?></p>
+                </div>
+            <?php } ?>
+            <?php
+            $custom_status_err_transient = 'jpm_whitelist_custom_status_err_' . get_current_user_id();
+            $custom_status_err_msg = get_transient($custom_status_err_transient);
+            if (!empty($_GET['whitelist_custom_status_error']) && $custom_status_err_msg !== false && $custom_status_err_msg !== '') {
+                delete_transient($custom_status_err_transient);
+                ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><?php echo esc_html((string) $custom_status_err_msg); ?></p>
                 </div>
             <?php } ?>
 
@@ -3951,6 +4123,7 @@ class JPM_Admin
                                 $emp_ln = isset($application->employer_last_name) ? trim((string) $application->employer_last_name) : '';
                                 $emp_phone = isset($application->employer_phone) ? trim((string) $application->employer_phone) : '';
                                 $emp_email = isset($application->employer_email) ? trim((string) $application->employer_email) : '';
+                                $custom_status = isset($whitelist_custom_status_map[(int) $application->id]) ? $whitelist_custom_status_map[(int) $application->id] : null;
                                 $employer_history = [];
                                 if ($emp_email !== '') {
                                     $employer_history = JPM_Database::get_employer_email_history((int) $application->id, $emp_email);
@@ -3982,6 +4155,23 @@ class JPM_Admin
                                             style="background-color: <?php echo esc_attr($bg_color); ?>; color: <?php echo esc_attr($text_color); ?>;">
                                             <?php echo esc_html($status_name); ?>
                                         </span>
+                                        <?php if (is_array($custom_status)): ?>
+                                            <?php
+                                            $custom_status_name = isset($custom_status['name']) ? (string) $custom_status['name'] : '';
+                                            $custom_status_abbr = isset($custom_status['abbr']) ? (string) $custom_status['abbr'] : '';
+                                            $custom_status_bg_color = isset($custom_status['bg_color']) ? (string) $custom_status['bg_color'] : (isset($custom_status['color']) ? (string) $custom_status['color'] : '');
+                                            $custom_status_text_color = isset($custom_status['text_color']) ? (string) $custom_status['text_color'] : '';
+                                            if ($custom_status_text_color === '') {
+                                                $custom_status_text_color = $this->get_badge_text_color_from_hex($custom_status_bg_color);
+                                            }
+                                            $custom_status_label = $custom_status_abbr !== '' ? $custom_status_abbr : $custom_status_name;
+                                            ?>
+                                            <?php if ($custom_status_name !== '' && $custom_status_bg_color !== ''): ?>
+                                                <span class="jpm-status-badge" title="<?php echo esc_attr($custom_status_name); ?>" style="margin-top:6px;background-color: <?php echo esc_attr($custom_status_bg_color); ?>; color: <?php echo esc_attr($custom_status_text_color); ?>;">
+                                                    <?php echo esc_html($custom_status_label); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if ($user): ?>
@@ -4039,6 +4229,14 @@ class JPM_Admin
                                                     data-employer-phone="<?php echo esc_attr($emp_phone); ?>"
                                                     data-employer-email="<?php echo esc_attr($emp_email); ?>">
                                                     <?php echo $emp_email !== '' ? esc_html__('Update employer', 'job-posting-manager') : esc_html__('Add employer', 'job-posting-manager'); ?>
+                                                </button>
+                                                <button type="button" class="button button-small jpm-open-whitelist-custom-status-modal"
+                                                    data-application-id="<?php echo esc_attr((string) (int) $application->id); ?>"
+                                                    data-custom-status-name="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['name']) ? (string) $custom_status['name'] : ''); ?>"
+                                                    data-custom-status-abbr="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['abbr']) ? (string) $custom_status['abbr'] : ''); ?>"
+                                                    data-custom-status-bg-color="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['bg_color']) ? (string) $custom_status['bg_color'] : (is_array($custom_status) && isset($custom_status['color']) ? (string) $custom_status['color'] : '#2271b1')); ?>"
+                                                    data-custom-status-text-color="<?php echo esc_attr(is_array($custom_status) && isset($custom_status['text_color']) ? (string) $custom_status['text_color'] : '#ffffff'); ?>">
+                                                    <?php esc_html_e('Custom status', 'job-posting-manager'); ?>
                                                 </button>
                                                 <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=jpm-applications&action=print&application_id=' . absint($application->id)), 'jpm_print_application', 'jpm_print_nonce')); ?>"
                                                     target="_blank" class="button button-small" style="text-decoration: none;">
@@ -4282,6 +4480,57 @@ class JPM_Admin
                 </div>
             </div>
 
+            <div id="jpm-whitelist-custom-status-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-whitelist-custom-status-title" style="max-width: 520px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-whitelist-custom-status-title"><?php esc_html_e('Set custom status', 'job-posting-manager'); ?></h2>
+                    <p id="jpm-whitelist-custom-status-app-ref" class="description" style="margin-bottom: 12px;"></p>
+                    <p class="description" style="margin-bottom: 16px;">
+                        <?php esc_html_e('This custom status is used only on the Whitelisted Applications page and is separate from Status Management.', 'job-posting-manager'); ?>
+                    </p>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="jpm-whitelist-custom-status-form">
+                        <?php wp_nonce_field('jpm_save_whitelist_custom_status', 'jpm_save_whitelist_custom_status_nonce'); ?>
+                        <input type="hidden" name="action" value="jpm_save_whitelist_custom_status">
+                        <input type="hidden" name="application_id" id="jpm-whitelist-custom-status-application-id" value="">
+                        <input type="hidden" name="jpm_return_search" value="<?php echo esc_attr($filters['search']); ?>">
+                        <input type="hidden" name="jpm_return_job_id" value="<?php echo esc_attr((string) (int) $filters['job_id']); ?>">
+                        <input type="hidden" name="jpm_return_location" value="<?php echo esc_attr($filters['location']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_on" value="<?php echo esc_attr($filters['submitted_on']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_from" value="<?php echo esc_attr($filters['submitted_from']); ?>">
+                        <input type="hidden" name="jpm_return_submitted_to" value="<?php echo esc_attr($filters['submitted_to']); ?>">
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-custom-status-name"><?php esc_html_e('New status', 'job-posting-manager'); ?></label>
+                            <input type="text" id="jpm-whitelist-custom-status-name" name="custom_status_name" class="regular-text" required maxlength="80"
+                                placeholder="<?php esc_attr_e('Still In Working', 'job-posting-manager'); ?>">
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-custom-status-abbr"><?php esc_html_e('ABBR', 'job-posting-manager'); ?></label>
+                            <input type="text" id="jpm-whitelist-custom-status-abbr" name="custom_status_abbr" class="regular-text" required maxlength="10"
+                                placeholder="<?php esc_attr_e('SIW', 'job-posting-manager'); ?>">
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-custom-status-bg-color"><?php esc_html_e('Background color', 'job-posting-manager'); ?></label>
+                            <input type="color" id="jpm-whitelist-custom-status-bg-color" name="custom_status_bg_color" value="#2271b1" required>
+                        </div>
+                        <div class="jpm-admin-field">
+                            <label for="jpm-whitelist-custom-status-text-color"><?php esc_html_e('Text color', 'job-posting-manager'); ?></label>
+                            <input type="color" id="jpm-whitelist-custom-status-text-color" name="custom_status_text_color" value="#ffffff" required>
+                        </div>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="button jpm-whitelist-custom-status-cancel">
+                                <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
+                            </button>
+                            <button type="submit" class="button button-primary">
+                                <?php esc_html_e('Save status', 'job-posting-manager'); ?>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <script>
                 jQuery(function ($) {
                     let jpmPendingConfirmForm = null;
@@ -4447,6 +4696,9 @@ class JPM_Admin
                     function closeWhitelistReportModal() {
                         $('#jpm-whitelist-report-modal').hide();
                     }
+                    function closeWhitelistCustomStatusModal() {
+                        $('#jpm-whitelist-custom-status-modal').hide();
+                    }
                     function toggleWhitelistCustomReportRange() {
                         const selectedRange = $('#jpm-whitelist-report-form input[name="report_range"]:checked').val();
                         const isCustom = selectedRange === 'custom';
@@ -4479,6 +4731,29 @@ class JPM_Admin
                     });
                     $(document).on('click', '.jpm-whitelist-report-cancel, #jpm-whitelist-report-modal .jpm-admin-modal__close, #jpm-whitelist-report-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistReportModal();
+                    });
+
+                    $(document).on('click', '.jpm-open-whitelist-custom-status-modal', function (e) {
+                        e.preventDefault();
+                        const $btn = $(this);
+                        const appId = $btn.attr('data-application-id') || '';
+                        const statusName = $btn.attr('data-custom-status-name') || '';
+                        const statusAbbr = $btn.attr('data-custom-status-abbr') || '';
+                        const statusBgColor = $btn.attr('data-custom-status-bg-color') || '#2271b1';
+                        const statusTextColor = $btn.attr('data-custom-status-text-color') || '#ffffff';
+                        const refTpl = '<?php echo esc_js(__('Application #%s', 'job-posting-manager')); ?>';
+
+                        $('#jpm-whitelist-custom-status-application-id').val(appId);
+                        $('#jpm-whitelist-custom-status-name').val(statusName);
+                        $('#jpm-whitelist-custom-status-abbr').val(statusAbbr);
+                        $('#jpm-whitelist-custom-status-bg-color').val(statusBgColor);
+                        $('#jpm-whitelist-custom-status-text-color').val(statusTextColor);
+                        $('#jpm-whitelist-custom-status-app-ref').text(refTpl.replace('%s', appId));
+                        $('#jpm-whitelist-custom-status-modal').show();
+                    });
+
+                    $(document).on('click', '.jpm-whitelist-custom-status-cancel, #jpm-whitelist-custom-status-modal .jpm-admin-modal__close, #jpm-whitelist-custom-status-modal .jpm-admin-modal__backdrop', function () {
+                        closeWhitelistCustomStatusModal();
                     });
                 });
             </script>
