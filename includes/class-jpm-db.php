@@ -4560,37 +4560,6 @@ class JPM_Admin
     }
 
     /**
-     * Format salary with the configured currency symbol.
-     *
-     * - Prefers `salary_currency` meta when available
-     * - Otherwise infers symbol from the stored `salary` string
-     */
-    private function format_salary($job_id, $salary_value = '')
-    {
-        $salary_value = $salary_value !== '' ? $salary_value : get_post_meta($job_id, 'salary', true);
-        if (empty($salary_value)) {
-            return '';
-        }
-
-        $currency = get_post_meta($job_id, 'salary_currency', true);
-        if (!in_array($currency, ['php', 'usd'], true)) {
-            if (strpos((string) $salary_value, '₱') !== false) {
-                $currency = 'php';
-            } elseif (strpos((string) $salary_value, '$') !== false) {
-                $currency = 'usd';
-            } else {
-                $currency = 'php';
-            }
-        }
-
-        $symbol = $currency === 'usd' ? '$' : '₱';
-        $amount = str_replace(['₱', '$'], '', (string) $salary_value);
-        $amount = trim($amount);
-
-        return !empty($amount) ? $symbol . $amount : '';
-    }
-
-    /**
      * Display job details on single job posting page
      * @param string $content The post content
      * @return string Modified content with job details
@@ -4604,10 +4573,7 @@ class JPM_Admin
 
         global $post;
         $company_image_id = get_post_meta($post->ID, 'company_image', true);
-        $company_name = get_post_meta($post->ID, 'company_name', true);
         $location = get_post_meta($post->ID, 'location', true);
-        $salary = get_post_meta($post->ID, 'salary', true);
-        $salary_display = $this->format_salary($post->ID, $salary);
         $duration = get_post_meta($post->ID, 'duration', true);
         $time_remaining = $this->get_time_remaining($post->ID);
 
@@ -4617,22 +4583,10 @@ class JPM_Admin
         <div class="jpm-job-details">
             <h3><?php esc_html_e('Job Details', 'job-posting-manager'); ?></h3>
             <ul class="jpm-job-details-list">
-                <?php if (!empty($company_name)): ?>
-                    <li class="jpm-job-detail-item jpm-job-company">
-                        <strong><?php esc_html_e('Company:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($company_name); ?></span>
-                    </li>
-                <?php endif; ?>
                 <?php if (!empty($location)): ?>
                     <li class="jpm-job-detail-item jpm-job-location">
                         <strong><?php esc_html_e('Location:', 'job-posting-manager'); ?></strong>
                         <span><?php echo esc_html($location); ?></span>
-                    </li>
-                <?php endif; ?>
-                <?php if (!empty($salary)): ?>
-                    <li class="jpm-job-detail-item jpm-job-salary">
-                        <strong><?php esc_html_e('Salary:', 'job-posting-manager'); ?></strong>
-                        <span><?php echo esc_html($salary_display); ?></span>
                     </li>
                 <?php endif; ?>
                 <?php if (!empty($duration)): ?>

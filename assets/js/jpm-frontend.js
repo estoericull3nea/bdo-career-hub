@@ -1622,7 +1622,6 @@ jQuery(document).ready(function ($) {
   function performSearch(resetPage = false) {
     const searchTerm = $searchInput.val();
     const locationFilter = $("#jpm_location").val() || "";
-    const companyFilter = $("#jpm_company").val() || "";
     const currentPage = resetPage ? 1 : getCurrentPage();
 
     // Show loading state
@@ -1638,7 +1637,6 @@ jQuery(document).ready(function ($) {
         action: "jpm_filter_jobs",
         search: searchTerm,
         location: locationFilter,
-        company: companyFilter,
         per_page: 12, // Default per page
         paged: currentPage,
         nonce: jpm_ajax.nonce,
@@ -1684,7 +1682,7 @@ jQuery(document).ready(function ($) {
           updatePagination(response.data.pages || 1, currentPageNum);
 
           // Update URL without reload
-          updateURL(searchTerm, locationFilter, companyFilter, currentPageNum);
+          updateURL(searchTerm, locationFilter, currentPageNum);
         } else {
           $jobsGrid.html(
             '<div class="jpm-no-jobs"><p>' +
@@ -1725,7 +1723,7 @@ jQuery(document).ready(function ($) {
                   $resultsCount.html("<p>No jobs found.</p>");
                 }
                 updatePagination(parsed.data.pages || 1, currentPageNum);
-                updateURL(searchTerm, locationFilter, companyFilter, currentPageNum);
+                updateURL(searchTerm, locationFilter, currentPageNum);
                 return;
               }
             } catch (e) {
@@ -1749,7 +1747,7 @@ jQuery(document).ready(function ($) {
   }
 
   // Update URL without reload
-  function updateURL(search, location, company, page) {
+  function updateURL(search, location, page) {
     const url = new URL(window.location.href);
     url.searchParams.delete("jpm_search");
     url.searchParams.delete("jpm_location");
@@ -1761,9 +1759,6 @@ jQuery(document).ready(function ($) {
     }
     if (location) {
       url.searchParams.set("jpm_location", location);
-    }
-    if (company) {
-      url.searchParams.set("jpm_company", company);
     }
     if (page > 1) {
       url.searchParams.set("jpm_page", page);
@@ -1831,7 +1826,6 @@ jQuery(document).ready(function ($) {
   function getFilterParams() {
     const search = $searchInput.val() || "";
     const location = $("#jpm_location").val() || "";
-    const company = $("#jpm_company").val() || "";
     let params = "";
 
     if (search) {
@@ -1839,9 +1833,6 @@ jQuery(document).ready(function ($) {
     }
     if (location) {
       params += "&jpm_location=" + encodeURIComponent(location);
-    }
-    if (company) {
-      params += "&jpm_company=" + encodeURIComponent(company);
     }
 
     return params;
@@ -1876,7 +1867,7 @@ jQuery(document).ready(function ($) {
     });
   }
 
-  // Filter button click (for location and company filters)
+  // Filter button click (for location filter)
   if ($filterForm.length) {
     $filterForm.on("submit", function (e) {
       e.preventDefault();
@@ -1891,7 +1882,6 @@ jQuery(document).ready(function ($) {
     clearTimeout(searchTimeout);
     $searchInput.val("");
     $("#jpm_location").val("");
-    $("#jpm_company").val("");
     window.location.href = window.location.pathname;
   });
 
@@ -1909,12 +1899,10 @@ jQuery(document).ready(function ($) {
       const page = url.searchParams.get("jpm_page") || 1;
       const search = url.searchParams.get("jpm_search") || "";
       const location = url.searchParams.get("jpm_location") || "";
-      const company = url.searchParams.get("jpm_company") || "";
 
       // Update form values
       $searchInput.val(search);
       $("#jpm_location").val(location);
-      $("#jpm_company").val(company);
 
       // Perform search with new page
       $jobsGrid.html(
@@ -1928,7 +1916,6 @@ jQuery(document).ready(function ($) {
           action: "jpm_filter_jobs",
           search: search,
           location: location,
-          company: company,
           per_page: 12,
           paged: page,
           nonce: jpm_ajax.nonce,
@@ -1964,7 +1951,7 @@ jQuery(document).ready(function ($) {
             }
 
             updatePagination(response.data.pages || 1, parseInt(page));
-            updateURL(search, location, company, parseInt(page));
+            updateURL(search, location, parseInt(page));
 
             // Scroll to top of jobs grid
             $("html, body").animate(
@@ -1997,7 +1984,7 @@ jQuery(document).ready(function ($) {
                     $resultsCount.html("<p>No jobs found.</p>");
                   }
                   updatePagination(parsed.data.pages || 1, parseInt(page));
-                  updateURL(search, location, company, parseInt(page));
+                  updateURL(search, location, parseInt(page));
                   return;
                 }
               } catch (e) {
