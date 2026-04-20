@@ -3552,6 +3552,21 @@ class JPM_Admin
 
         $applications = JPM_DB::get_applications($filters);
         $has_applications = !empty($applications);
+        $total_whitelisted = count($applications);
+        $registered_count = 0;
+        $jobs_with_applications = [];
+        $with_employer_count = 0;
+        foreach ($applications as $app) {
+            if (!empty($app->user_id) && (int) $app->user_id > 0) {
+                $registered_count++;
+            }
+            if (!empty($app->job_id)) {
+                $jobs_with_applications[(int) $app->job_id] = true;
+            }
+            if (!empty($app->employer_email)) {
+                $with_employer_count++;
+            }
+        }
         $has_filters = (
             $filters['search'] !== '' ||
             $filters['job_id'] > 0 ||
@@ -3735,6 +3750,24 @@ class JPM_Admin
                 <?php esc_html_e('Applicants you marked as whitelisted from the Applications screen (accepted status only).', 'job-posting-manager'); ?>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=jpm-applications')); ?>"><?php esc_html_e('Back to all applications', 'job-posting-manager'); ?></a>
             </p>
+            <div class="jpm-dashboard-status-cards" style="display:flex;flex-wrap:wrap;gap:15px;margin:16px 0 20px;">
+                <div style="flex:1;min-width:180px;padding:15px;background:#fff;border:1px solid #ddd;border-radius:4px;">
+                    <div style="font-size:24px;font-weight:bold;color:#2271b1;margin-bottom:5px;"><?php echo esc_html((string) $total_whitelisted); ?></div>
+                    <div style="font-size:14px;color:#666;"><?php esc_html_e('Total Whitelisted', 'job-posting-manager'); ?></div>
+                </div>
+                <div style="flex:1;min-width:180px;padding:15px;background:#fff;border:1px solid #ddd;border-radius:4px;">
+                    <div style="font-size:24px;font-weight:bold;color:#2c3338;margin-bottom:5px;"><?php echo esc_html((string) count($jobs_with_applications)); ?></div>
+                    <div style="font-size:14px;color:#666;"><?php esc_html_e('Unique Jobs Applied', 'job-posting-manager'); ?></div>
+                </div>
+                <div style="flex:1;min-width:180px;padding:15px;background:#fff;border:1px solid #ddd;border-radius:4px;">
+                    <div style="font-size:24px;font-weight:bold;color:#008a20;margin-bottom:5px;"><?php echo esc_html((string) $registered_count); ?></div>
+                    <div style="font-size:14px;color:#666;"><?php esc_html_e('Registered Users', 'job-posting-manager'); ?></div>
+                </div>
+                <div style="flex:1;min-width:180px;padding:15px;background:#fff;border:1px solid #ddd;border-radius:4px;">
+                    <div style="font-size:24px;font-weight:bold;color:#d63638;margin-bottom:5px;"><?php echo esc_html((string) $with_employer_count); ?></div>
+                    <div style="font-size:14px;color:#666;"><?php esc_html_e('With Employer Contact', 'job-posting-manager'); ?></div>
+                </div>
+            </div>
 
             <?php if (!empty($report_range)): ?>
                 <div class="notice notice-info is-dismissible" style="margin-top: 12px;">
