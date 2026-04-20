@@ -3901,10 +3901,6 @@ class JPM_Admin
                         }
                     }).done(function (response) {
                         if (response.success) {
-                            if (response.data && response.data.redirect_to_whitelisted && response.data.redirect_url) {
-                                window.location.href = response.data.redirect_url;
-                                return;
-                            }
                             updateBadge($row, newStatus);
                             syncWhitelistVisibility($row, newStatus);
                             $select.data('previous', newStatus);
@@ -7197,10 +7193,6 @@ class JPM_Admin
                         },
                         success: function (response) {
                             if (response && response.success) {
-                                if (response.data && response.data.redirect_to_whitelisted && response.data.redirect_url) {
-                                    window.location.href = response.data.redirect_url;
-                                    return;
-                                }
                                 location.reload();
                             } else {
                                 alert('Error updating status');
@@ -7981,16 +7973,8 @@ class JPM_Admin
                     do_action('jpm_log_error', 'JPM Email Error: ' . $e->getMessage());
                 }
             }
-            $redirect_to_whitelisted = false;
-            if (class_exists('JPM_Status_Manager')) {
-                $redirect_to_whitelisted = JPM_Status_Manager::is_accepted_status($status);
-            } else {
-                $redirect_to_whitelisted = strtolower((string) $status) === 'accepted';
-            }
             wp_send_json_success([
                 'message' => __('Status updated successfully', 'job-posting-manager'),
-                'redirect_to_whitelisted' => $redirect_to_whitelisted,
-                'redirect_url' => $redirect_to_whitelisted ? admin_url('admin.php?page=jpm-whitelisted-applications') : '',
             ]);
         } else {
             wp_send_json_error(['message' => __('Failed to update status', 'job-posting-manager')]);
