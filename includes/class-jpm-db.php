@@ -6326,8 +6326,13 @@ class JPM_Admin
             <?php endif; ?>
 
             <div class="jpm-status-management">
-                <div class="jpm-status-form-section"
-                    style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 4px;">
+                <div style="margin-bottom: 12px;">
+                    <button type="button" class="button button-primary" id="jpm-toggle-status-form" aria-expanded="<?php echo $editing_status ? 'true' : 'false'; ?>">
+                        <?php echo $editing_status ? esc_html__('Hide Status Form', 'job-posting-manager') : esc_html__('Add New Status', 'job-posting-manager'); ?>
+                    </button>
+                </div>
+                <div class="jpm-status-form-section" id="jpm-status-form-section"
+                    style="<?php echo $editing_status ? '' : 'display:none; '; ?>margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 4px;">
                     <h2><?php echo $editing_status ? esc_html__('Edit Status', 'job-posting-manager') : esc_html__('Add New Status', 'job-posting-manager'); ?>
                     </h2>
 
@@ -6487,6 +6492,26 @@ class JPM_Admin
                 display: inline-block;
             }
         </style>
+        <script>
+            jQuery(function ($) {
+                const $toggle = $('#jpm-toggle-status-form');
+                const $panel = $('#jpm-status-form-section');
+                const addLabel = '<?php echo esc_js(__('Add New Status', 'job-posting-manager')); ?>';
+                const hideLabel = '<?php echo esc_js(__('Hide Status Form', 'job-posting-manager')); ?>';
+
+                function syncStatusFormToggle() {
+                    const isVisible = $panel.is(':visible');
+                    $toggle.attr('aria-expanded', isVisible ? 'true' : 'false');
+                    $toggle.text(isVisible ? hideLabel : addLabel);
+                }
+
+                $toggle.on('click', function () {
+                    $panel.stop(true, true).slideToggle(140, syncStatusFormToggle);
+                });
+
+                syncStatusFormToggle();
+            });
+        </script>
         <script>
             (function ($) {
                 const $name = $('#status_name');
