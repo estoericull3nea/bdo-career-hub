@@ -124,6 +124,34 @@ class JPM_Admin
     }
 
     /**
+     * Get bulk email history entries.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function get_bulk_email_history()
+    {
+        $raw = get_option('jpm_whitelist_bulk_email_history', []);
+        if (!is_array($raw)) {
+            return [];
+        }
+        return array_values($raw);
+    }
+
+    /**
+     * Append one bulk email history entry (newest first, max 200).
+     *
+     * @param array<string, mixed> $entry
+     * @return void
+     */
+    private function append_bulk_email_history($entry)
+    {
+        $history = $this->get_bulk_email_history();
+        array_unshift($history, $entry);
+        $history = array_slice($history, 0, 200);
+        update_option('jpm_whitelist_bulk_email_history', $history);
+    }
+
+    /**
      * Clear caches when post status changes
      */
     public function clear_caches_on_status_change($new_status, $old_status, $post)
@@ -816,6 +844,17 @@ class JPM_Admin
         }
 
         if ($sent_count <= 0) {
+            $this->append_bulk_email_history([
+                'sent_at' => current_time('mysql'),
+                'sent_by_id' => get_current_user_id(),
+                'sent_by_name' => wp_get_current_user()->display_name,
+                'from_email' => $from_email,
+                'subject' => $subject,
+                'selected_count' => count($application_ids),
+                'sent_count' => $sent_count,
+                'failed_count' => $failed_count,
+                'status' => 'failed',
+            ]);
             set_transient(
                 'jpm_bulk_email_err_' . get_current_user_id(),
                 __('Bulk email failed. No emails were sent.', 'job-posting-manager'),
@@ -824,6 +863,18 @@ class JPM_Admin
             wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
             exit;
         }
+
+        $this->append_bulk_email_history([
+            'sent_at' => current_time('mysql'),
+            'sent_by_id' => get_current_user_id(),
+            'sent_by_name' => wp_get_current_user()->display_name,
+            'from_email' => $from_email,
+            'subject' => $subject,
+            'selected_count' => count($application_ids),
+            'sent_count' => $sent_count,
+            'failed_count' => $failed_count,
+            'status' => $failed_count > 0 ? 'partial' : 'success',
+        ]);
 
         unset($redirect_args['bulk_email_error']);
         $redirect_args['bulk_email_sent'] = $sent_count;
@@ -857,6 +908,7 @@ class JPM_Admin
         $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';
         $offset = isset($_POST['offset']) ? absint(wp_unslash($_POST['offset'])) : 0;
         $batch_size = isset($_POST['batch_size']) ? absint(wp_unslash($_POST['batch_size'])) : 1;
+        $request_id = isset($_POST['request_id']) ? sanitize_key(wp_unslash($_POST['request_id'])) : '';
         if ($batch_size <= 0) {
             $batch_size = 1;
         }
@@ -867,6 +919,16 @@ class JPM_Admin
         }
 
         $total_count = count($application_ids);
+        $history_transient_key = 'jpm_bulk_email_run_' . get_current_user_id() . '_' . $request_id;
+        if ($request_id !== '' && $offset === 0) {
+            set_transient($history_transient_key, [
+                'sent_count' => 0,
+                'failed_count' => 0,
+                'selected_count' => $total_count,
+                'from_email' => $from_email,
+                'subject' => $subject,
+            ], 30 * MINUTE_IN_SECONDS);
+        }
         if ($offset >= $total_count) {
             wp_send_json_success([
                 'processed_count' => $total_count,
@@ -918,6 +980,40 @@ class JPM_Admin
         }
 
         $processed_count = min($offset + count($batch_ids), $total_count);
+        if ($request_id !== '') {
+            $run_data = get_transient($history_transient_key);
+            if (!is_array($run_data)) {
+                $run_data = [
+                    'sent_count' => 0,
+                    'failed_count' => 0,
+                    'selected_count' => $total_count,
+                    'from_email' => $from_email,
+                    'subject' => $subject,
+                ];
+            }
+            $run_data['sent_count'] = (int) ($run_data['sent_count'] ?? 0) + $batch_sent;
+            $run_data['failed_count'] = (int) ($run_data['failed_count'] ?? 0) + $batch_failed;
+            set_transient($history_transient_key, $run_data, 30 * MINUTE_IN_SECONDS);
+
+            if ($processed_count >= $total_count) {
+                $current_user = wp_get_current_user();
+                $total_sent = (int) ($run_data['sent_count'] ?? 0);
+                $total_failed = (int) ($run_data['failed_count'] ?? 0);
+                $this->append_bulk_email_history([
+                    'sent_at' => current_time('mysql'),
+                    'sent_by_id' => get_current_user_id(),
+                    'sent_by_name' => $current_user ? $current_user->display_name : '',
+                    'from_email' => (string) ($run_data['from_email'] ?? $from_email),
+                    'subject' => (string) ($run_data['subject'] ?? $subject),
+                    'selected_count' => (int) ($run_data['selected_count'] ?? $total_count),
+                    'sent_count' => $total_sent,
+                    'failed_count' => $total_failed,
+                    'status' => $total_sent <= 0 ? 'failed' : ($total_failed > 0 ? 'partial' : 'success'),
+                ]);
+                delete_transient($history_transient_key);
+            }
+        }
+
         wp_send_json_success([
             'processed_count' => $processed_count,
             'total_count' => $total_count,
@@ -4296,6 +4392,7 @@ class JPM_Admin
             ];
         }
         $whitelist_custom_status_catalog = array_values($whitelist_custom_status_catalog);
+        $bulk_email_history = $this->get_bulk_email_history();
         $selected_custom_status_exists = false;
         foreach ($whitelist_custom_status_catalog as $catalog_item) {
             $catalog_key = strtolower($catalog_item['name'] . '|' . $catalog_item['abbr'] . '|' . $catalog_item['bg_color'] . '|' . $catalog_item['text_color']);
@@ -5268,6 +5365,9 @@ class JPM_Admin
                             </div>
                         </div>
                         <div style="margin-top: 20px; text-align: right;">
+                            <button type="button" class="button" id="jpm-open-whitelist-bulk-email-history-modal">
+                                <?php esc_html_e('View History', 'job-posting-manager'); ?>
+                            </button>
                             <button type="button" class="button jpm-whitelist-bulk-email-cancel">
                                 <?php esc_html_e('Cancel', 'job-posting-manager'); ?>
                             </button>
@@ -5276,6 +5376,78 @@ class JPM_Admin
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <div id="jpm-whitelist-bulk-email-history-modal" class="jpm-admin-modal" style="display:none;">
+                <div class="jpm-admin-modal__backdrop"></div>
+                <div class="jpm-admin-modal__dialog" role="dialog" aria-modal="true"
+                    aria-labelledby="jpm-whitelist-bulk-email-history-title" style="max-width: 900px;">
+                    <button type="button" class="jpm-admin-modal__close"
+                        aria-label="<?php esc_attr_e('Close modal', 'job-posting-manager'); ?>">&times;</button>
+                    <h2 id="jpm-whitelist-bulk-email-history-title"><?php esc_html_e('Bulk email history', 'job-posting-manager'); ?></h2>
+                    <div style="max-height: 420px; overflow:auto;">
+                        <table class="widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e('Date', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('Sent by', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('From', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('Subject', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('Selected', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('Sent', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('Failed', 'job-posting-manager'); ?></th>
+                                    <th><?php esc_html_e('Status', 'job-posting-manager'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($bulk_email_history)): ?>
+                                    <tr>
+                                        <td colspan="8"><?php esc_html_e('No bulk email history available.', 'job-posting-manager'); ?></td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($bulk_email_history as $history_item): ?>
+                                        <?php
+                                        $sent_at = isset($history_item['sent_at']) ? (string) $history_item['sent_at'] : '';
+                                        $sent_at_display = $sent_at !== '' ? date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($sent_at)) : '—';
+                                        $sent_by_name = isset($history_item['sent_by_name']) ? (string) $history_item['sent_by_name'] : '';
+                                        $from_email = isset($history_item['from_email']) ? (string) $history_item['from_email'] : '';
+                                        $subject_line = isset($history_item['subject']) ? (string) $history_item['subject'] : '';
+                                        $selected_count = isset($history_item['selected_count']) ? (int) $history_item['selected_count'] : 0;
+                                        $sent_count = isset($history_item['sent_count']) ? (int) $history_item['sent_count'] : 0;
+                                        $failed_count = isset($history_item['failed_count']) ? (int) $history_item['failed_count'] : 0;
+                                        $status = isset($history_item['status']) ? (string) $history_item['status'] : 'unknown';
+                                        ?>
+                                        <tr>
+                                            <td><?php echo esc_html($sent_at_display); ?></td>
+                                            <td><?php echo $sent_by_name !== '' ? esc_html($sent_by_name) : '—'; ?></td>
+                                            <td><?php echo $from_email !== '' ? esc_html($from_email) : '—'; ?></td>
+                                            <td><?php echo $subject_line !== '' ? esc_html($subject_line) : '—'; ?></td>
+                                            <td><?php echo esc_html((string) $selected_count); ?></td>
+                                            <td><?php echo esc_html((string) $sent_count); ?></td>
+                                            <td><?php echo esc_html((string) $failed_count); ?></td>
+                                            <td>
+                                                <?php
+                                                if ($status === 'success') {
+                                                    echo '<span class="jpm-status-badge" style="background:#00a32a;color:#fff;">' . esc_html__('Success', 'job-posting-manager') . '</span>';
+                                                } elseif ($status === 'partial') {
+                                                    echo '<span class="jpm-status-badge" style="background:#dba617;color:#111;">' . esc_html__('Partial', 'job-posting-manager') . '</span>';
+                                                } else {
+                                                    echo '<span class="jpm-status-badge" style="background:#d63638;color:#fff;">' . esc_html__('Failed', 'job-posting-manager') . '</span>';
+                                                }
+                                                ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 16px; text-align: right;">
+                        <button type="button" class="button jpm-whitelist-bulk-email-history-close">
+                            <?php esc_html_e('Close', 'job-posting-manager'); ?>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -5567,6 +5739,9 @@ class JPM_Admin
                     function closeWhitelistBulkEmailModal() {
                         $('#jpm-whitelist-bulk-email-modal').hide();
                     }
+                    function closeWhitelistBulkEmailHistoryModal() {
+                        $('#jpm-whitelist-bulk-email-history-modal').hide();
+                    }
                     function resetWhitelistBulkEmailProgress() {
                         $('#jpm-whitelist-bulk-email-progress-wrap').hide();
                         $('#jpm-whitelist-bulk-email-progress-bar').css('width', '0%');
@@ -5646,14 +5821,23 @@ class JPM_Admin
                     $(document).on('click', '.jpm-whitelist-bulk-email-cancel, #jpm-whitelist-bulk-email-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-modal .jpm-admin-modal__backdrop', function () {
                         closeWhitelistBulkEmailModal();
                     });
+                    $('#jpm-open-whitelist-bulk-email-history-modal').on('click', function (e) {
+                        e.preventDefault();
+                        $('#jpm-whitelist-bulk-email-history-modal').show();
+                    });
+                    $(document).on('click', '.jpm-whitelist-bulk-email-history-close, #jpm-whitelist-bulk-email-history-modal .jpm-admin-modal__close, #jpm-whitelist-bulk-email-history-modal .jpm-admin-modal__backdrop', function () {
+                        closeWhitelistBulkEmailHistoryModal();
+                    });
                     $('#jpm-whitelist-bulk-email-form').on('submit', function (e) {
                         e.preventDefault();
                         const $form = $(this);
                         const $submit = $form.find('button[type="submit"]');
                         const payload = $form.serializeArray();
+                        const requestId = 'run_' + String(Date.now()) + '_' + String(Math.floor(Math.random() * 100000));
                         payload.push({ name: 'action', value: 'jpm_bulk_email_whitelisted_applications_ajax' });
                         payload.push({ name: 'offset', value: '0' });
                         payload.push({ name: 'batch_size', value: '1' });
+                        payload.push({ name: 'request_id', value: requestId });
 
                         let sentTotal = 0;
                         let failedTotal = 0;
